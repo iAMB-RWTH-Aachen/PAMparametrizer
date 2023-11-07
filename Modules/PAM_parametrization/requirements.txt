@@ -1,0 +1,6 @@
+PAModelpy
+scipy
+matplotlib
+deap
+random
+time
