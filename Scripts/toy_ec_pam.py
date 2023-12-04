@@ -107,10 +107,7 @@ S  = [R1;R2;R3;R3r;R4;R5;R6;R7;R8;R9]';
 
     return model
 
-def build_active_enzyme_sector(Config):
-    kcat_fwd = [1, 0.5, 1, 0.5 ,0.45, 1.5] #the 'original' dataset
-    # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5] #the 'final' dataset
-    kcat_fwd = [1, 0.5, 0.0581025403970049, 0.01, 0.001, 1.5]  # the 'final' dataset
+def build_active_enzyme_sector(Config, kcat_fwd: list  =[1, 0.5, 1, 0.5 ,0.45, 1.5] ):
     kcat_rev = [kcat for kcat in kcat_fwd]
     rxn2kcat = {}
     for i in range(n-3): # all reactions have an enzyme, except excretion reactions
@@ -134,7 +131,7 @@ def run_simulations(pamodel, substrate_rates):
                                        lower_bound=0, upper_bound=substrate)
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         pamodel.optimize()
-        if pamodel.solver.status == 'optimal' and model.objective.value>0:
+        if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
             results_row = []
             for rxn in ['R1', 'R7', 'R8', 'R9']:
                 results_row += [pamodel.reactions.get_by_id(rxn).flux]
@@ -142,20 +139,55 @@ def run_simulations(pamodel, substrate_rates):
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
+def evaluate_toy_model_fitness(toy_model: PAModel,
+                               reference_data_file_path:str = 'Testing/Data/toy_model_simulations_ga.csv') -> float:
+    """
+    Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
+    :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
+    """
+    print(reference_data_file_path)
+    validation_results = pd.read_csv(reference_data_file_path)
+    simulation_results = run_simulations(toy_model, [0.001, 0.091])
+
+    print(validation_results.to_markdown())
+    print(simulation_results.to_markdown())
+
+    error = []
+    for rxn in validation_results.columns[2:]:
+        for sub_upt in [0.001, 0.091]:
+            validation_result = validation_results[rxn][np.isclose(validation_results.R1_ub,sub_upt)].iloc[0]
+            simulation_result = simulation_results[rxn][simulation_results['R1_ub'] == sub_upt].iloc[0]
+            error += [validation_result - simulation_result]
+    return sum(error)/len(error)
+
+
 if __name__ == "__main__":
     model = build_toy_gem()
-    active_enzyme = build_active_enzyme_sector(Config)
+    # kcat_fwd = [1,0.5,16.05738187191836, 7.859824324870695, 85.37867736692891, 1.5]
+
+    # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
+    active_enzyme = build_active_enzyme_sector(Config)#, kcat_fwd=kcat_fwd)
     unused_enzyme = build_unused_protein_sector(Config)
     translation_enzyme = build_translational_protein_sector(Config)
     pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
                       translational_sector = translation_enzyme,
                       unused_sector = unused_enzyme, p_tot=Etot, configuration=Config)
 
+
     #optimize biomass formation
     pamodel.objective={pamodel.reactions.get_by_id('R7') :1}
+    print(evaluate_toy_model_fitness(pamodel))
 
-    substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
-
-    simulation_results = run_simulations(pamodel, substrate_rates)
-    # simulation_results.to_csv(RESULT_DF_FILE)
-    print(simulation_results.to_markdown())
+    # substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
+    #
+    # simulation_results = run_simulations(pamodel, substrate_rates)
+    # # simulation_results.to_csv(RESULT_DF_FILE)
+    # print(simulation_results.to_markdown())
+    #
+    #
+    # pamodel.change_kcat_value('E4', {'R4':{'f':10, 'b':10}})
+    # simulation_results = run_simulations(pamodel, substrate_rates)
+    # # simulation_results.to_csv(RESULT_DF_FILE)
+    # print(simulation_results.to_markdown())
+    #
+    # print(evaluate_toy_model_fitness(pamodel))

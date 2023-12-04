@@ -1,0 +1,9 @@
+README.md
+setup.py
+Evaluation/Fitfun_params.py
+Evaluation/__init__.py
+genetic_algorithm_parametrization.egg-info/PKG-INFO
+genetic_algorithm_parametrization.egg-info/SOURCES.txt
+genetic_algorithm_parametrization.egg-info/dependency_links.txt
+genetic_algorithm_parametrization.egg-info/requires.txt
+genetic_algorithm_parametrization.egg-info/top_level.txt

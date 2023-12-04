@@ -74,7 +74,7 @@ class Genetic_Algorithm():
 
 
     # main genetic algorithm iterations
-    def main(self, pop, toolbox, start_time, fitness_dict={}, pop_id="") -> (list, dict):
+    def main(self, pop, toolbox, start_time, fitfun, fitness_dict={}, pop_id="") -> (list, dict):
         """Main genetic algorithm framework
         - supports elitism
         - mutation operator
@@ -85,6 +85,7 @@ class Genetic_Algorithm():
             :param list pop: Individuals of a population
             :param deap.base.Toolbox toolbox: DEAP's toolbox class
             :param time.time.time start_time: Start time of the genetic algorithm run
+            :param FitnessEvaluation fitfun: fitness object to determine mutation distribution
             :param dict fitness_dict: Fitness function values of individuals. Keys
                                         are hashable identifier of an individual
             :param str pop_id: Identifier of a population
@@ -117,7 +118,7 @@ class Genetic_Algorithm():
             # get best individual of population for elitism
             elite = pop[0]
             for ind in pop:
-                if ind.fitness._wsum() > elite.fitness._wsum():
+                if ind.fitness._wsum() < elite.fitness._wsum():
                     # new best solution, swap
                     elite = ind
             #make clones of the elite individuals
@@ -138,6 +139,7 @@ class Genetic_Algorithm():
                 # cross the kcat_lists of two individuals with probability CXPB
                 if random.random() < self.crossover_probability:
                     child1.kcat_list, child2.kcat_list =toolbox.mate(child1.kcat_list, child2.kcat_list)
+
         
                     # fitness values of the children
                     # must be recalculated later
@@ -151,17 +153,15 @@ class Genetic_Algorithm():
                 if random.random() < self.mutation_probability:
                     # mutate an individual with a mutation rate based on the sensitivity of the individual enzymes
                     # the new value is samples from a gaussian distribution with mu being the original kcat value and
-                    # sigma being inversely related to the r_squared value
-                    if mutant.r_squared<=0:
-                        #if the predictions are really bad
-                        sigma = 1/np.mean(mutant.kcat_list)
-                    else:
-                        sigma = 1/mutant.r_squared
-                    print(mutant.r_squared)
-                    print(sigma)
-                    new_kcats =[toolbox.mutate([mutant.kcat_list[i]], mu=mutant.kcat_list[i], sigma = sigma,
-                                   indpb=self.mutation_probability*(1-sens))[0][0] for i, sens in enumerate(mutant.sensitivities)]
-                    mutant.kcat_list= [kcat if kcat>0 else 0.001 for kcat in new_kcats ]
+                    # sigma being related to the kcat value to stay in sync with the order of magnitude of the original kcat
+                    new_kcats = [fitfun._mutate_kcat_value(kcat=kcat,
+                                                                    sensitivity=sens,
+                                                                    toolbox=toolbox)
+                                 for kcat, sens in zip(mutant.kcat_list, mutant.sensitivities)]
+                    # new_kcats =[toolbox.mutate([mutant.kcat_list[i]], mu=mutant.kcat_list[i], sigma = mutant.kcat_list[i]/10,
+                    #                indpb=(1-sens))[0][0] for i, sens in enumerate(mutant.sensitivities)]
+                    #make sure kcat is always positive
+                    mutant.kcat_list= [kcat if kcat>0 else 0.001 for kcat in new_kcats]
                     del mutant.fitness.values
         
             # Evaluate the individuals with an invalid fitness
@@ -178,7 +178,7 @@ class Genetic_Algorithm():
                         invalid_ind.append(ind)
 
             
-            fitnesses = map(toolbox.evaluate, invalid_ind,)
+            fitnesses = map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
                 # store fitness

@@ -27,7 +27,7 @@ from deap import base
 from deap import creator
 from deap import tools
 
-from genetic_algorithm_suite.ga_param import Genetic_Algorithm
+from genetic_algorithm_parametrization.ga_param import Genetic_Algorithm
 
 # anonymus function for printing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
@@ -36,9 +36,9 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 class GAPO():
     
     def __init__(self, model=None,
-                 enzymes_to_eval: dict = {}, #dict of enz.id:{reaction, kcat, sensitivity}
+                 enzymes_to_eval: dict = {},  #dict of enz.id:{reaction, kcat, sensitivity}
                  r_squared: float = 1,
-                 fitness_class = "MGenes",
+                 fitness_class = "Fitfun_params",
                  mutation_probability=0.5, mutation_rate=0.05, population_size=30,
                  crossover_probability=0.8, number_generations=20, number_gene_flow_events=10,
                  processes=2, time_limit=600, init_attribute_probability=0,
@@ -46,6 +46,7 @@ class GAPO():
                  folderpath_save=Path("Results"), filename_save="ga_results",
                  overwrite_intermediate_results=True,
                  objective_id = 'BIOMASS', valid_df = pd.DataFrame(),
+                 sigma_denominator:int=10,
                  substrate_uptake_rates = [0.7,11.3], substrate_uptake_id = 'EX_glc__D_e'):
         
         if not model:
@@ -127,7 +128,7 @@ class GAPO():
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
             # load preinstalled module
-            self.fitness_class = importlib.import_module("genetic_algorithm_suite.Evaluation."+fitness_class)
+            self.fitness_class = importlib.import_module("genetic_algorithm_parametrization.Evaluation."+fitness_class)
         else:
             self.fitness_class = fitness_class
 
@@ -139,6 +140,7 @@ class GAPO():
             processes=processes,
             fixed_attr_list=fixed_attributes,
             valid_data_df = valid_df,
+            sigma_denominator = sigma_denominator,
             objective_id = objective_id,
             substrate_uptake_rates = substrate_uptake_rates,
             substrate_uptake_id = substrate_uptake_id)
@@ -379,7 +381,7 @@ class GAPO():
             print("Start genetic algorithm --")
             with Pool(processes=self.processes) as pool:
                 # distribute populations to separate workers
-                gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, fitness_dict, str(i+1)) for i in range(len(pops))])
+                gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, fitness_dict, str(i+1)) for i in range(len(pops))])
 
                 # extract populations
                 print("Postprocess evolved population --")

@@ -3,4 +3,6 @@ scipy
 matplotlib
 deap
 random
-time
+timepip
+gurobipy
+scipy

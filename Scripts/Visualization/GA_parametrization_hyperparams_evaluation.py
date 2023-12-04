@@ -49,7 +49,7 @@ def run_GA_custom_hyperparams(hyperparams:dict = hyperparameters_defaults):
 
     return {'kcats': best_indiv_kcats, 'error':best_r2}
 
-def hyperparam_range(hyperparameter: str, range: np.arange):
+def hyperparam_range(hyperparameter: str, range: np.arange, save:bool=False):
     results = {}
     for param in range:
         #converting np.int or np.float to normal int or float
@@ -73,7 +73,7 @@ def hyperparam_range(hyperparameter: str, range: np.arange):
         results[param] ={**results[param], 'time':comp_time}
     reversed_results = reverse_nested_dictionary(results)
 
-    plot_hyperparams(reversed_results, parameter= hyperparameter,save=True)
+    plot_hyperparams(reversed_results, parameter= hyperparameter,save=save)
 
 def reverse_nested_dictionary(dict_to_reverse:dict, new_key:str='parameter')->dict:
     """
@@ -158,6 +158,9 @@ def plot_hyperparams(result_dict:dict,parameter:str = 'hyperparameter', save:boo
 
 if __name__ == '__main__':
     #do simulations with different hyperparameters to see which one would be the best
-    for param in hyperparameters.keys():
-        hyperparam_range(param, hyperparameters[param])
+    i=0
+    while i<1:
+        for param in hyperparameters.keys():
+            hyperparam_range(param, hyperparameters[param], save =False)
+            i+=1
 

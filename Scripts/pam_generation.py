@@ -8,12 +8,12 @@ from PAModelpy.PAModel import PAModel
 from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector
 from PAModelpy.configuration import Config
 
-from toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
+from Scripts.toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
 
 'Function library for making Protein Allocation Models as described in the publication'
 
 
-def set_up_toy_pam(sensitivity =True):
+def setup_toy_pam(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 1.5]) -> PAModel:
     config = Config()
     #setting the configuration for the toy model
     config.BIOMASS_REACTION = 'R7'
@@ -23,7 +23,7 @@ def set_up_toy_pam(sensitivity =True):
 
     Etot = 0.6*1e-3
     model = build_toy_gem()
-    active_enzyme = build_active_enzyme_sector(config)
+    active_enzyme = build_active_enzyme_sector(config, kcat_fwd)
     unused_enzyme = build_unused_protein_sector(config)
     translation_enzyme = build_translational_protein_sector(config)
     pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,

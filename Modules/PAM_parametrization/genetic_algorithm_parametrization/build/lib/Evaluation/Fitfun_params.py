@@ -125,17 +125,13 @@ class FitnessEvaluation():
             return
 
         for i, kcat in enumerate(individual.kcat_list):
-            if random.random() >= probability*individual.sensitivities[i]:
+            #use the sensitivity as mutation probability
+            if random.random() <= individual.sensitivities[i]:
                 #scale needs to be positive, so prevent negative values
-                if individual.r_squared<0:
-                    scale = abs(kcat) * 1/0.1
-                else:
-                    scale = abs(kcat) * 1/individual.r_squared
-                new_kcat = np.random.normal(loc= kcat, scale= scale)
-                #kcats cannot be negative, if the random sample is negative, replace by a small kcat value
-                if new_kcat <= 0:
-                    new_kcat = 0.001
-                individual.kcat_list[i] = new_kcat
+                # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
+                # as the kcat is
+                new_kcat = np.random.normal(loc= kcat, scale= abs(kcat)/10)
+                individual.kcat_list[i] = abs(new_kcat) #new kcat value should always be positive
 
         return individual
     
