@@ -52,8 +52,7 @@ class GAPO():
         if not model:
             self.model = model
         else:
-            self.model = model.copy()
-
+            self.model = model
         #store information for initialization of the population
         self.rxns = list()
         self.kcat_list = list()
@@ -144,7 +143,6 @@ class GAPO():
             objective_id = objective_id,
             substrate_uptake_rates = substrate_uptake_rates,
             substrate_uptake_id = substrate_uptake_id)
-
         
         self._init_deap_fitness() # initialize the fitness function
         self._init_deap_individual(r_squared) # initialize deap individual representation
@@ -161,7 +159,8 @@ class GAPO():
         print("({}) Initialize DEAP toolbox --".format(print_time()))
 
         self.toolbox = self._init_deap_toolbox() # initialize the toolbox
-        
+        pop = self.ga.init_pop(self.toolbox, self.population_size, True)
+
         # save evaluation class
         with open(self.folderpath_save.joinpath(self.filename_save+".pickle"), "wb") as f:
             pickle.dump(self.FitEval, f)
@@ -303,14 +302,15 @@ class GAPO():
         toolbox = base.Toolbox()
         
         # individual generator: mutating the list of kcat values
-        toolbox.register("individual_generator", self.FitEval.attribute_generator,
-                         self.init_attribute_probability)
+        toolbox.register("attr_generator", self.FitEval.attribute_generator,
+                         self.init_attribute_probability, self.kcat_list)
         
 
         # register individual representation
         param_attr = self.FitEval.init_attribute(self.enzymes_to_eval)
 
-        toolbox.register("individual", toolbox.individual_generator, creator.Individual)
+        toolbox.register("individual",  tools.initRepeat, creator.Individual,
+                         toolbox.attr_generator,  param_attr["number_attributes"])
         
         # define the population to be a list of individuals
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -324,7 +324,7 @@ class GAPO():
         
         # register a mutation operator with a probability to
         # flip an attribute
-        toolbox.register("mutate", tools.mutGaussian, indpb=self.mutation_rate)
+        toolbox.register("mutate", tools.mutGaussian,indpb=self.mutation_rate)
         
         # operator for selecting individuals for breeding the next
         # generation: each individual of the current generation
@@ -341,9 +341,11 @@ class GAPO():
         
         # create individuals representing metabolic genes as variables/targets
         param_ind = self.FitEval.init_individual()
-        creator.create("Individual", param_ind["individual_type"], model =self.model.copy(),
+        new_model = self.model.copy()
+        new_model.change_total_protein_constraint(p_tot = self.model.p_tot)
+        creator.create("Individual", param_ind["individual_type"], model =new_model,
                        fitness=creator.FitnessObj(), reactions = self.rxns, enzymes_to_eval = self.enzymes_to_eval,
-                       kcat_list = self.kcat_list, sensitivities = self.sensitivity_list, r_squared = r_squared)
+                       kcat_list = self.kcat_list, r_squared = r_squared)
         
     def _init_deap_fitness(self):
         
@@ -375,13 +377,15 @@ class GAPO():
                     # randomly pick an individual from the total set of individuals
                     pops[pop_idx][ind_idx] = unq_pop[shuffled_idx[unq_ind_idx]]
                     unq_ind_idx += 1
-                    
+
+            # self.ga.main(pops[0], toolbox, start_time, self.FitEval,  fitness_dict, '1')
                
             # multiprocessing
             print("Start genetic algorithm --")
             with Pool(processes=self.processes) as pool:
                 # distribute populations to separate workers
-                gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, fitness_dict, str(i+1)) for i in range(len(pops))])
+                gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
+                                                           self.kcat_list, fitness_dict, str(i+1)) for i in range(len(pops))])
 
                 # extract populations
                 print("Postprocess evolved population --")

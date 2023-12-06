@@ -3,10 +3,17 @@ import pytest
 import os
 import pandas as pd
 from io import StringIO
+import sys
 
-from Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
-from Scripts.toy_ec_pam import evaluate_toy_model_fitness
-from Scripts.pam_generation import setup_toy_pam
+sys.path.append(os.path.abspath(os.path.dirname(
+    os.path.dirname( #PAM project dir
+        os.path.dirname( #project dir
+            os.path.dirname( #testing dir
+                os.path.dirname(__file__))))))) #this dir
+
+from  Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
+from  Scripts.toy_ec_pam import evaluate_toy_model_fitness
+from  Scripts.pam_generation import setup_toy_pam
 
 
 
@@ -29,12 +36,16 @@ class TestGaParam(unittest.TestCase):
         population = toolbox.population(n=1)
 
         # Act
+        print(population)
         population = toy_ga.evaluate_pop(population, toolbox)
         fitness_simulated = population[0].fitness.values[0]
-
+        # fitness = evaluate_toy_model_fitness(population[0].model,reference_data_file_path = RESULT_DF_FILE)
+        # print(fitness)
         # Assert
         #adjust for altered kcat_values
+        print(population[0].kcat_list, fitness_simulated)
         toy_pam = setup_toy_pam(kcat_fwd = [1, 0.5]+population[0].kcat_list+[1.5])
+
         fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file_path = RESULT_DF_FILE)
 
         #1e-6 is solver feasibility tolerance

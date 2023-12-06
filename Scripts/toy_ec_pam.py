@@ -145,12 +145,9 @@ def evaluate_toy_model_fitness(toy_model: PAModel,
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
     """
-    print(reference_data_file_path)
     validation_results = pd.read_csv(reference_data_file_path)
     simulation_results = run_simulations(toy_model, [0.001, 0.091])
 
-    print(validation_results.to_markdown())
-    print(simulation_results.to_markdown())
 
     error = []
     for rxn in validation_results.columns[2:]:
@@ -163,7 +160,7 @@ def evaluate_toy_model_fitness(toy_model: PAModel,
 
 if __name__ == "__main__":
     model = build_toy_gem()
-    # kcat_fwd = [1,0.5,16.05738187191836, 7.859824324870695, 85.37867736692891, 1.5]
+    # kcat_fwd = [1,0.5,0.8534160691256132, 0.476584938317346, 0.4807903746655912, 1.5]
 
     # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
     active_enzyme = build_active_enzyme_sector(Config)#, kcat_fwd=kcat_fwd)

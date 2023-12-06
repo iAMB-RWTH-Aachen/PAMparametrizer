@@ -125,7 +125,7 @@ class FitnessEvaluation():
     ##########################################################################
     # DEAP-RELATED FUNCTIONS
     ##########################################################################
-    def attribute_generator(self, probability=0, individual = None) -> int:
+    def attribute_generator(self, probability=0, kcat_list = []) -> int:
         """Generates an attribute of a DEAP individual and is part of the 
         mutation operator
         
@@ -136,24 +136,22 @@ class FitnessEvaluation():
             :param int attr: representation of an attribute
         
         """
-        if individual is None:
-            return
 
-        if individual.kcat_list == []:
+        if kcat_list == []:
             kcats = np.random.lognormal(mean = np.log10(self.KCAT_MU), sigma = np.log10(self.KCAT_SIGMA), size = self.NUM_KCATS)
-            individual.kcat_list = list(kcats)
-            return
+            # individual.kcat_list = list(kcats)
+            return kcats
 
-        for i, kcat in enumerate(individual.kcat_list):
+        for i, kcat in enumerate(kcat_list):
             #use the sensitivity as mutation probability
-            if random.random() <= individual.sensitivities[i]:
+            if random.random() <= probability:
                 #scale needs to be positive, so prevent negative values
                 # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
                 # as the kcat is
                 new_kcat = self._mutate_kcat_value(kcat)
-                individual.kcat_list[i] = abs(new_kcat) #new kcat value should always be positive
+                kcat_list[i] = abs(new_kcat) #new kcat value should always be positive
 
-        return individual
+        return kcat_list
     
 
     def init_fitness(self) -> dict:
@@ -271,19 +269,20 @@ class FitnessEvaluation():
                                   {individual.reactions[i]:
                                        {'f':individual.kcat_list[i]/(3600*1e-6), 'b':individual.kcat_list[i]/(3600*1e-6)}})
                 model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]}) #TODO remove after PAModelpy update
-
+                model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
+                    {rxn.reverse_variable: 1 / individual.kcat_list[i]})
             # perform simulations
             for rate in self.substrate_uptake_rates:
 
                 model.change_reaction_bounds(self.substrate_uptake_id,
-                                                  lower_bound = rate, upper_bound = rate)
+                                                  lower_bound = 0, upper_bound = rate)
                 model.slim_optimize(error_value=0)
-                print(model.objective.value, individual.kcat_list)
                 if model.solver.status != 'optimal':error = 1e2
                 # calculate fitness (sum of simulation error to reactions with data)
-                else: error = self._calculate_simulation_error(model)
+                else: error = self._calculate_simulation_error(model, substrate_uptake=rate)
 
                 fitness_list += [error]
+
             #average fitness:
             fitness = float(np.mean(fitness_list))
             individual.r_squared = fitness
@@ -304,7 +303,7 @@ class FitnessEvaluation():
     # CUSTOM HELPER FUNCTIONS
     ##########################################################################
     
-    def _calculate_simulation_error(self, model):
+    def _calculate_simulation_error(self, model, substrate_uptake:float):
         error = []
         for rxn in self.reactions_with_data + self.growth_rate:
             #only select the rows which are filled with data
@@ -314,15 +313,14 @@ class FitnessEvaluation():
             if len(ref_data_rxn) == 0: continue
 
             #select the right substrate uptake rate
-            sub_uptake = model.reactions.get_by_id(self.substrate_uptake_id).flux
-            ref_data_rxn = ref_data_rxn[np.isclose(ref_data_rxn[self.substrate_uptake_id + '_ub'] ,sub_uptake)|
-                np.isclose(ref_data_rxn[self.substrate_uptake_id], sub_uptake)]
+            ref_data_rxn = ref_data_rxn[np.isclose(ref_data_rxn[self.substrate_uptake_id + '_ub'] ,substrate_uptake)|
+                np.isclose(ref_data_rxn[self.substrate_uptake_id], substrate_uptake)]
 
             # calculate difference between simulations and validation data
             ref_data_rxn = ref_data_rxn.assign(simulation=model.reactions.get_by_id(rxn).flux)
 
             # error: squared difference
-            ref_data_rxn = ref_data_rxn.assign(error=lambda x: abs((x'toy_model_simulations_ga.csv'[rxn] - x['simulation'])))
+            ref_data_rxn = ref_data_rxn.assign(error=lambda x: abs((x[rxn] - x['simulation'])))
             error += [ref_data_rxn.error.mean()]
 
         return sum(error)/len(error)

@@ -3,25 +3,30 @@ import os
 from PAModelpy.Enzyme import Enzyme
 
 import pandas as pd
-import numpy as np
+import sys
 
 from genetic_algorithm_parametrization.core_parametrization import GAPO as GA
 
 import cobra
 from pathlib import Path
-
-from Scripts.pam_generation import setup_toy_pam
+from PAM_Parametrization.Scripts.pam_generation import setup_toy_pam
 
 
 #start kcat: [1, 0.5, 1, 0.5 ,0.45, 1.5]
 #aimed end kcat: [1, 0.5, 5, 0.1, 0.25, 1.5]
-kcat_start = [i/5 for i in [1, 0.5, 1, 0.5 ,0.45, 1.5]]
+kcat_start = [i/10 for i in [1, 0.5, 1, 0.5 ,0.45, 1.5]]
 
 pamodel = setup_toy_pam(kcat_fwd=kcat_start)
 # print(pamodel.enzymes)
 
+DATA_DIR = os.path.join(os.path.split(os.getcwd())[0], 'Data')
+RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
+
+valid_data_df = pd.read_csv(RESULT_DF_FILE)
+
 # %% initialize genetic algorithm
-def init_toy_parametrization_ga(valid_data_df:pd.DataFrame, mutation_probability:float = 0.5, # probability with which an individual (solution) is mutated in a generation
+def init_toy_parametrization_ga(valid_data_df:pd.DataFrame = valid_data_df,
+                                mutation_probability:float = 0.5, # probability with which an individual (solution) is mutated in a generation
     mutation_rate:float = 0.01, # probability with which an attribute (e.g. gene) of an individual is mutated
     population_size:int = 10, # number of individuals (solution) per population
     crossover_probability:float = 0.8, # probability with which two indivduals/offsprings are crossed over
@@ -30,6 +35,11 @@ def init_toy_parametrization_ga(valid_data_df:pd.DataFrame, mutation_probability
                                  # populations independently evolved on parallel workers
     init_attribute_probability:float=0.001,
     sigma_denominator:int=10) -> GA:
+
+    kcat_start = [i / 5 for i in [1, 0.5, 1, 0.5, 0.45, 1.5]]
+
+    pamodel = setup_toy_pam(kcat_fwd=kcat_start)
+    print('setting up GA')
 
     ga = GA(
         model=pamodel, # Metabolic model,
@@ -62,10 +72,10 @@ def init_toy_parametrization_ga(valid_data_df:pd.DataFrame, mutation_probability
 # %% start optimization
 if __name__ == "__main__":
     # Reference data from toy model simulations:
-    DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'Testing', 'Data')
+    DATA_DIR = os.path.join(os.path.split(os.getcwd())[0],'Data')
     RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
 
-    valid_data_df = pd.read_csv('toy_model_simulations_ga.csv')
+    valid_data_df = pd.read_csv(RESULT_DF_FILE)
     # start genetic algorithm
     ga = init_toy_parametrization_ga(valid_data_df = valid_data_df)
     ga.start()

@@ -74,7 +74,7 @@ class Genetic_Algorithm():
 
 
     # main genetic algorithm iterations
-    def main(self, pop, toolbox, start_time, fitfun, fitness_dict={}, pop_id="") -> (list, dict):
+    def main(self, pop, toolbox, start_time, fitfun, sensitivities, kcat_list, fitness_dict={}, pop_id="") -> (list, dict):
         """Main genetic algorithm framework
         - supports elitism
         - mutation operator
@@ -157,11 +157,14 @@ class Genetic_Algorithm():
                     new_kcats = [fitfun._mutate_kcat_value(kcat=kcat,
                                                                     sensitivity=sens,
                                                                     toolbox=toolbox)
-                                 for kcat, sens in zip(mutant.kcat_list, mutant.sensitivities)]
+                                 for kcat, sens in zip(kcat_list, sensitivities)]
                     # new_kcats =[toolbox.mutate([mutant.kcat_list[i]], mu=mutant.kcat_list[i], sigma = mutant.kcat_list[i]/10,
                     #                indpb=(1-sens))[0][0] for i, sens in enumerate(mutant.sensitivities)]
                     #make sure kcat is always positive
                     mutant.kcat_list= [kcat if kcat>0 else 0.001 for kcat in new_kcats]
+                    for i in range(len(new_kcats)):
+                        mutant[i] = mutant.kcat_list[i]
+                    # mutant = [kcat if kcat>0 else 0.001 for kcat in new_kcats]
                     del mutant.fitness.values
         
             # Evaluate the individuals with an invalid fitness
