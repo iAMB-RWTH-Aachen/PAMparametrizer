@@ -157,7 +157,7 @@ class Genetic_Algorithm():
                     new_kcats = [fitfun._mutate_kcat_value(kcat=kcat,
                                                                     sensitivity=sens,
                                                                     toolbox=toolbox)
-                                 for kcat, sens in zip(kcat_list, sensitivities)]
+                                 for kcat, sens in zip(mutant.kcat_list, sensitivities)]
                     # new_kcats =[toolbox.mutate([mutant.kcat_list[i]], mu=mutant.kcat_list[i], sigma = mutant.kcat_list[i]/10,
                     #                indpb=(1-sens))[0][0] for i, sens in enumerate(mutant.sensitivities)]
                     #make sure kcat is always positive

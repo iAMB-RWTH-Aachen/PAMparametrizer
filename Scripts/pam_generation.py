@@ -14,7 +14,6 @@ from .toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_transla
 
 
 def setup_toy_pam(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 1.5]) -> PAModel:
-    print('setting up!')
     config = Config()
     #setting the configuration for the toy model
     config.BIOMASS_REACTION = 'R7'

@@ -5,6 +5,7 @@ Genetic algorithm (GA) for the prediction genome reduction paths based on metabo
 
 """
 
+from typing import Union
 # Disable gurobi logging output
 try:
     import gurobipy
@@ -186,15 +187,14 @@ class GAPO():
         
         
     
-    def restart(self, filepath_previous_pop):
+    def restart(self, filepath_previous_pop: Union[list, str]):
         """Restart genetic algorithm with the final population from a preceeding run
         
         Inputs:
-            :param pathlib.Path filepath_previous_pop: Path to previous genetic algorithm results
+            :param pathlib.Path filepath_previous_pop: list with paths to previous genetic algorithm results
             
         Outputs:
-            
-        
+
         
         """
         
@@ -207,13 +207,16 @@ class GAPO():
         start_time = time()
         
         print("({}) Load previous population data --".format(print_time()))
+        if isinstance(filepath_previous_pop, str): filepath_previous_pop = [filepath_previous_pop]
         # load previous final population data
-        if isinstance(filepath_previous_pop, str):
-            # get Path to file
-            filepath_previous_pop = Path(filepath_previous_pop)
-            
-        with open(filepath_previous_pop, "r") as f:
-            pop_previous_dict = json.load(f)
+        pop_previous_dict = {}
+        for i, file_path in enumerate(filepath_previous_pop):
+            if isinstance(file_path, str):
+                # get Path to file
+                filepath_previous_pop[i] = Path(file_path)
+
+            with open(file_path, "r") as f:
+                pop_previous_dict = {**pop_previous_dict, **json.load(f)}
             
         self.pop_previous_dict = pop_previous_dict 
         
@@ -324,18 +327,21 @@ class GAPO():
         
         # register a mutation operator with a probability to
         # flip an attribute
-        toolbox.register("mutate", tools.mutGaussian,indpb=self.mutation_rate)
+        toolbox =self._init_deap_toolbox_mutation(toolbox)
         
         # operator for selecting individuals for breeding the next
         # generation: each individual of the current generation
         # is replaced by the 'fittest' (best) of three individuals
         # drawn randomly from the current generation.
         toolbox.register("select", tools.selWorst)#, tournsize=2)
-    
-        
-        
+
         return toolbox
-    
+
+    def _init_deap_toolbox_mutation(self, toolbox):
+        # register a mutation operator with a probability to
+        # flip an attribute
+        toolbox.register("mutate", tools.mutGaussian, indpb=self.mutation_rate)
+        return toolbox
     
     def _init_deap_individual(self, r_squared):
         

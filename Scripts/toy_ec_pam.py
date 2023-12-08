@@ -139,16 +139,17 @@ def run_simulations(pamodel, substrate_rates):
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
-def evaluate_toy_model_fitness(toy_model: PAModel,
+def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.091],
                                reference_data_file_path:str = 'Testing/Data/toy_model_simulations_ga.csv') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
     """
     validation_results = pd.read_csv(reference_data_file_path)
-    simulation_results = run_simulations(toy_model, [0.001, 0.091])
+    simulation_results = run_simulations(toy_model, substrate_rates)
 
-
+    print(simulation_results.to_markdown())
+    print(validation_results.to_markdown())
     error = []
     for rxn in validation_results.columns[2:]:
         for sub_upt in [0.001, 0.091]:
@@ -160,7 +161,7 @@ def evaluate_toy_model_fitness(toy_model: PAModel,
 
 if __name__ == "__main__":
     model = build_toy_gem()
-    # kcat_fwd = [1,0.5,0.8534160691256132, 0.476584938317346, 0.4807903746655912, 1.5]
+    # kcat_fwd = [1,0.5,2.3202676809732568, 0.00022332736693788058, 0.06080483962749876, 1.5]
 
     # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
     active_enzyme = build_active_enzyme_sector(Config)#, kcat_fwd=kcat_fwd)
@@ -173,7 +174,7 @@ if __name__ == "__main__":
 
     #optimize biomass formation
     pamodel.objective={pamodel.reactions.get_by_id('R7') :1}
-    print(evaluate_toy_model_fitness(pamodel))
+    print(evaluate_toy_model_fitness(pamodel, substrate_rates=list(np.arange(1e-3, 1e-1, 1e-2))))
 
     # substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
     #

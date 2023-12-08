@@ -36,14 +36,11 @@ class TestGaParam(unittest.TestCase):
         population = toolbox.population(n=1)
 
         # Act
-        print(population)
         population = toy_ga.evaluate_pop(population, toolbox)
         fitness_simulated = population[0].fitness.values[0]
-        # fitness = evaluate_toy_model_fitness(population[0].model,reference_data_file_path = RESULT_DF_FILE)
-        # print(fitness)
+
         # Assert
         #adjust for altered kcat_values
-        print(population[0].kcat_list, fitness_simulated)
         toy_pam = setup_toy_pam(kcat_fwd = [1, 0.5]+population[0].kcat_list+[1.5])
 
         fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file_path = RESULT_DF_FILE)

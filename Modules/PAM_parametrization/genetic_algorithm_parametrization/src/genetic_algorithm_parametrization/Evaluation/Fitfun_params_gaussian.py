@@ -54,21 +54,19 @@ class FitnessEvaluation():
 
         #initiate reference values
         valid_data_df = valid_data_df.round({substrate_uptake_id: 5}) #round the substrate uptake ids for easy matching
-        values_to_select = substrate_uptake_rates
-        # check if the values are close, because of floating point errors this can deviate
+        values_to_select = [round(rate, 5) for rate in substrate_uptake_rates]
         self.ref_data = valid_data_df[
-            np.isclose(valid_data_df[substrate_uptake_id+'_ub'], values_to_select[0]) | np.isclose(
-                valid_data_df[substrate_uptake_id+'_ub'],
-                values_to_select[1])]
-
+            valid_data_df[substrate_uptake_id + '_ub'].apply(lambda x: any(np.isclose(x, v) for v in values_to_select))
+        ]
 
         # only get exchanges and growth rate
         self.growth_rate = [data for data in valid_data_df.columns if data.split('_')[0] == objective_id]
+        self.valid_data_df = valid_data_df
         self.reactions_with_data = [data for data in valid_data_df.columns if model.reactions.has_id(data)]
 
         # set the proper identifiers
         self.substrate_uptake_id = substrate_uptake_id
-        self.substrate_uptake_rates = substrate_uptake_rates
+        self.substrate_uptake_rates = [round(rate, 6) for rate in substrate_uptake_rates]
 
         # set the factor determining the spread of the normal distribution from which new kcat values will be sampled
         self.sigma_denominator = sigma_denominator
@@ -313,8 +311,8 @@ class FitnessEvaluation():
             if len(ref_data_rxn) == 0: continue
 
             #select the right substrate uptake rate
-            ref_data_rxn = ref_data_rxn[np.isclose(ref_data_rxn[self.substrate_uptake_id + '_ub'] ,substrate_uptake)|
-                np.isclose(ref_data_rxn[self.substrate_uptake_id], substrate_uptake)]
+            ref_data_rxn = ref_data_rxn[np.isclose(ref_data_rxn[self.substrate_uptake_id + '_ub'] ,substrate_uptake)]#|
+            # np.isclose(ref_data_rxn[self.substrate_uptake_id], substrate_uptake)]
 
             # calculate difference between simulations and validation data
             ref_data_rxn = ref_data_rxn.assign(simulation=model.reactions.get_by_id(rxn).flux)

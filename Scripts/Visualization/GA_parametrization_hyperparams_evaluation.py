@@ -6,14 +6,17 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 
+
 #ignoring infeasible warnings for cleaner output
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-os.chdir('../Testing/Genetic_algorithm_tests/')
+os.chdir('..')
+from PAM_Parametrization.Scripts.genetic_algorithm_analysis import get_kcat_error_from_ga, reverse_nested_dictionary
 
-
+os.chdir('Testing/Genetic_algorithm_tests/')
 from PAM_Parametrization.Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
+
 
 sys.path.append('../../Visualization')
 
@@ -41,13 +44,7 @@ hyperparameters_defaults = {'mutation_probability' : 0.5, # probability with whi
 def run_GA_custom_hyperparams(hyperparams:dict = hyperparameters_defaults):
     ga = init_toy_parametrization_ga(**hyperparams)
     ga.start()
-    result_path = str(ga.folderpath_save.joinpath(ga.filename_save)) + '.xlsx'
-    results = pd.read_excel(result_path, sheet_name='final_population').sort_values(by=['fitness_weighted_sum'],ascending=False)
-
-    best_indiv_kcats = [float(kcat) for kcat in results.iloc[0][['attributes']].iloc[0].split(',')]
-    best_r2 = results.iloc[0][['fitness_weighted_sum']].iloc[0]
-
-    return {'kcats': best_indiv_kcats, 'error':best_r2}
+    return get_kcat_error_from_ga(ga)
 
 def hyperparam_range(hyperparameter: str, range: np.arange, save:bool=False):
     results = {}
@@ -74,26 +71,6 @@ def hyperparam_range(hyperparameter: str, range: np.arange, save:bool=False):
     reversed_results = reverse_nested_dictionary(results)
 
     plot_hyperparams(reversed_results, parameter= hyperparameter,save=save)
-
-def reverse_nested_dictionary(dict_to_reverse:dict, new_key:str='parameter')->dict:
-    """
-    must make sure all the sub dictionaries have the same layout
-    :param dict_to_reverse: nested dictionary to reverse in the form of:
-           `{key:{subkey:value, subkey2:value2, subkey3:value3}}`
-    :param new_key: str: new key to save the old keys of the upperlevel dictionaries
-    :return: reversed_dict: unnested dictionary where the keys of the subdictionary are the keys of upper dictionary
-            `{new_key: list_of_keys, subkey:list_of_value, subkey2:list_of_value2, subkey3:list_of_value3}`
-    """
-    reversed_dict = {new_key: []}
-    for key, sub_dict in dict_to_reverse.items():
-        reversed_dict[new_key] += [key]
-        for subkey,value in sub_dict.items():
-            if subkey not in reversed_dict.keys():
-                reversed_dict[subkey] = [value]
-            else:
-                reversed_dict[subkey] += [value]
-    return reversed_dict
-
 
 def plot_hyperparams(result_dict:dict,parameter:str = 'hyperparameter', save:bool=False):
     fig = plt.figure(layout="constrained")
@@ -158,9 +135,8 @@ def plot_hyperparams(result_dict:dict,parameter:str = 'hyperparameter', save:boo
 
 if __name__ == '__main__':
     #do simulations with different hyperparameters to see which one would be the best
-    i=0
-    while i<1:
-        for param in hyperparameters.keys():
-            hyperparam_range(param, hyperparameters[param], save =False)
-            i+=1
+
+    for param in hyperparameters.keys():
+        hyperparam_range(param, hyperparameters[param], save =True)
+
 
