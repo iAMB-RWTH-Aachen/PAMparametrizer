@@ -6,13 +6,16 @@ from PAModelpy.Enzyme import Enzyme
 import pandas as pd
 import sys
 
-from genetic_algorithm_parametrization.core_parametrization_gaussian import GAPO as GAPOGauss
-from genetic_algorithm_parametrization.core_parametrization_uniform import GAPOUniform
+cwd = os.getcwd()
+os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd()))))
+from PAM_Parametrization.Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
+from PAM_Parametrization.Modules.genetic_algorithm_parametrization import GAPOUniform
 
 import cobra
 from pathlib import Path
 from PAM_Parametrization.Scripts.pam_generation import setup_toy_pam
 
+os.chdir(cwd)
 
 #start kcat: [1, 0.5, 1, 0.5 ,0.45, 1.5]
 #aimed end kcat: [1, 0.5, 5, 0.1, 0.25, 1.5]

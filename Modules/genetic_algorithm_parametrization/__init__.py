@@ -1,0 +1,3 @@
+from .src.genetic_algorithm_parametrization import GAPO as GAPOGaussian
+from .src.genetic_algorithm_parametrization import GAPOUniform
+from .src.genetic_algorithm_parametrization import Genetic_Algorithm

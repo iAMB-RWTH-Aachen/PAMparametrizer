@@ -4,7 +4,7 @@ Genetic algorithm (GA) for the prediction genome reduction paths based on metabo
 - GA can be generalized to any optimization problem incorporating M-models
 
 """
-
+import os
 from typing import Union
 # Disable gurobi logging output
 try:
@@ -21,6 +21,7 @@ from pathlib import Path
 import importlib
 import pandas as pd
 import json
+import inspect
 
 from multiprocessing import Pool
 
@@ -124,11 +125,18 @@ class GAPO():
             time_limit = self.time_limit
             )
 
+        print(inspect.getsource(self.ga.main))
+        print(type(self.ga))
+
 
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
+            cwd = os.getcwd()
+            os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd()))))
             # load preinstalled module
-            self.fitness_class = importlib.import_module("genetic_algorithm_parametrization.Evaluation."+fitness_class)
+            self.fitness_class = importlib.import_module("PAM_Parametrization.Modules.genetic_algorithm_parametrization."
+                                                         "src.genetic_algorithm_parametrization.Evaluation."+fitness_class)
+            os.chdir(cwd)
         else:
             self.fitness_class = fitness_class
 
@@ -388,10 +396,24 @@ class GAPO():
                
             # multiprocessing
             print("Start genetic algorithm --")
+            for i in range(len(pops)):
+                    input = (pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
+                                                           fitness_dict, str(i+1))
+                    print(len(input))
+                    self.ga.main(pop = pops[i], toolbox=toolbox,
+                                 start_time=start_time, fitfun =self.FitEval,
+                                 sensitivities = self.sensitivity_list,
+                                                           fitness_dict = fitness_dict, pop_id=str(i))
+
+                    for i, what in enumerate(input):
+                        print(i)
+                        print(what)
+            print(type(self.ga))
             with Pool(processes=self.processes) as pool:
                 # distribute populations to separate workers
+
                 gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
-                                                           self.kcat_list, fitness_dict, str(i+1)) for i in range(len(pops))])
+                                                           fitness_dict, str(i+1)) for i in range(len(pops))])
 
                 # extract populations
                 print("Postprocess evolved population --")

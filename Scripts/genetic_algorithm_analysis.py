@@ -1,5 +1,7 @@
 import pandas as pd
-from genetic_algorithm_parametrization.core_parametrization_gaussian import GAPO
+import os
+print(os.getcwd())
+from ..Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPO
 
 """
 function library related to running the genetic algorithm

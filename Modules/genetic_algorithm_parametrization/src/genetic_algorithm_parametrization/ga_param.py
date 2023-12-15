@@ -74,7 +74,7 @@ class Genetic_Algorithm():
 
 
     # main genetic algorithm iterations
-    def main(self, pop, toolbox, start_time, fitfun, sensitivities, kcat_list, fitness_dict={}, pop_id="") -> (list, dict):
+    def main(self, pop, toolbox, start_time, fitfun, sensitivities, fitness_dict={}, pop_id="") -> (list, dict):
         """Main genetic algorithm framework
         - supports elitism
         - mutation operator
@@ -86,6 +86,8 @@ class Genetic_Algorithm():
             :param deap.base.Toolbox toolbox: DEAP's toolbox class
             :param time.time.time start_time: Start time of the genetic algorithm run
             :param FitnessEvaluation fitfun: fitness object to determine mutation distribution
+            :param list sensitivities: list with the importance of each kcat towards changes in
+                                        the growth rate in the upperlevel Protein Allocation Model
             :param dict fitness_dict: Fitness function values of individuals. Keys
                                         are hashable identifier of an individual
             :param str pop_id: Identifier of a population
