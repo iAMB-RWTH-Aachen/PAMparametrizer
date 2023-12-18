@@ -6,24 +6,36 @@ from PAModelpy.Enzyme import Enzyme
 import pandas as pd
 import sys
 
+script_directory = os.path.dirname(os.path.abspath(__file__))
 cwd = os.getcwd()
-os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd()))))
-from PAM_Parametrization.Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
-from PAM_Parametrization.Modules.genetic_algorithm_parametrization import GAPOUniform
+
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_directory)))
+os.chdir(base_dir)
+try:
+    from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
+    from Modules.genetic_algorithm_parametrization import GAPOUniform
+    from Scripts.pam_generation import setup_toy_pam
+except:
+    from PAM_Parametrization.Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
+    from PAM_Parametrization.Modules.genetic_algorithm_parametrization import GAPOUniform
+    from PAM_Parametrization.Scripts.pam_generation import setup_toy_pam
+
+os.chdir(cwd)
 
 import cobra
 from pathlib import Path
-from PAM_Parametrization.Scripts.pam_generation import setup_toy_pam
-
-os.chdir(cwd)
 
 #start kcat: [1, 0.5, 1, 0.5 ,0.45, 1.5]
 #aimed end kcat: [1, 0.5, 5, 0.1, 0.25, 1.5]
 
-DATA_DIR = os.path.join(os.path.split(os.getcwd())[0], 'Data')
-RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
-
-valid_data_df = pd.read_csv(RESULT_DF_FILE)
+try:
+    DATA_DIR = os.path.join(os.path.split(script_directory)[0], 'Data')
+    RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
+    valid_data_df = pd.read_csv(RESULT_DF_FILE)
+except:
+    DATA_DIR = os.path.join(base_dir, 'PAM_Parametrization','Scripts', 'Testing', 'Data')
+    RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
+    valid_data_df = pd.read_csv(RESULT_DF_FILE)
 
 # %% initialize genetic algorithm
 def init_toy_parametrization_ga(valid_data_df:pd.DataFrame = valid_data_df,
@@ -81,10 +93,10 @@ def init_toy_parametrization_ga(valid_data_df:pd.DataFrame = valid_data_df,
 # %% start optimization
 if __name__ == "__main__":
     # Reference data from toy model simulations:
-    DATA_DIR = os.path.join(os.path.split(os.getcwd())[0],'Data')
-    RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
-
-    valid_data_df = pd.read_csv(RESULT_DF_FILE)
+    # DATA_DIR = os.path.join(os.path.split(os.getcwd())[0],'Data')
+    # RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
+    #
+    # valid_data_df = pd.read_csv(RESULT_DF_FILE)
     # start genetic algorithm
     ga = init_toy_parametrization_ga(valid_data_df = valid_data_df)
     ga.start()

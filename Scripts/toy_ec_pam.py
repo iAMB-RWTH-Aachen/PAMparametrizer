@@ -148,8 +148,6 @@ def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.0
     validation_results = pd.read_csv(reference_data_file_path)
     simulation_results = run_simulations(toy_model, substrate_rates)
 
-    print(simulation_results.to_markdown())
-    print(validation_results.to_markdown())
     error = []
     for rxn in validation_results.columns[2:]:
         for sub_upt in [0.001, 0.091]:

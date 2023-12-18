@@ -1,6 +1,9 @@
+import PAModelpy.PAModel
 import pandas as pd
+import numpy as np
 import os
 
+import pytest
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_toy_pam
@@ -8,6 +11,11 @@ from Scripts.pam_generation import setup_toy_pam
 
 max_substrate_uptake_rate = 0.01
 min_substrate_uptake_rate = 0.001
+
+###########################################################################################################################
+#MOCK OBJECTS
+###########################################################################################################################
+
 class PAMParametrizerMock(PAMParametrizer):
     def __init__(self):
         toy_pam = setup_toy_pam()
@@ -15,28 +23,40 @@ class PAMParametrizerMock(PAMParametrizer):
         hyperparameters = self.set_up_hyperparameter_mock()
 
         super().__init__(pamodel=toy_pam,
-                 validation_data=validation_data,
-                 hyperparameters=hyperparameters,
-                 max_substrate_uptake_rate=max_substrate_uptake_rate,
+                         validation_data=validation_data,
+                         hyperparameters=hyperparameters,
+                         substrate_uptake_id = 'R1',
+                         max_substrate_uptake_rate=max_substrate_uptake_rate,
                          min_substrate_uptake_rate = min_substrate_uptake_rate)
 
 
-        self.parametrization_results.bins_to_change = pd.DataFrame(columns=['bin', 'split', 'merge'])
+
+        self.parametrization_results.initiate_result_dfs(enzyme_ids=['E1', 'E2', 'E3', 'E4', 'E5', 'E6'],
+                                                         reactions_to_validate= ['R1', 'R7', 'R8', 'R9'],
+                                                         biomass_reaction= ['R7'])
+
 
     def set_up_validation_data_mock(self):
-        DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'Testing', 'Data')
+        script_directory = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_directory)))
+        DATA_DIR = os.path.join(base_dir, 'Scripts', 'Testing', 'Data')
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
         valid_data_df = pd.read_csv(RESULT_DF_FILE)
 
-        validation_data = ValidationData
-        validation_data.valid_data_df = valid_data_df
-        validation_data.reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
+        validation_data = ValidationData(valid_data_df)
+        validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
         return validation_data
 
     def set_up_hyperparameter_mock(self):
         hyperparams = HyperParameters
         hyperparams.number_of_kcats_to_mutate = 3
         return hyperparams
+
+
+
+##########################################################################################################################
+#TEST FUNCTIONS
+##########################################################################################################################
 
 def test_pam_parametrizer_binning_substrate_uptake_rates_without_splitting():
     # arrange
@@ -54,7 +74,7 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_with_splitting():
     bin_range = (max_substrate_uptake_rate - min_substrate_uptake_rate) / HyperParameters.number_of_bins
     valid_binned_substrate = bin_substrate()
     bin_to_split_info = valid_binned_substrate[2]
-    start, stop, step = bin_to_split_info[0], bin_to_split_info[1],bin_to_split_info[2]
+    start, stop, step = bin_to_split_info[0], bin_to_split_info[1], bin_to_split_info[2]
 
     sut = PAMParametrizerMock()
     sut.parametrization_results.bins_to_change['bin'] = [bin_nmbr_to_split]
@@ -71,8 +91,69 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_with_splitting():
     for key,value in valid_binned_substrate.items():
         assert value == sut_binned_substrate[key]
 
-def test_calculate_error():
-    pass
+def test_pam_parametrizer_saves_results_of_simulation_correctly():
+    #arrange
+    sut = PAMParametrizerMock()
+    bin_information = {1:[0.001, 0.002, 0.001/5]}
+    pamodel = setup_toy_pam()
+
+    #act
+    sut.run_pamodel_simulations_in_bin(bin_information)
+    fluxes, esc_coeff_df = run_pamodel_binned(pamodel, bin_information)
+    #need to make sure the order is correct
+    esc_coeff_df = esc_coeff_df[1].reindex(columns=sut.parametrization_results.esc_df.columns)
+
+    #assert
+    assert (esc_coeff_df == sut.parametrization_results.esc_df.reset_index(drop = True)).all().all()
+
+def test_pam_parametrizer_splits_bins_when_large_variability_in_esc():
+    #arrange
+    sut = PAMParametrizerMock()
+    esc_topn_df = pd.DataFrame({'substrate': list(range(0,10,1)), 'E1':list(range(0,10,1)),
+                                'E2': [0]*10,'E3': [1]*10})
+    bin_id = 1
+    #act
+    sut.determine_bin_to_split(esc_topn_df, bin_id)
+    sut_result = sut.parametrization_results.bins_to_change
+    split_result = sut_result[sut_result['bin'] == bin_id]['split'].iloc[0]
+    #assert
+    assert split_result
+
+
+def test_pam_parametrizer_does_not_splits_bins_when_little_variability_in_esc():
+    # arrange
+    sut = PAMParametrizerMock()
+    esc_topn_df = pd.DataFrame({'substrate': list(range(0, 10, 1)), 'E1':[5]*10,
+                                'E2': [0] * 10, 'E3': [1] * 10})
+    bin_id = 1
+    # act
+    for enzyme_id in esc_topn_df.columns:
+        if enzyme_id == 'substrate': continue
+
+    sut.determine_bin_to_split(esc_topn_df, bin_id)
+    sut_result = sut.parametrization_results.bins_to_change
+    # assert
+    assert len(sut_result) == 0
+
+
+def test_pam_parametrizer_calculates_r_squared_correctly():
+    #arange
+    sut = PAMParametrizerMock()
+
+    bin_id = 1
+    bin_information = {bin_id:[0.001, 0.002, 0.001/5]}
+    pamodel = setup_toy_pam()
+    #get exactly the simulation results which we would obtain in the model
+    #so we can safely assume r^2 = 1
+    fluxes, esc_coeff_df = run_pamodel_binned(pamodel, bin_information)
+    validation_data_mock = fluxes[bin_id]
+    sut.run_pamodel_simulations_in_bin(bin_information)
+
+    #act
+    r_squared_to_validate = sut._calculate_r_squared_for_reaction('R7', validation_data_mock, bin_information[bin_id], bin_id)
+
+    #assert TODO
+    assert 1 == pytest.approx(r_squared_to_validate, 1e-1)
 
 def test_determine_most_sensitive_enzymes():
     pass
@@ -98,7 +179,37 @@ def bin_substrate():
         # update starting concentration for new bin
         substrate_start += bin_range
 
-    # valid_binned_substrate = {0: [0.001, 0.002, 0.0004], 0.1: [0.002, 0.003, 0.0004], 1: [0.003, 0.005, 0.0004],
-    #                           2: [0.005, 0.007, 0.0004], 3: [0.007, 0.009000000000000001, 0.0004],
-    #                           4: [0.009000000000000001, 0.011000000000000001, 0.0004]}
     return valid_binned_substrate
+
+def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict):
+    fluxes = {}
+    esc = {}
+    for bin_id, bin_info in bin_information.items():
+        esc_df = pd.DataFrame(columns=['bin', 'substrate', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6'])
+        flux_df = pd.DataFrame(columns= ['substrate','R1', 'R7', 'R8', 'R9'])
+        start, stop, step = bin_info[0], bin_info[1], bin_info[2]
+        for substrate_uptake_rate in np.arange(start, stop, step):
+            pamodel.change_reaction_bounds(rxn_id='R1',
+                                                lower_bound=0, upper_bound=substrate_uptake_rate)
+            # solve the model
+            pamodel.optimize()
+
+            if pamodel.solver.status == 'optimal' and pamodel.objective.value != 0:
+
+                enzyme_sensitivity_coeff = pamodel.enzyme_sensitivity_coefficients.set_index('enzyme_id')[
+                    'coefficient'].to_frame().T
+                esc_results_row = [bin_id, substrate_uptake_rate] + enzyme_sensitivity_coeff.iloc[0].to_list()
+                esc_df.loc[len(esc_df)] = esc_results_row
+
+                #save fluxes
+                results_row = [substrate_uptake_rate]
+                for rxn in ['R1', 'R7', 'R8', 'R9']:
+                    results_row += [pamodel.reactions.get_by_id(rxn).flux]
+
+                flux_df.loc[len(flux_df)] = results_row
+
+        esc[bin_id] = esc_df
+        fluxes[bin_id] = flux_df
+
+    return fluxes, esc
+

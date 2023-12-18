@@ -4,6 +4,8 @@ import os
 import time
 import matplotlib.pyplot as plt
 from PAModelpy.PAModel import PAModel
+import pandas as pd
+from scipy.stats import linregress
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
 
@@ -11,15 +13,18 @@ class PAMParametrizer():
     def __init__(self, pamodel:PAModel,
                  validation_data: ValidationData = ValidationData,
                  hyperparameters: HyperParameters = HyperParameters,
+                 substrate_uptake_id: str = 'EX_glc__D_e',
                  max_substrate_uptake_rate: Union[float, int] = 11,
                  min_substrate_uptake_rate: Union[float, int] = 0):
+
         self.core_genetic_algorithm = None
         self.pamodel = pamodel
         self.validation_data = validation_data
         self.hyperparameters = hyperparameters
-        self.parametrization_results = ParametrizationResults
+        self.parametrization_results = ParametrizationResults()
         self.enzyme_ids = [enzyme.id for enzyme in pamodel.enzymes]
 
+        self.substrate_uptake_id = substrate_uptake_id
         self.min_substrate_uptake_rate = min_substrate_uptake_rate
         self.max_substrate_uptake_rate = max_substrate_uptake_rate
 
@@ -38,24 +43,24 @@ class PAMParametrizer():
 
         #perform parametrization until a max number of iterations
         while self.iteration <= self.hyperparameters.threshold_iteration:
-            # 0. initiate structures to save results and keep track of process
+            # 0. initiate structures and objects to save results and keep track of process
             self.iteration +=1
-            self.parametrization_results.initiate_result_dfs(enzyme_ids=self.enzyme_ids,
-                                                             reactions_to_validate= self.validation_data.reactions_to_validate,
-                                                             growth_rate= self.validation_data.growth_rates)
+            self._init_result_object()
 
-            # 1. adjust binsize if required and get the binned substrate values
+            # 1. Get the binned substrate values and adjust binsize if required
             binned_substrate = self.bin_substrate_uptake_rates()
-
 
             # 2. Run model in bins, get sensitivities and calculate errors
             for index, bin in binned_substrate.items():
                 print(
-                    f'The following range of substrate uptake rates will be analyzed: {bin[0]} - {bin[1]} mmol/g_cdw/h, with steps of {bin[2]} mmol/g_cdw/h')
-                for substrate in np.arange(bin[0], bin[1], bin[2]):
-                    self.run_simulations(substrate, index)
+                    f'The following range of substrate uptake rates will be analyzed: {bin[0]} - {bin[1]} '
+                    f'mmol/g_cdw/h, with steps of {bin[2]} mmol/g_cdw/h')
+                self.run_pamodel_simulations_in_bin(bin_information=bin)
                 # calculate the error for the different exchange rates
-                self.calculate_error(bin, index, substrate)
+                self.determine_most_sensitive_enzymes()
+                self.determine_bin_to_change()
+                self.calculate_error(bin, index)
+
                 #print running time to check on progress
                 print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
                   (time.perf_counter() - start) / 3600, 'hour\n')
@@ -80,17 +85,164 @@ class PAMParametrizer():
     def run_genetic_algorithm(self):
         pass
 
-    def calculate_error(self):
-        pass
+    def calculate_error(self, bin_information: list, bin_id: Union[float, int]) -> None:
+        """
+        Evaluate the model simulations compared to a reference dataset within a specified substrate uptake range.
 
-    def determine_most_sensitive_enzymes(self):
-        pass
+        This method calculates the average difference between model simulations and reference data for the total substrate
+        uptake range and available reactions within the specified bin.
+
+        Notes:
+        - The reference dataset is filtered to include only data points within the specified substrate uptake range.
+        - Errors are calculated for different exchange rates and biomass reactions.
+        - The '_calculate_r_squared_for_reaction' method is used to determine the R-squared value for each reaction.
+        - The calculated errors are stored in the 'error_df' attribute for further analysis.
+
+        :param: bin_information: List containing upper and lower bounds of the substrate uptake range for the bin.
+        :param: bin_id: Identifier for the bin under consideration.
+        """
+
+        validation_results = self.validation_data.valid_data_df
+        error = []
+        # get reference datapoints
+        # lower than upper bound and higher than lower bound
+        validation_df = validation_results[
+             (validation_results[self.substrate_uptake_id] <= -bin_information[0]) &
+             (validation_results[self.substrate_uptake_id] >= -bin_information[1])
+         ]
+
+        # calculate error for different exchange rates
+        for rxn in self.validation_data._reactions_to_validate + self.validation_data._get_biomass_reactions():
+            # only select the rows which are filled with data
+            validation_data = validation_df.dropna(axis=0, subset=rxn)
+            # if there are no reference data points, continue to the next reaction
+            if len(validation_data) == 0:
+                continue
+
+            r_squared = self._calculate_r_squared_for_reaction(rxn, validation_df, bin_information, bin_id)
+
+            error += [r_squared]
+
+        error_df = self.parametrization_results.error_df
+        self.parametrization_results.error_df.loc[len(error_df)] = [bin_id] + error
+
+    def determine_most_sensitive_enzymes(self, bin_id: Union[float, int], nmbr_kcats_to_pick: int) -> None:
+        """
+        Determine the top n (with n being the nmbr_of_kcats_to_pick) sensitive enzymes in a specific
+        bin and save them to the dataclasses stored in parametrization_results. Selection is
+        based on the enzyme sensitivity coefficients (refer to PAModelpy documentation for more
+        details on calculations)
+
+        :param bin_id: bin identifier
+        :param nmbr_kcats_to_pick: number of enzymes to select for optimization
+        """
+        esc_results_df = self.parametrization_results.esc_df
+        # 0. get enzyme sensitivities
+        esc_in_bin = esc_results_df[esc_results_df['bin'] == bin_id]
+        # 0.1 if there is no solution, continue to the next bin
+        if len(esc_in_bin) == 0:
+            return
+
+        # 1. determine top n values based on average ESC
+        esc_in_bin_t = esc_in_bin.drop(['bin', 'substrate'], axis=1).T
+        esc_in_bin_t['esc_average'] = esc_in_bin_t.mean(axis=1)
+        # convert the values to absolute to get the absolute highest values
+        esc_in_bin_t['esc_average_absolute'] = [abs(avg) for avg in esc_in_bin_t['esc_average']]
+
+        # 2. Sort the ESC and get the topn kcats to adjust
+        esc_in_bin_t = esc_in_bin_t.sort_values(by='esc_average_absolute', ascending=False)
+        esc_topn = esc_in_bin_t[:nmbr_kcats_to_pick]
+        # get ids and select those from the dataframe
+        topn_ids = esc_topn.index.to_list()
+        esc_topn_df = esc_in_bin[topn_ids + ['substrate']]
+        esc_topn_df = esc_topn_df.sort_values(by='substrate')
+
+        for id in topn_ids:
+            mean_esc = esc_in_bin_t['esc_average']
+            esc_results_df.loc[len(esc_results_df)] = [bin_id, mean_esc, id]
+        return esc_topn_df
+
+    def determine_bin_to_split(self, esc_topn_df: pd.DataFrame, bin_id: Union[float, int]) -> None:
+        """
+        Determine whether a bin should be split based on the variability of ESC values.
+
+        This function calculates the variability of ESC values within a bin and checks if it exceeds a certain threshold,
+        indicating a significant change in the enzymatic substrate concentrations (ESCs) over the course of the bin.
+
+        :param esc_topn_df: DataFrame containing ESC values, where each column corresponds to an enzyme or substrate
+            uptake rate, and rows represent different substrate uptake rates
+        :param bin_id: Identifier for the bin under consideration.
+        """
+
+        for enzyme_id in esc_topn_df.columns:
+            if enzyme_id == 'substrate':
+                continue
+
+            esc_variability = self._calculate_esc_variability(esc_topn_df, enzyme_id)
+
+            # Determine if ESC variability exceeds the threshold for splitting the bin
+            if self._esc_variability_larger_than_threshold(esc_variability):
+                self.parametrization_results.bins_to_change.loc[len(self.parametrization_results.bins_to_change)] = [bin_id, True, False]
 
     def reparametrize(self):
         pass
 
-    def run_pamodel(self):
-        pass
+    def run_pamodel_simulations_in_bin(self, bin_information:dict) -> None:
+        """
+        Use the range of substrate uptake rate indicated in the bin_information to run simulations with the PAModel
+        :param bin_information: dictionary with bin_id:[start, stop, step] key:value pairs, where start, stop and step
+                            relate to the start, end and stepsize of the substrate uptake rate range
+        """
+        # self._init_results_objects()
+        for bin_id, bin_info in bin_information.items():
+            start, stop, step = bin_info[0], bin_info[1], bin_info[2]
+            print(
+                f'The following range of substrate uptake rates will be analyzed: {start - stop} '
+                f'mmol/g_cdw/h, with steps of {step} mmol/g_cdw/h')
+            for substrate_uptake_rate in np.arange(start, stop, step):
+                self.run_pamodel_simulation(substrate_uptake_rate, bin_id)
+            # calculate the error for the different exchange rates
+            # self.calculate_r_squared(bin_info, bin_id, substrate_uptake_rate)
+            # # print running time to check on progress
+            # print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
+            #       (time.perf_counter() - start) / 3600, 'hour\n')
+
+    def run_pamodel_simulation(self, substrate_uptake_rate: Union[float, int],
+                               bin_id: Union[str, float, int]) -> None:
+        """
+        Running PAModel simulations and saving the resulting fluxes and enzymes sensitivities coefficient
+        for later analysis
+
+        :param substrate_uptake_rate: used to constrain the PAModel
+        :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
+        """
+
+        print('Substrate uptake rate ', substrate_uptake_rate, ' mmol/gcdw/h')
+        with self.pamodel:
+            # change glucose uptake rate
+            self.pamodel.change_reaction_bounds(rxn_id=self.substrate_uptake_id,
+                                                lower_bound=0, upper_bound=substrate_uptake_rate)
+            # solve the model
+            self.pamodel.optimize()
+
+            if self.pamodel.solver.status == 'optimal' and self.pamodel.objective.value != 0:
+                self.save_pamodel_simulation_results(substrate_uptake_rate, bin_id)
+
+    def save_pamodel_simulation_results(self, substrate_uptake_rate: Union[float, int],
+                                        bin_id: Union[str, float, int]) -> None:
+        """
+            Saving the resulting fluxes and enzymes sensitivities coefficient from a successful PAModel simulation
+            for later analysis
+
+            :param substrate_uptake_rate: used to constrain the PAModel
+            :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
+        """
+
+        self.parametrization_results.substrate_range += [substrate_uptake_rate]
+        self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_rate)
+        self.parametrization_results.add_enzyme_sensitivity_coefficients(self.pamodel.enzyme_sensitivity_coefficients,
+                                                                          bin_id, substrate_uptake_rate)
+
 
     def save_diagnostics(self):
         pass
@@ -165,12 +317,60 @@ class PAMParametrizer():
         #adjust color to visualize progress
         self.color -= 50
 
-        for r, ax in zip(self.validation_data.reactions_to_plot, axs.flatten()):
+        for r, ax in zip(self.validation_data._reactions_to_plot, axs.flatten()):
             # plot data
-            line = ax.plot(self.substrate_range, [abs(f[r]) for f in self.fluxes], linewidth=2.5,
+            line = ax.plot(self.parametrization_results.substrate_range, [abs(f[r]) for f in self.fluxes], linewidth=2.5,
                            zorder=5, color=f'#{self.color}')
 
         fig.canvas.draw()
         fig.canvas.flush_events()
         return fig
 
+    def _init_results_objects(self):
+        self.parametrization_results.initiate_result_dfs(enzyme_ids=self.enzyme_ids,
+                                                         reactions_to_validate=self.validation_data._get_reactions_to_validate(),
+                                                         biomass_reaction=self.validation_data._get_biomass_reactions())
+
+    def _calculate_esc_variability(self, esc_df:pd.DataFrame ,enzyme_id: str) -> float:
+        """
+        ESC variability is described as a fractional change.
+        :param esc_df: DataFrame containing ESC values.
+        :param enzyme_id: ID of the enzyme.
+        :return: ESC variability as a percentage change.
+        """
+        start_esc = esc_df[enzyme_id].iloc[0]
+        end_esc = esc_df[enzyme_id].iloc[-1]
+
+        # check if the ESCs are nonzero
+        if start_esc != 0:
+            esc_variability = abs((end_esc - start_esc) / start_esc)
+        else:
+            # Handle the case when start_esc is zero to avoid division by zero
+            esc_variability = 0 if end_esc == 0 else 1  # Assuming that if start_esc is zero, any change is considered 100% change.
+
+        return esc_variability
+
+    def _esc_variability_larger_than_threshold(self, esc_variability: float)-> bool:
+        return (esc_variability >= self.hyperparameters.bin_split_deviation_threshold)
+
+    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame, bin_information: list,
+                                          bin_id: Union[float, int]) -> float:
+        flux_df = self.parametrization_results.fluxes_df
+        fluxes = flux_df[flux_df['bin'] == bin_id]
+
+        # calculate difference between simulations and validation data
+        # get the linear relation of simulation (using the first and the last datapoint)
+        line = linregress(x=[abs(bin_information[0]), abs(bin_information[1])], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
+        ref_data_rxn = validation_data.assign(
+                simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id])
+
+        # simulation mean
+        data_average = ref_data_rxn[reaction_id].mean()
+        # error: squared difference
+        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
+
+        # calculate R^2:
+        residual_ss = sum(ref_data_rxn.error)
+        total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+        r_squared = 1 - residual_ss / total_ss
+        return r_squared

@@ -140,12 +140,6 @@ def plot_hyperparams(result_list:list, parameter:str = 'hyperparameter', save:bo
 
 if __name__ == '__main__':
     #do simulations with different hyperparameters to see which one would be the best
-    # with Pool(processes=5) as pool:
-    #     pops = pool.starmap(
-    #         hyperparam_range,
-    #         [(param, hyperparameters[param], True)
-    #          for param in hyperparameters.keys()]
-    #     )
 
     for param in hyperparameters.keys():
         hyperparam_range(param, hyperparameters[param], save =True)

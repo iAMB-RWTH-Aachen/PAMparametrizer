@@ -5,11 +5,11 @@ import pandas as pd
 from io import StringIO
 import sys
 
-sys.path.append(os.path.abspath(os.path.dirname(
-    os.path.dirname( #PAM project dir
-        os.path.dirname( #project dir
-            os.path.dirname( #testing dir
-                os.path.dirname(__file__))))))) #this dir
+# sys.path.append(os.path.abspath(os.path.dirname(
+#     os.path.dirname( #PAM project dir
+#         os.path.dirname( #project dir
+#             os.path.dirname( #testing dir
+#                 os.path.dirname(__file__))))))) #this dir
 
 from  Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
 from  Scripts.toy_ec_pam import evaluate_toy_model_fitness

@@ -29,7 +29,8 @@ from deap import base
 from deap import creator
 from deap import tools
 
-from genetic_algorithm_parametrization.ga_param import Genetic_Algorithm
+from .ga_param import Genetic_Algorithm
+import genetic_algorithm_parametrization
 
 # anonymus function for printing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
@@ -124,10 +125,6 @@ class GAPO():
             number_generations = self.number_generations,
             time_limit = self.time_limit
             )
-
-        print(inspect.getsource(self.ga.main))
-        print(type(self.ga))
-
 
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
@@ -396,19 +393,6 @@ class GAPO():
                
             # multiprocessing
             print("Start genetic algorithm --")
-            for i in range(len(pops)):
-                    input = (pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
-                                                           fitness_dict, str(i+1))
-                    print(len(input))
-                    self.ga.main(pop = pops[i], toolbox=toolbox,
-                                 start_time=start_time, fitfun =self.FitEval,
-                                 sensitivities = self.sensitivity_list,
-                                                           fitness_dict = fitness_dict, pop_id=str(i))
-
-                    for i, what in enumerate(input):
-                        print(i)
-                        print(what)
-            print(type(self.ga))
             with Pool(processes=self.processes) as pool:
                 # distribute populations to separate workers
 
