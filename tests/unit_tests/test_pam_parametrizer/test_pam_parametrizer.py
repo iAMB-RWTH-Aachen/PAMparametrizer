@@ -149,11 +149,13 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     validation_data_mock = fluxes[bin_id]
     sut.run_pamodel_simulations_in_bin(bin_information)
 
+    print(validation_data_mock)
     #act
     r_squared_to_validate = sut._calculate_r_squared_for_reaction('R7', validation_data_mock, bin_information[bin_id], bin_id)
 
-    #assert TODO
-    assert 1 == pytest.approx(r_squared_to_validate, 1e-1)
+    #assert
+    #manual calculation results in an R^2 of 0.88 for this bin
+    assert 0.88 == pytest.approx(r_squared_to_validate, 1e-1)
 
 def test_determine_most_sensitive_enzymes():
     pass

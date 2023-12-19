@@ -51,15 +51,19 @@ class PAMParametrizer():
             binned_substrate = self.bin_substrate_uptake_rates()
 
             # 2. Run model in bins, get sensitivities and calculate errors
-            for index, bin in binned_substrate.items():
+            for bin_id, bin in binned_substrate.items():
                 print(
                     f'The following range of substrate uptake rates will be analyzed: {bin[0]} - {bin[1]} '
                     f'mmol/g_cdw/h, with steps of {bin[2]} mmol/g_cdw/h')
                 self.run_pamodel_simulations_in_bin(bin_information=bin)
                 # calculate the error for the different exchange rates
-                self.determine_most_sensitive_enzymes()
-                self.determine_bin_to_change()
-                self.calculate_error(bin, index)
+                self.calculate_error(bin, bin_id)
+                # get the most sensitive enzymes
+                top_enzyme_sensitivities = self.determine_most_sensitive_enzymes(bin_id,
+                                                                                 self.hyperparameters.number_of_kcats_to_mutate)
+                self.determine_bin_to_split(top_enzyme_sensitivities,bin_id)
+                #TODO
+                self.run_genetic_algorithm(filename_extenstion = str(bin_id))
 
                 #print running time to check on progress
                 print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
@@ -82,8 +86,61 @@ class PAMParametrizer():
 
         fig.savefig(self.result_figure_file, dpi=100, bbox_inches='tight')
 
-    def run_genetic_algorithm(self):
-        pass
+    def run_pamodel_simulations_in_bin(self, bin_information:dict) -> None:
+        """
+        Use the range of substrate uptake rate indicated in the bin_information to run simulations with the PAModel
+        :param bin_information: dictionary with bin_id:[start, stop, step] key:value pairs, where start, stop and step
+                            relate to the start, end and stepsize of the substrate uptake rate range
+        """
+        # self._init_results_objects()
+        for bin_id, bin_info in bin_information.items():
+            start, stop, step = bin_info[0], bin_info[1], bin_info[2]
+            print(
+                f'The following range of substrate uptake rates will be analyzed: {start - stop} '
+                f'mmol/g_cdw/h, with steps of {step} mmol/g_cdw/h')
+            for substrate_uptake_rate in np.arange(start, stop, step):
+                self.run_pamodel_simulation(substrate_uptake_rate, bin_id)
+            # calculate the error for the different exchange rates
+            # self.calculate_r_squared(bin_info, bin_id, substrate_uptake_rate)
+            # # print running time to check on progress
+            # print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
+            #       (time.perf_counter() - start) / 3600, 'hour\n')
+
+    def run_pamodel_simulation(self, substrate_uptake_rate: Union[float, int],
+                               bin_id: Union[str, float, int]) -> None:
+        """
+        Running PAModel simulations and saving the resulting fluxes and enzymes sensitivities coefficient
+        for later analysis
+
+        :param substrate_uptake_rate: used to constrain the PAModel
+        :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
+        """
+
+        print('Substrate uptake rate ', substrate_uptake_rate, ' mmol/gcdw/h')
+        with self.pamodel:
+            # change glucose uptake rate
+            self.pamodel.change_reaction_bounds(rxn_id=self.substrate_uptake_id,
+                                                lower_bound=0, upper_bound=substrate_uptake_rate)
+            # solve the model
+            self.pamodel.optimize()
+
+            if self.pamodel.solver.status == 'optimal' and self.pamodel.objective.value != 0:
+                self.save_pamodel_simulation_results(substrate_uptake_rate, bin_id)
+
+    def save_pamodel_simulation_results(self, substrate_uptake_rate: Union[float, int],
+                                        bin_id: Union[str, float, int]) -> None:
+        """
+            Saving the resulting fluxes and enzymes sensitivities coefficient from a successful PAModel simulation
+            for later analysis
+
+            :param substrate_uptake_rate: used to constrain the PAModel
+            :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
+        """
+
+        self.parametrization_results.substrate_range += [substrate_uptake_rate]
+        self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_rate)
+        self.parametrization_results.add_enzyme_sensitivity_coefficients(self.pamodel.enzyme_sensitivity_coefficients,
+                                                                          bin_id, substrate_uptake_rate)
 
     def calculate_error(self, bin_information: list, bin_id: Union[float, int]) -> None:
         """
@@ -184,65 +241,11 @@ class PAMParametrizer():
             if self._esc_variability_larger_than_threshold(esc_variability):
                 self.parametrization_results.bins_to_change.loc[len(self.parametrization_results.bins_to_change)] = [bin_id, True, False]
 
-    def reparametrize(self):
+    def run_genetic_algorithm(self, filename_extenstion:str):
         pass
 
-    def run_pamodel_simulations_in_bin(self, bin_information:dict) -> None:
-        """
-        Use the range of substrate uptake rate indicated in the bin_information to run simulations with the PAModel
-        :param bin_information: dictionary with bin_id:[start, stop, step] key:value pairs, where start, stop and step
-                            relate to the start, end and stepsize of the substrate uptake rate range
-        """
-        # self._init_results_objects()
-        for bin_id, bin_info in bin_information.items():
-            start, stop, step = bin_info[0], bin_info[1], bin_info[2]
-            print(
-                f'The following range of substrate uptake rates will be analyzed: {start - stop} '
-                f'mmol/g_cdw/h, with steps of {step} mmol/g_cdw/h')
-            for substrate_uptake_rate in np.arange(start, stop, step):
-                self.run_pamodel_simulation(substrate_uptake_rate, bin_id)
-            # calculate the error for the different exchange rates
-            # self.calculate_r_squared(bin_info, bin_id, substrate_uptake_rate)
-            # # print running time to check on progress
-            # print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
-            #       (time.perf_counter() - start) / 3600, 'hour\n')
-
-    def run_pamodel_simulation(self, substrate_uptake_rate: Union[float, int],
-                               bin_id: Union[str, float, int]) -> None:
-        """
-        Running PAModel simulations and saving the resulting fluxes and enzymes sensitivities coefficient
-        for later analysis
-
-        :param substrate_uptake_rate: used to constrain the PAModel
-        :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
-        """
-
-        print('Substrate uptake rate ', substrate_uptake_rate, ' mmol/gcdw/h')
-        with self.pamodel:
-            # change glucose uptake rate
-            self.pamodel.change_reaction_bounds(rxn_id=self.substrate_uptake_id,
-                                                lower_bound=0, upper_bound=substrate_uptake_rate)
-            # solve the model
-            self.pamodel.optimize()
-
-            if self.pamodel.solver.status == 'optimal' and self.pamodel.objective.value != 0:
-                self.save_pamodel_simulation_results(substrate_uptake_rate, bin_id)
-
-    def save_pamodel_simulation_results(self, substrate_uptake_rate: Union[float, int],
-                                        bin_id: Union[str, float, int]) -> None:
-        """
-            Saving the resulting fluxes and enzymes sensitivities coefficient from a successful PAModel simulation
-            for later analysis
-
-            :param substrate_uptake_rate: used to constrain the PAModel
-            :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
-        """
-
-        self.parametrization_results.substrate_range += [substrate_uptake_rate]
-        self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_rate)
-        self.parametrization_results.add_enzyme_sensitivity_coefficients(self.pamodel.enzyme_sensitivity_coefficients,
-                                                                          bin_id, substrate_uptake_rate)
-
+    def reparametrize(self):
+        pass
 
     def save_diagnostics(self):
         pass
@@ -270,7 +273,7 @@ class PAMParametrizer():
                      substrate_start:Union[float, int]):
         """
         Creating a dictionary with all information about a single bin (range of substrate uptake rates).
-        Per bin it saves the start, end and stepsize.
+        Saves the start, end and stepsize per bin.
         The function also checks if the bin should be adapted based on the previous iteration of the workflow
 
         :param bin_id: identifier of the bin to make

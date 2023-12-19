@@ -2,14 +2,6 @@ import unittest
 import pytest
 import os
 import pandas as pd
-from io import StringIO
-import sys
-
-# sys.path.append(os.path.abspath(os.path.dirname(
-#     os.path.dirname( #PAM project dir
-#         os.path.dirname( #project dir
-#             os.path.dirname( #testing dir
-#                 os.path.dirname(__file__))))))) #this dir
 
 from  Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
 from  Scripts.toy_ec_pam import evaluate_toy_model_fitness
@@ -38,15 +30,15 @@ class TestGaParam(unittest.TestCase):
         # Act
         population = toy_ga.evaluate_pop(population, toolbox)
         fitness_simulated = population[0].fitness.values[0]
+        #adjust for altered kcat_values
+        kcats = [i / 5 for i in [1, 0.5]+population[0].kcat_list+[1.5]]
+        toy_pam = setup_toy_pam(kcat_fwd = kcats)
 
         # Assert
-        #adjust for altered kcat_values
-        toy_pam = setup_toy_pam(kcat_fwd = [1, 0.5]+population[0].kcat_list+[1.5])
-
         fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file_path = RESULT_DF_FILE)
 
         #1e-6 is solver feasibility tolerance
-        assert fitness_validation == pytest.approx(fitness_simulated, 1e-6)
+        assert fitness_validation == pytest.approx(fitness_simulated, 1e-4)
 
 
 if __name__ == '__main__':

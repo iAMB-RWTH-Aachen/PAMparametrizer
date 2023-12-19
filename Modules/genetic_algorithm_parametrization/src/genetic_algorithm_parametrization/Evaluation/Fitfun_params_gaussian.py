@@ -266,15 +266,15 @@ class FitnessEvaluation():
                 model.change_kcat_value(enz_id,
                                   {individual.reactions[i]:
                                        {'f':individual.kcat_list[i]/(3600*1e-6), 'b':individual.kcat_list[i]/(3600*1e-6)}})
-                model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]}) #TODO remove after PAModelpy update
-                model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
-                    {rxn.reverse_variable: 1 / individual.kcat_list[i]})
+                # model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]}) #TODO remove after PAModelpy update
+                # model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
+                #     {rxn.reverse_variable: 1 / individual.kcat_list[i]})
+
             # perform simulations
             for rate in self.substrate_uptake_rates:
-
                 model.change_reaction_bounds(self.substrate_uptake_id,
                                                   lower_bound = 0, upper_bound = rate)
-                model.slim_optimize(error_value=0)
+                model.slim_optimize()
                 if model.solver.status != 'optimal':error = 1e2
                 # calculate fitness (sum of simulation error to reactions with data)
                 else: error = self._calculate_simulation_error(model, substrate_uptake=rate)
@@ -303,7 +303,7 @@ class FitnessEvaluation():
     
     def _calculate_simulation_error(self, model, substrate_uptake:float):
         error = []
-        for rxn in self.reactions_with_data + self.growth_rate:
+        for rxn in self.reactions_with_data:
             #only select the rows which are filled with data
 
             ref_data_rxn = self.ref_data.dropna(axis = 0, subset = rxn)

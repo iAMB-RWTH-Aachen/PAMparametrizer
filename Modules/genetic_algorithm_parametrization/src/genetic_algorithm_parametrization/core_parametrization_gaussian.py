@@ -131,7 +131,7 @@ class GAPO():
             cwd = os.getcwd()
             os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd()))))
             # load preinstalled module
-            self.fitness_class = importlib.import_module("PAM_Parametrization.Modules.genetic_algorithm_parametrization."
+            self.fitness_class = importlib.import_module("Modules.genetic_algorithm_parametrization."
                                                          "src.genetic_algorithm_parametrization.Evaluation."+fitness_class)
             os.chdir(cwd)
         else:
