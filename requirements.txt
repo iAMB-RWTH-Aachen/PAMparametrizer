@@ -5,3 +5,4 @@ random
 timepip
 gurobipy
 scipy
+pytest

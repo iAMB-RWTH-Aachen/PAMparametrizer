@@ -18,7 +18,8 @@ min_substrate_uptake_rate = 0.001
 
 class PAMParametrizerMock(PAMParametrizer):
     def __init__(self):
-        toy_pam = setup_toy_pam()
+        kcat_fwd = [i/5 for i in [1, 0.5, 1, 0.5, 0.45, 1.5]]
+        toy_pam = setup_toy_pam(kcat_fwd)
         validation_data = self.set_up_validation_data_mock()
         hyperparameters = self.set_up_hyperparameter_mock()
 
@@ -31,8 +32,7 @@ class PAMParametrizerMock(PAMParametrizer):
 
 
 
-        self.parametrization_results.initiate_result_dfs(enzyme_ids=['E1', 'E2', 'E3', 'E4', 'E5', 'E6'],
-                                                         reactions_to_validate= ['R1', 'R7', 'R8', 'R9'],
+        self.parametrization_results.initiate_result_dfs(reactions_to_validate= ['R1', 'R7', 'R8', 'R9'],
                                                          biomass_reaction= ['R7'])
 
 
@@ -104,7 +104,7 @@ def test_pam_parametrizer_saves_results_of_simulation_correctly():
     esc_coeff_df = esc_coeff_df[1].reindex(columns=sut.parametrization_results.esc_df.columns)
 
     #assert
-    assert (esc_coeff_df == sut.parametrization_results.esc_df.reset_index(drop = True)).all().all()
+    assert (esc_coeff_df == sut.parametrization_results.esc_df).all().all()
 
 def test_pam_parametrizer_splits_bins_when_large_variability_in_esc():
     #arrange
@@ -139,17 +139,15 @@ def test_pam_parametrizer_does_not_splits_bins_when_little_variability_in_esc():
 def test_pam_parametrizer_calculates_r_squared_correctly():
     #arange
     sut = PAMParametrizerMock()
-
     bin_id = 1
     bin_information = {bin_id:[0.001, 0.002, 0.001/5]}
     pamodel = setup_toy_pam()
+
     #get exactly the simulation results which we would obtain in the model
-    #so we can safely assume r^2 = 1
     fluxes, esc_coeff_df = run_pamodel_binned(pamodel, bin_information)
     validation_data_mock = fluxes[bin_id]
     sut.run_pamodel_simulations_in_bin(bin_information)
 
-    print(validation_data_mock)
     #act
     r_squared_to_validate = sut._calculate_r_squared_for_reaction('R7', validation_data_mock, bin_information[bin_id], bin_id)
 
@@ -157,8 +155,104 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     #manual calculation results in an R^2 of 0.88 for this bin
     assert 0.88 == pytest.approx(r_squared_to_validate, 1e-1)
 
-def test_determine_most_sensitive_enzymes():
-    pass
+def test_pam_parametrizer_determines_most_sensitive_enzymes_correctly():
+    # Arrange
+    columns_to_be_present = ['enzyme_id', 'mean', 'bin', 'substrate', 'rxn_id']
+    enzymes_to_be_selected = ['E2', 'E5', 'E1']
+
+    sut = PAMParametrizerMock()
+    bin_id = 1
+    bin_information = {bin_id: [0.08, 0.09, 0.01 / 5]}
+    #we need to run simulations before we can parse the results
+    sut.run_pamodel_simulations_in_bin(bin_information)
+
+    # Act
+    esc_topn_df = sut.determine_most_sensitive_enzymes(bin_id,
+                                                       nmbr_kcats_to_pick = 3)
+    esc_topn_minimal = esc_topn_df.drop_duplicates(subset = 'enzyme_id')
+
+    # Assert
+    #check if the columns required for further processing are available in the dataframe
+    for column in columns_to_be_present:
+        assert column in esc_topn_df.columns
+    #check if the correct enzymes are selected
+    assert 3 == len(esc_topn_minimal)
+    for enzyme in enzymes_to_be_selected:
+        assert enzyme in esc_topn_minimal.enzyme_id.to_list()
+    #check if the enzymes are in the right order
+    assert esc_topn_minimal.absolute_esc_mean.iloc[0] > esc_topn_minimal.absolute_esc_mean.iloc[-1]
+
+def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
+    # Arrange
+    sut = PAMParametrizerMock()
+    esc_topn_df_dummy = pd.DataFrame({
+        'bin': [1,1,1],
+        'enzyme_id': ['E3', 'E4', 'E5'],
+        'rxn_id': ['R3', 'R4', 'R5'],
+        'mean': [0.5, 0.2, 0.1]
+    })
+
+    # unit correction to be consistent with the way it is saved (see toymodel setup function)
+    enzymes_to_evaluate_validation = {'E3':{'reaction':'R3','kcat':1/(3600 * 1e-6), 'sensitivity':0.5},
+                                      'E4':{'reaction':'R4','kcat':0.5/(3600 * 1e-6), 'sensitivity':0.2},
+                                      'E5':{'reaction':'R5','kcat':0.45/(3600 * 1e-6), 'sensitivity':0.1}}
+
+    # Act
+    enzymes_to_evaluate_to_test = sut._parse_enzymes_to_evaluate(esc_topn_df_dummy)
+
+    # Assert
+    assert all(enzymes_to_evaluate_to_test[key] == value for key, value in enzymes_to_evaluate_validation.items())
+
+def test_if_genetic_algorithm_runs():
+    # Arrange
+    sut = PAMParametrizerMock()
+    esc_topn_df_dummy = pd.DataFrame({
+        'bin': [1, 1, 1],
+        'enzyme_id': ['E3', 'E4', 'E5'],
+        'rxn_id': ['R3', 'R4', 'R5'],
+        'mean': [0.5, 0.2, 0.1]
+    })
+    bin_info = [0.001, 0.002, 0.001/5]
+    filename_extension = 'test'
+    full_file_path = os.path.join(os.getcwd(),'Results', sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
+
+    # Act
+    sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension)
+
+    # Assert
+    # check if filenames are present
+    assert all(os.path.exists(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']),\
+        'Genetic algorithm did not create output'
+    #remove files
+    [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
+def test_if_pam_parametrizer_gets_all_genetic_algorithm_json_files():
+    # Arrange
+    sut = PAMParametrizerMock()
+    esc_topn_df_dummy = pd.DataFrame({
+        'bin': [1, 1, 1],
+        'enzyme_id': ['E3', 'E4', 'E5'],
+        'rxn_id': ['R3', 'R4', 'R5'],
+        'mean': [0.5, 0.2, 0.1]
+    })
+    bin_information = {1:[0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]}
+    filename_extension = 'test'
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
+    for bin_id, bin_info in bin_information.items():
+        filename_extension_bin = filename_extension + str(bin_id)
+        sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension_bin)
+
+    # Act
+    json_files = sut._get_genetic_algorithm_json_files()
+
+    # Assert
+    assert len(bin_information) == len(json_files)
+    # remoce the produced files
+    for bin_id in bin_information.keys():
+        [os.remove(full_file_path + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
+
 
 def test_reparametrize():
     pass
@@ -187,7 +281,7 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict):
     fluxes = {}
     esc = {}
     for bin_id, bin_info in bin_information.items():
-        esc_df = pd.DataFrame(columns=['bin', 'substrate', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6'])
+        esc_df = pd.DataFrame(columns=['bin', 'substrate', 'rxn_id', 'enzyme_id'])
         flux_df = pd.DataFrame(columns= ['substrate','R1', 'R7', 'R8', 'R9'])
         start, stop, step = bin_info[0], bin_info[1], bin_info[2]
         for substrate_uptake_rate in np.arange(start, stop, step):
@@ -198,10 +292,10 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict):
 
             if pamodel.solver.status == 'optimal' and pamodel.objective.value != 0:
 
-                enzyme_sensitivity_coeff = pamodel.enzyme_sensitivity_coefficients.set_index('enzyme_id')[
-                    'coefficient'].to_frame().T
-                esc_results_row = [bin_id, substrate_uptake_rate] + enzyme_sensitivity_coeff.iloc[0].to_list()
-                esc_df.loc[len(esc_df)] = esc_results_row
+                enzyme_sensitivity_coeff = pamodel.enzyme_sensitivity_coefficients
+                enzyme_sensitivity_coeff['bin'] = [bin_id] * len(enzyme_sensitivity_coeff)
+                enzyme_sensitivity_coeff['substrate'] = [substrate_uptake_rate] * len(enzyme_sensitivity_coeff)
+                esc_df = pd.concat([esc_df, enzyme_sensitivity_coeff])
 
                 #save fluxes
                 results_row = [substrate_uptake_rate]

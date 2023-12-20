@@ -67,7 +67,6 @@ def init_toy_parametrization_ga(valid_data_df:pd.DataFrame = valid_data_df,
         enzymes_to_eval = {'E3':{'reaction':'R3','kcat':1, 'sensitivity':0.5}, #should become 5
                            'E4':{'reaction':'R4','kcat':0.5, 'sensitivity':0.2},#should become 0.1
                            'E5':{'reaction':'R5','kcat':0.45, 'sensitivity':0.1}},#should become 0.25
-        r_squared = 0.2,
         fitness_class=fitness_class, # filename (or module) of the fitness function class
         mutation_probability = mutation_probability, # probability with which an individual (solution) is mutated in a generation
         mutation_rate = mutation_rate, # probability with which an attribute (e.g. gene) of an individual is mutated

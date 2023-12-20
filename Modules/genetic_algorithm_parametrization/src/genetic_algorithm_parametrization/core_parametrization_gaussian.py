@@ -40,8 +40,7 @@ class GAPO():
     
     def __init__(self, model=None,
                  enzymes_to_eval: dict = {},  #dict of enz.id:{reaction, kcat, sensitivity}
-                 r_squared: float = 1,
-                 fitness_class = "Fitfun_params",
+                 fitness_class = "Fitfun_params_uniform",
                  mutation_probability=0.5, mutation_rate=0.05, population_size=30,
                  crossover_probability=0.8, number_generations=20, number_gene_flow_events=10,
                  processes=2, time_limit=600, init_attribute_probability=0,
@@ -128,12 +127,9 @@ class GAPO():
 
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
-            cwd = os.getcwd()
-            os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd()))))
             # load preinstalled module
             self.fitness_class = importlib.import_module("Modules.genetic_algorithm_parametrization."
                                                          "src.genetic_algorithm_parametrization.Evaluation."+fitness_class)
-            os.chdir(cwd)
         else:
             self.fitness_class = fitness_class
 
@@ -151,7 +147,7 @@ class GAPO():
             substrate_uptake_id = substrate_uptake_id)
         
         self._init_deap_fitness() # initialize the fitness function
-        self._init_deap_individual(r_squared) # initialize deap individual representation
+        self._init_deap_individual() # initialize deap individual representation
 
 
     # execute genetic algorithm
@@ -348,7 +344,7 @@ class GAPO():
         toolbox.register("mutate", tools.mutGaussian, indpb=self.mutation_rate)
         return toolbox
     
-    def _init_deap_individual(self, r_squared):
+    def _init_deap_individual(self):
         
         # create individuals representing metabolic genes as variables/targets
         param_ind = self.FitEval.init_individual()
@@ -356,7 +352,7 @@ class GAPO():
         new_model.change_total_protein_constraint(p_tot = self.model.p_tot)
         creator.create("Individual", param_ind["individual_type"], model =new_model,
                        fitness=creator.FitnessObj(), reactions = self.rxns, enzymes_to_eval = self.enzymes_to_eval,
-                       kcat_list = self.kcat_list, r_squared = r_squared)
+                       kcat_list = self.kcat_list)
         
     def _init_deap_fitness(self):
         

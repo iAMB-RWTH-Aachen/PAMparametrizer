@@ -1,7 +1,11 @@
 from dataclasses import dataclass, field
 import pandas as pd
 from PAModelpy.configuration import Config
-from typing import Union
+from typing import Union, Callable
+from pathlib import Path
+
+from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
+from Modules.genetic_algorithm_parametrization import GAPOUniform
 
 @dataclass
 class ValidationData:
@@ -41,6 +45,25 @@ class HyperParameters:
     number_of_bins = 5
     bin_resolution = 5
     bin_split_deviation_threshold = 0.20
+    genetic_algorithm_filename_base = 'genetic_algorithm_run_'
+    genetic_algorithm: Callable = GAPOUniform
+    genetic_algorithm_hyperparams = {'mutation_probability':0.5, # probability with which an individual (solution) is mutated in a generation
+                                'mutation_rate':1, # probability with which an attribute (e.g. gene) of an individual is mutated
+                                'population_size':10, # number of individuals (solution) per population
+                                'crossover_probability':0.8, # probability with which two indivduals/offsprings are crossed over
+                                'number_generations':20, # number of consecutive generations per gene flow event
+                                'number_gene_flow_events':2, # number of gene flow events, i.e. merging of multiple
+                                 # populations independently evolved on parallel workers
+                                'init_attribute_probability':0.,
+                                'fitness_class': 'Fitfun_params_uniform',
+                                'processes': 2,  # number of parallel workers
+                                'time_limit': 600,  # time limit in seconds
+                                'folderpath_save': Path(r"Results"),  # path for saving results
+                                'overwrite_intermediate_results': True  # if true, saved intermediate results are overwritten
+                                     }
+    #change fitness function if Gaussian sampling is applied
+    if isinstance(genetic_algorithm, GAPOGauss):
+        genetic_algorithm_hyperparams['fitness_class'] = "Fitfun_params_gaussian"
 
 @dataclass
 class ParametrizationResults:
@@ -51,9 +74,9 @@ class ParametrizationResults:
     fluxes_df = pd.DataFrame()
     substrate_range = []
 
-    def initiate_result_dfs(self, enzyme_ids, reactions_to_validate, biomass_reaction) -> None:
+    def initiate_result_dfs(self, reactions_to_validate, biomass_reaction) -> None:
         self.error_df = pd.DataFrame(columns=['bin']+ reactions_to_validate + biomass_reaction)
-        self.esc_df = pd.DataFrame(columns=['bin', 'substrate'] + enzyme_ids)
+        self.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
         self.fluxes_df = pd.DataFrame(columns= ['bin','substrate'] + reactions_to_validate)
         self.initiate_bins_to_change()
 
@@ -70,8 +93,7 @@ class ParametrizationResults:
     def add_enzyme_sensitivity_coefficients(self, enzyme_sensitivity_coeff: pd.DataFrame,
                                             bin_id:Union[float, int], substrate_uptake_rate: Union[float, int]):
         # we are only interested in the enzymes
-        enzyme_sensitivity_coeff = enzyme_sensitivity_coeff.set_index('enzyme_id')['coefficient'].to_frame().T
-        enzyme_sensitivity_coeff['bin'] = float(bin_id)
-        enzyme_sensitivity_coeff['substrate'] = substrate_uptake_rate
+        enzyme_sensitivity_coeff['bin'] = [float(bin_id)]*len(enzyme_sensitivity_coeff)
+        enzyme_sensitivity_coeff['substrate'] = [substrate_uptake_rate]*len(enzyme_sensitivity_coeff)
         self.esc_df = pd.concat([self.esc_df, enzyme_sensitivity_coeff])
         self.esc_df.reset_index(drop = True)
