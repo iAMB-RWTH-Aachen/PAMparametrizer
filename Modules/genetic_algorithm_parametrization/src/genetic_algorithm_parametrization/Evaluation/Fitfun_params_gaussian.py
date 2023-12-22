@@ -169,7 +169,7 @@ class FitnessEvaluation():
         return param_fit
         
     
-    def init_attribute(self, enzymes_to_eval:list) -> dict:
+    def init_attribute(self, enzymes_to_eval:list, rxns_to_eval:list) -> dict:
         """Specifies parameters to describe attributes of individuals in DEAP
         - number of attributes (returned)
         - type of an attribute (metabolic gene, regulator etc.)
@@ -184,10 +184,10 @@ class FitnessEvaluation():
              {'id': 'var_2_id', 'type': 'var_2_type'}
              ...
              ]
-                
         
         Inputs:
             :param list enzymes_to_eval: list of enzyme ids which are to be mutated
+            :param list rxns_to_eval: list of reactions ids which the enzymes are catalyzing
             
         Outputs:
             :param dict param_attr: 
@@ -199,15 +199,13 @@ class FitnessEvaluation():
         # save attribute details for matching attributes to its model identity
         # here each model reaction is an attribute (solution variable)
         self.individual_attr_list = [
-            {'id': enzyme, 'type': 'mutation'}
-            for enzyme in enzymes_to_eval
+            {'id': enzyme, 'type': 'mutation', 'rxn_id': rxn}
+            for enzyme, rxn in zip(enzymes_to_eval, rxns_to_eval)
             ]
-        
-        
+
         # number of attribute per individual
         param_attr["number_attributes"] = len(self.individual_attr_list)
-        
-        
+
         return param_attr
     
     
@@ -317,9 +315,11 @@ class FitnessEvaluation():
             # calculate difference between simulations and validation data
             ref_data_rxn = ref_data_rxn.assign(simulation=model.reactions.get_by_id(rxn).flux)
 
+
             # error: squared difference
             ref_data_rxn = ref_data_rxn.assign(error=lambda x: abs((x[rxn] - x['simulation'])))
             error += [ref_data_rxn.error.mean()]
+        if len(error) == 0: return 1
 
         return sum(error)/len(error)
         

@@ -13,7 +13,7 @@ class ValidationData:
     _reactions_to_validate : [str] = field(default_factory=list)
     biomass_reaction_extension : str = 'BIOMASS'
     exchange_reaction_extension: str = 'EX'
-    reactions_to_plot = [Config.ACETATE_EXCRETION_RXNID, Config.CO2_EXHANGE_RXNID, Config.OXYGEN_UPTAKE_RXNID, Config.BIOMASS_REACTION]
+    _reactions_to_plot = [Config.ACETATE_EXCRETION_RXNID, Config.CO2_EXHANGE_RXNID, Config.OXYGEN_UPTAKE_RXNID, Config.BIOMASS_REACTION]
 
 
     def _get_biomass_reactions(self) -> list:
@@ -73,9 +73,10 @@ class ParametrizationResults:
     sensitive_enzymes: pd.DataFrame = pd.DataFrame(columns=['bin', 'mean_sensitivity', 'enzyme_id'])
     fluxes_df = pd.DataFrame()
     substrate_range = []
+    _color = 440154
 
     def initiate_result_dfs(self, reactions_to_validate, biomass_reaction) -> None:
-        self.error_df = pd.DataFrame(columns=['bin']+ reactions_to_validate + biomass_reaction)
+        self.error_df = pd.DataFrame(columns=['bin']+ reactions_to_validate)
         self.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
         self.fluxes_df = pd.DataFrame(columns= ['bin','substrate'] + reactions_to_validate)
         self.initiate_bins_to_change()

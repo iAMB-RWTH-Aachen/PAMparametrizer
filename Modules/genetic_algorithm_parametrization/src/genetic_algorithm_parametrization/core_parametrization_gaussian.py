@@ -55,6 +55,7 @@ class GAPO():
             self.model = model
         else:
             self.model = model
+
         #store information for initialization of the population
         self.rxns = list()
         self.kcat_list = list()
@@ -311,7 +312,7 @@ class GAPO():
         
 
         # register individual representation
-        param_attr = self.FitEval.init_attribute(self.enzymes_to_eval)
+        param_attr = self.FitEval.init_attribute(self.enzymes_to_eval, self.rxns)
 
         toolbox.register("individual",  tools.initRepeat, creator.Individual,
                          toolbox.attr_generator,  param_attr["number_attributes"])
@@ -469,6 +470,7 @@ class GAPO():
         # evaluate and save best individual
         best_ind_frame = pd.DataFrame({
             "id": [attr['id'] for attr in individual_attr_list],
+            "rxn_id": [attr['rxn_id'] for attr in individual_attr_list],
             "type": [attr['type'] for attr in individual_attr_list],
             "value": [v for v in best_ind.kcat_list]
             })

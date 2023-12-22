@@ -1,5 +1,6 @@
 PAModelpy
 matplotlib
+random==3.9
 deap==1.4.1
 time
 gurobipy==9.5.2

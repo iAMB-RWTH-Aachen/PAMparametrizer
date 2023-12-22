@@ -49,7 +49,10 @@ class PAMParametrizerMock(PAMParametrizer):
 
     def set_up_hyperparameter_mock(self):
         hyperparams = HyperParameters
+        hyperparams.threshold_iteration = 3
         hyperparams.number_of_kcats_to_mutate = 3
+        hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
+        hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_test_'
         return hyperparams
 
 
@@ -64,7 +67,7 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_without_splitting():
     valid_binned_substrate = bin_substrate()
 
     # act
-    sut_binned_substrate = sut.bin_substrate_uptake_rates()
+    sut_binned_substrate = sut._bin_substrate_uptake_rates()
     # assert
     assert valid_binned_substrate == sut_binned_substrate
 
@@ -80,7 +83,7 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_with_splitting():
     sut.parametrization_results.bins_to_change['bin'] = [bin_nmbr_to_split]
 
     #act
-    sut_binned_substrate = sut.bin_substrate_uptake_rates()
+    sut_binned_substrate = sut._bin_substrate_uptake_rates()
 
     del valid_binned_substrate[bin_nmbr_to_split]
     splitted_bins = {bin_nmbr_to_split: [start, start+bin_range * 0.5, step*0.5],
@@ -109,13 +112,17 @@ def test_pam_parametrizer_saves_results_of_simulation_correctly():
 def test_pam_parametrizer_splits_bins_when_large_variability_in_esc():
     #arrange
     sut = PAMParametrizerMock()
-    esc_topn_df = pd.DataFrame({'substrate': list(range(0,10,1)), 'E1':list(range(0,10,1)),
+    esc_topn = pd.DataFrame({'substrate': list(range(0,10,1)), 'E1':list(range(0,10,1)),
                                 'E2': [0]*10,'E3': [1]*10})
+
+    esc_topn_df = pd.melt(esc_topn, id_vars=['substrate'], var_name='enzyme_id', value_name='coefficient')
+
     bin_id = 1
     #act
     sut.determine_bin_to_split(esc_topn_df, bin_id)
     sut_result = sut.parametrization_results.bins_to_change
     split_result = sut_result[sut_result['bin'] == bin_id]['split'].iloc[0]
+
     #assert
     assert split_result
 
@@ -123,17 +130,18 @@ def test_pam_parametrizer_splits_bins_when_large_variability_in_esc():
 def test_pam_parametrizer_does_not_splits_bins_when_little_variability_in_esc():
     # arrange
     sut = PAMParametrizerMock()
-    esc_topn_df = pd.DataFrame({'substrate': list(range(0, 10, 1)), 'E1':[5]*10,
-                                'E2': [0] * 10, 'E3': [1] * 10})
+    esc_topn = pd.DataFrame({'substrate': list(range(0, 10, 1)), 'E1': [5] * 10,
+                             'E2': [0] * 10, 'E3': [1] * 10})
+
+    esc_topn_df = pd.melt(esc_topn, id_vars=['substrate'], var_name='enzyme_id', value_name='coefficient')
+
     bin_id = 1
     # act
-    for enzyme_id in esc_topn_df.columns:
-        if enzyme_id == 'substrate': continue
-
     sut.determine_bin_to_split(esc_topn_df, bin_id)
     sut_result = sut.parametrization_results.bins_to_change
+
     # assert
-    assert len(sut_result) == 0
+    assert 0 == len(sut_result)
 
 
 def test_pam_parametrizer_calculates_r_squared_correctly():
@@ -214,7 +222,8 @@ def test_if_genetic_algorithm_runs():
     })
     bin_info = [0.001, 0.002, 0.001/5]
     filename_extension = 'test'
-    full_file_path = os.path.join(os.getcwd(),'Results', sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
+    full_file_path = os.path.join(os.getcwd(),'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
 
     # Act
     sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension)
@@ -229,33 +238,130 @@ def test_if_genetic_algorithm_runs():
 def test_if_pam_parametrizer_gets_all_genetic_algorithm_json_files():
     # Arrange
     sut = PAMParametrizerMock()
+    bin_information =  {1: [0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]}
+    sut = run_mock_genetic_algorithm(sut, bin_information)
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + 'test')
+
+    # Act
+    json_files = sut._get_genetic_algorithm_json_files(subset = 'test')
+
+    # Assert
+    assert len(bin_information) == len(json_files)
+    # remove the produced files
+    for bin_id in bin_information.keys():
+        [os.remove(full_file_path + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
+
+def tests_pam_parametrizer_parses_enzymes_to_evaluate_for_all_bins_correctly():
+    # Arrange
+    sut = PAMParametrizerMock()
+    #run in regions where we know that there is protein limitation and there are thus non-zero esc
+    bin_information = {1: [0.07, 0.08, 0.01 / 5], 2: [0.08, 0.09, 0.01 / 5], 3: [0.09, 0.1, 0.01 / 5]}
+    sut.run_pamodel_simulations_in_bin(bin_information)
+    enzymes_to_evaluate_expected = ['E2', 'E5', 'E1']
+
+    # Act
+    enzymes_to_evaluate_test = sut._determine_enzymes_to_evaluate_for_all_bins(nmbr_kcats_to_pick = 3)
+
+    # Assert
+    assert all(enzyme_id in enzymes_to_evaluate_test for enzyme_id in enzymes_to_evaluate_expected), "Not all enzyme IDs are present"
+
+
+def test_if_restart_genetic_algorithm_runs():
+    # Arrange
+    sut = PAMParametrizerMock()
+    #first run simulations to make sure there are results
+    bin_information = {1: [0.07, 0.08, 0.01 / 5], 2: [0.08, 0.09, 0.01 / 5], 3: [0.09, 0.1, 0.01 / 5]}
+    sut.run_pamodel_simulations_in_bin(bin_information)
+    #run genetic algorithm to get output files for restarting
+    sut = run_mock_genetic_algorithm(sut, bin_information)
+
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + 'final_run_' + str(sut.iteration))
+    full_file_path_test = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + 'test')
+    # Act
+    sut.restart_genetic_algorithm()
+    json_files = sut._get_genetic_algorithm_json_files(subset = 'final_run')
+
+    # Assert
+    assert 1 == len(json_files)
+    # remove the produced files
+    [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    for bin_id in bin_information.keys():
+        [os.remove(full_file_path_test + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
+def test_pam_parametrizes_reparametrizes_enzymes_correctly():
+    # Arrange
+    sut = PAMParametrizerMock()
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1, 1, 1],
         'enzyme_id': ['E3', 'E4', 'E5'],
         'rxn_id': ['R3', 'R4', 'R5'],
         'mean': [0.5, 0.2, 0.1]
     })
-    bin_information = {1:[0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]}
-    filename_extension = 'test'
+    bin_info = [0.001, 0.002, 0.001 / 5]
+    filename_extension = f'final_run_{sut.iteration}'
     full_file_path = os.path.join(os.getcwd(), 'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
-    for bin_id, bin_info in bin_information.items():
-        filename_extension_bin = filename_extension + str(bin_id)
-        sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension_bin)
+    sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension)
+
+    best_individual_kcat_df = sut._get_mutated_kcat_values_from_genetic_algorithm()
+    kcats_expected = [[row['id'] ,row['rxn_id'], row['value']] for i, row in best_individual_kcat_df.iterrows()]
 
     # Act
-    json_files = sut._get_genetic_algorithm_json_files()
+    sut.reparametrize_pam()
 
     # Assert
-    assert len(bin_information) == len(json_files)
-    # remoce the produced files
-    for bin_id in bin_information.keys():
-        [os.remove(full_file_path + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    for kcat_info in kcats_expected:
+        enzyme_id, rxn_id, kcat_expected = kcat_info[0], kcat_info[1], kcat_info[2]
+        kcat_test = 1/sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']/(3600*1e-6) #adjust for units adjustment in the PAModel
+        assert kcat_expected == sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']
+
+    # remove the produced files
+    [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
+def test_pam_parametrizer_plots_validation_data():
+    # Arrange
+    sut = PAMParametrizerMock()
+
+    #remove the produced files
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base)
+
+    # Act
+    fig, axs = sut.plot_valid_data()
 
 
+def test_pam_parametrizer_plots_progress():
+    # Arrange
+    sut = PAMParametrizerMock()
+    fig, axs = sut.plot_valid_data()
+    # reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
+    # sut._init_results_objects()
+    #
+    # # 1. Get the binned substrate values and adjust binsize if required
+    # binned_substrate = sut._bin_substrate_uptake_rates()
+    # # 2. Run model in bins, get sensitivities and calculate errors
+    # for bin_id, bin in binned_substrate.items():
+    #     sut.process_bin(bin, bin_id)
 
-def test_reparametrize():
-    pass
+    # remove the produced files
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                      sut.hyperparameters.genetic_algorithm_filename_base)
+
+    # Act
+    fig = sut.plot_simulation(fig, axs)
+
+#TODO
+# def test_pam_parametrizer_runs():
+#     # Arrange
+#     sut = PAMParametrizerMock()
+#     sut.min_substrate_uptake_rate = 0.07
+#     sut.max_substrate_uptake_rate = 0.09
+#     # Act
+#     sut.run()
 
 def test_save_diagnostics():
     pass
@@ -309,3 +415,19 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict):
 
     return fluxes, esc
 
+def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
+                               bin_information: dict =  {1: [0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]}):
+    esc_topn_df_dummy = pd.DataFrame({
+        'bin': [1, 1, 1],
+        'enzyme_id': ['E3', 'E4', 'E5'],
+        'rxn_id': ['R3', 'R4', 'R5'],
+        'mean': [0.5, 0.2, 0.1]
+    })
+
+    filename_extension = 'test'
+
+    for bin_id, bin_info in bin_information.items():
+        filename_extension_bin = filename_extension + str(bin_id)
+        sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension_bin)
+
+    return sut
