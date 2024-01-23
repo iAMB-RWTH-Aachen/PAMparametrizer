@@ -49,12 +49,15 @@ class GAPO():
                  overwrite_intermediate_results=True,
                  objective_id = 'BIOMASS', valid_df = pd.DataFrame(),
                  sigma_denominator:int=10,
-                 substrate_uptake_rates = [0.7,11.3], substrate_uptake_id = 'EX_glc__D_e'):
+                 substrate_uptake_rates = [0.7,11.3], substrate_uptake_id = 'EX_glc__D_e',
+                 print_progress = True):
         
         if not model:
             self.model = model
         else:
             self.model = model
+
+        self.print_progress = print_progress
 
         #store information for initialization of the population
         self.rxns = list()
@@ -159,7 +162,8 @@ class GAPO():
     
     
         # initialize DEAP toolbox
-        print("({}) Initialize DEAP toolbox --".format(print_time()))
+        if self.print_progress:
+            print("({}) Initialize DEAP toolbox --".format(print_time()))
 
         self.toolbox = self._init_deap_toolbox() # initialize the toolbox
         pop = self.ga.init_pop(self.toolbox, self.population_size, True)
@@ -169,7 +173,8 @@ class GAPO():
             pickle.dump(self.FitEval, f)
        
         # initialize populations (multiprocessing)
-        print("({}) Initialize population --".format(print_time()))
+        if self.print_progress:
+            print("({}) Initialize population --".format(print_time()))
             
         with Pool(processes=self.processes) as pool:
             pops = pool.starmap(
@@ -179,12 +184,14 @@ class GAPO():
                 )
 
         # start optimization with parallel gene flow events
-        print("({}) Start optimization --".format(print_time()))
+        if self.print_progress:
+            print("({}) Start optimization --".format(print_time()))
         self.pops_final = self._parallel_gene_flow(pops, self.toolbox, start_time)
 
         # evaluate final population
         # results = self.FitEval.eval_population(sum(self.pops_final, []), self.filename_save)
-        print("({}) Evaluate final population --".format(print_time()))
+        if self.print_progress:
+            print("({}) Evaluate final population --".format(print_time()))
         self._save_population(sum(self.pops_final, []))
         
         
@@ -207,8 +214,9 @@ class GAPO():
         
         # initialize timing
         start_time = time()
-        
-        print("({}) Load previous population data --".format(print_time()))
+
+        if self.print_progress:
+            print("({}) Load previous population data --".format(print_time()))
         if isinstance(filepath_previous_pop, str): filepath_previous_pop = [filepath_previous_pop]
         # load previous final population data
         pop_previous_dict = {}
@@ -223,7 +231,8 @@ class GAPO():
         self.pop_previous_dict = pop_previous_dict 
         
         # initialize DEAP toolbox
-        print("({}) Initialize DEAP toolbox --".format(print_time()))
+        if self.print_progress:
+            print("({}) Initialize DEAP toolbox --".format(print_time()))
         self.toolbox = self._init_deap_toolbox()
         
         # save evaluation class
@@ -231,7 +240,8 @@ class GAPO():
             pickle.dump(self.FitEval, f)
             
         # initialize population
-        print("({}) Initialize population and populate with previous individuals --".format(print_time()))
+        if self.print_progress:
+            print("({}) Initialize population and populate with previous individuals --".format(print_time()))
         pops = [self.ga.init_pop(self.toolbox, self.population_size, evaluate_fitness=False) for p in range(self.processes)]
 
         # sort previous population (maximization of weighted fitness sum)
@@ -277,7 +287,8 @@ class GAPO():
                 
         
         # evaluate fitness of population
-        print("({}) Evaluate fitness of population --".format(print_time()))
+        if self.print_progress:
+            print("({}) Evaluate fitness of population --".format(print_time()))
         with Pool(processes=self.processes) as pool:  
             pops = pool.starmap(self.ga.evaluate_pop, [(pops[i], self.toolbox) for i in range(self.processes)])
 
@@ -285,8 +296,9 @@ class GAPO():
         # update number of gene flow events
         self.number_gene_flow_events = self.number_gene_flow_events + pop_previous_dict['ga_parameters']['current_gene_flow_number']
         self.ga_parameters['number_gene_flow_events'] = self.number_gene_flow_events
-        
-        print("({}) Start optimization --".format(print_time()))
+
+        if self.print_progress:
+            print("({}) Start optimization --".format(print_time()))
         self.pops_final = self._parallel_gene_flow(
             pops,
             self.toolbox,
@@ -294,7 +306,8 @@ class GAPO():
             previous_drifts=pop_previous_dict['ga_parameters']['current_gene_flow_number'])
 
         # evaluate and save final population
-        print("({}) Evaluate final population --".format(print_time()))
+        if self.print_progress:
+            print("({}) Evaluate final population --".format(print_time()))
         self._save_population(sum(self.pops_final, []))
         
 
@@ -367,15 +380,17 @@ class GAPO():
         fitness_dict = {}
     
         drift = previous_drifts
-        
-        print('\nTime left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
+
+        if self.print_progress:
+            print('\nTime left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
         
         while (drift < self.number_gene_flow_events) and ((time()-start_time) < self.time_limit):
             
             drift += 1
-            print("\n-- Gene drift %i --" % drift)
-            print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))  
-            print("Create populations --")
+            if self.print_progress:
+                print("\n-- Gene drift %i --" % drift)
+                print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
+                print("Create populations --")
             # shuffle individuals among populations
             unq_pop = sum(pops, []) # unique set of all individuals
             shuffled_idx = random.sample([i for i in range(len(unq_pop))], len(unq_pop))
@@ -389,7 +404,8 @@ class GAPO():
             # self.ga.main(pops[0], toolbox, start_time, self.FitEval,  fitness_dict, '1')
                
             # multiprocessing
-            print("Start genetic algorithm --")
+            if self.print_progress:
+                print("Start genetic algorithm --")
             with Pool(processes=self.processes) as pool:
                 # distribute populations to separate workers
 
@@ -397,7 +413,8 @@ class GAPO():
                                                            fitness_dict, str(i+1)) for i in range(len(pops))])
 
                 # extract populations
-                print("Postprocess evolved population --")
+                if self.print_progress:
+                    print("Postprocess evolved population --")
                 for i in range(len(gen_results)):
                     pops[i] = gen_results[i][0] # individuals of the returned population
 
@@ -410,8 +427,9 @@ class GAPO():
                 suffix = '_{}'.format(drift)
                 
             self._save_population(sum(pops, []), suffix=suffix)
-            
-            print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
+
+            if self.print_progress:
+                print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
 
         
         

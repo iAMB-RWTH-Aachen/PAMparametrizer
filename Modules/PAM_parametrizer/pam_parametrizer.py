@@ -31,14 +31,34 @@ class PAMParametrizer():
         self.min_substrate_uptake_rate = min_substrate_uptake_rate
         self.max_substrate_uptake_rate = max_substrate_uptake_rate
         self.fluxes_df = pd.DataFrame()
+        self.final_error = 0
 
         # attributes for keeping track of the workflow
         self.iteration =0
         self.bins = list(range(self.hyperparameters.number_of_bins))
-        self.result_figure_file = os.path.join(os.path.split(os.path.split(os.getcwd())[0])[0], 'Results', 'pam_parametrizer.png')
+        self.result_figure_file = os.path.join('Results', 'pam_parametrizer.png')
 
 
-    def run(self):
+    def run(self, remove_subruns:bool = True) -> None:
+        """ Run the parametrization framework.
+
+        For each iteration of parametrization the following steps are taken:
+        0. Initiate objects which are needed to store the results
+        1. Split the range of substrate uptake rates to evaluate in a number of bins
+        2. For each bin:
+            i. Run simulations and calculate error to experimental measurements
+            ii. Select the parameters to optimize
+            iii. Run a genetic algorithm to optimize the selected parameters
+        3. Select the enzymes to evaluate for the entire range of substrate uptake rates
+        4. Use the results of the previous genetic algorithm runs to initialize a new genetic algorithm
+        5. Run the genetic algorithm and use the best parameter set to reparametrize the model
+
+        This is repeated until a max number of iterations is reached or until the simulation error is below a threshold
+
+        Args:
+            remove_subruns: If True, the results from the genetic algorithm runs within the bins are removed.
+            The results of the final run won't be removed.
+        """
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
 
@@ -46,7 +66,7 @@ class PAMParametrizer():
         start = time.perf_counter()
 
         #perform parametrization until a max number of iterations
-        while self.iteration <= self.hyperparameters.threshold_iteration:
+        while (self.iteration <= self.hyperparameters.threshold_iteration ) & (self.final_error >= self.hyperparameters.threshold_error):
             # 0. initiate structures and objects to save results and keep track of process
             self.iteration +=1
             self._init_results_objects()
@@ -56,18 +76,23 @@ class PAMParametrizer():
 
             # 2. Run model in bins, get sensitivities and calculate errors
             for bin_id, bin_info in binned_substrate.items():
+                #TODO: resolve population drifting (see previous scripts)
                 self.process_bin(bin_info, bin_id)
                 #print running time to check on progress
                 print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
                   (time.perf_counter() - start) / 3600, 'hour\n')
 
-            self.restart_genetic_algorithm()
+            self.restart_genetic_algorithm(remove_subruns)
             self.reparametrize_pam()
-            if self.check_if_pam_is_feasible:
+            if self._pamodel_is_feasible:
+                #TODO returns NAN
+                self.final_error = self.calculate_final_error()
                  #visualize results
+                #TODO improve axis of the results, show 'measurements'
                 fig = self.plot_simulation(fig, axs)
             else:
                 continue
+            #TODO: save computational times, final best individual per run, most sensitive enzymes, final errors
 
             # 6. Display progress and repeat
             print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
@@ -78,8 +103,9 @@ class PAMParametrizer():
         fig.savefig(self.result_figure_file, dpi=100, bbox_inches='tight')
 
     def process_bin(self, bin_information:list, bin_id: str) -> None:
-        """
-           Process a bin with specified substrate uptake rate information by following the following steps:
+        """ Process a bin with specified substrate uptake rate information.
+
+         Performs the following the following steps:
            2. Runs simulations in the range of substrate uptake rates using the protein allocation model.
            3. Calculates errors for different exchange rates.
            4. Checks for a solution; if none, the function returns early.
@@ -87,11 +113,10 @@ class PAMParametrizer():
            6. Determines if the bin should be split based on enzyme sensitivities.
            7. Runs the genetic algorithm on the bin to get mutated parameter value with a decreased simulation error
 
-           :param: bin_information : A list containing substrate uptake rate information.
+            Args:
+                bin_information : A list containing substrate uptake rate information.
                                     Format: [start_rate, stop_rate, step_rate]
-           :param: bin_id : A unique identifier for the current bin.
-
-           :return: None
+                bin_id : A unique identifier for the current bin.
            """
 
         print(
@@ -113,9 +138,12 @@ class PAMParametrizer():
                                    filename_extension=str(bin_id))
 
     def run_pamodel_simulations_in_bin(self, bin_information:dict) -> None:
-        """
+        """ Run pamodel in range of substrate uptake rates defined in bin.
+
         Use the range of substrate uptake rate indicated in the bin_information to run simulations with the PAModel
-        :param bin_information: dictionary with bin_id:[start, stop, step] key:value pairs, where start, stop and step
+
+        Args:
+            bin_information: dictionary with bin_id:[start, stop, step] key:value pairs, where start, stop and step
                             relate to the start, end and stepsize of the substrate uptake rate range
         """
         for bin_id, bin_info in bin_information.items():
@@ -128,12 +156,14 @@ class PAMParametrizer():
 
     def run_pamodel_simulation(self, substrate_uptake_rate: Union[float, int],
                                bin_id: Union[str, float, int]) -> None:
-        """
+        """ Running pamodel simulation for specific substrate uptake rate.
+
         Running PAModel simulations and saving the resulting fluxes and enzymes sensitivities coefficient
         for later analysis
 
-        :param substrate_uptake_rate: used to constrain the PAModel
-        :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
+        Args:
+            substrate_uptake_rate: used to constrain the PAModel
+            bin_id: identifier of the bin in which this simulation is run (for saving purposes)
         """
 
         print('Substrate uptake rate ', substrate_uptake_rate, ' mmol/gcdw/h')
@@ -149,12 +179,14 @@ class PAMParametrizer():
 
     def save_pamodel_simulation_results(self, substrate_uptake_rate: Union[float, int],
                                         bin_id: Union[str, float, int]) -> None:
-        """
+        """ Saving simulation results.
+
             Saving the resulting fluxes and enzymes sensitivities coefficient from a successful PAModel simulation
             for later analysis
 
-            :param substrate_uptake_rate: used to constrain the PAModel
-            :param bin_id: identifier of the bin in which this simulation is run (for saving purposes)
+            Args:
+                substrate_uptake_rate: used to constrain the PAModel
+                bin_id: identifier of the bin in which this simulation is run (for saving purposes)
         """
 
         self.parametrization_results.substrate_range += [substrate_uptake_rate]
@@ -163,8 +195,7 @@ class PAMParametrizer():
                                                                           bin_id, substrate_uptake_rate)
 
     def calculate_error(self, bin_information: list, bin_id: Union[float, int]) -> None:
-        """
-        Evaluate the model simulations compared to a reference dataset within a specified substrate uptake range.
+        """ Evaluate the model simulations compared to a reference dataset within a specified substrate uptake range.
 
         This method calculates the average difference between model simulations and reference data for the total substrate
         uptake range and available reactions within the specified bin.
@@ -175,12 +206,12 @@ class PAMParametrizer():
         - The '_calculate_r_squared_for_reaction' method is used to determine the R-squared value for each reaction.
         - The calculated errors are stored in the 'error_df' attribute for further analysis.
 
-        :param: bin_information: List containing upper and lower bounds of the substrate uptake range for the bin.
-        :param: bin_id: Identifier for the bin under consideration.
+        Args:
+            bin_information: List containing upper and lower bounds of the substrate uptake range for the bin.
+            bin_id: Identifier for the bin under consideration.
         """
 
         validation_results = self.validation_data.valid_data_df
-        error = []
         # get reference datapoints
         # lower than upper bound and higher than lower bound
         validation_df = validation_results[
@@ -189,19 +220,20 @@ class PAMParametrizer():
          ]
 
         # calculate error for different exchange rates
-        for rxn in self.validation_data._reactions_to_validate + self.validation_data._get_biomass_reactions():
-            # only select the rows which are filled with data
-            validation_data = validation_df.dropna(axis=0, subset=rxn)
-            # if there are no reference data points, continue to the next reaction
-            if len(validation_data) == 0:
-                continue
-
-            r_squared = self._calculate_r_squared_for_reaction(rxn, validation_df, bin_information, bin_id)
-
-            error += [r_squared]
+        error = self._calculate_error_for_reactions(validation_df = validation_df,
+                                                    substrate_start= bin_information[0], substrate_stop= bin_information[1],
+                                                    bin_id = bin_id)
 
         error_df = self.parametrization_results.error_df
         self.parametrization_results.error_df.loc[len(error_df)] = [bin_id] + error
+
+    def calculate_final_error(self):
+        validation_results = self.validation_data.valid_data_df
+        error = self._calculate_error_for_reactions(validation_df=validation_results,
+                                                    substrate_start=self.min_substrate_uptake_rate,
+                                                    substrate_stop=self.max_substrate_uptake_rate)
+        print('The final error is ', np.mean(error))
+        return np.mean(error)
 
     def determine_most_sensitive_enzymes(self, bin_id: Union[float, int], nmbr_kcats_to_pick: int) -> pd.DataFrame:
         """
@@ -210,10 +242,12 @@ class PAMParametrizer():
         based on the enzyme sensitivity coefficients (refer to PAModelpy documentation for more
         details on calculations)
 
-        :param bin_id: bin identifier
-        :param nmbr_kcats_to_pick: number of enzymes to select for optimization
+        Args:
+            bin_id: bin identifier
+            nmbr_kcats_to_pick: number of enzymes to select for optimization
 
-        :return esc_topn_df: DataFrame containing the (mean) ESC values of the selected enzymes, with as columns:
+        Returns:
+            esc_topn_df: DataFrame containing the (mean) ESC values of the selected enzymes, with as columns:
                             [enzyme_id,  mean,  absolute_esc_mean,  bin,  substrate, rxn_id,  coefficient]
         """
         esc_results_df = self.parametrization_results.esc_df
@@ -224,15 +258,15 @@ class PAMParametrizer():
         return esc_topn_df
 
     def determine_bin_to_split(self, esc_topn_df: pd.DataFrame, bin_id: Union[float, int]) -> None:
-        """
-        Determine whether a bin should be split based on the variability of ESC values.
+        """ Determine whether a bin should be split based on the variability of ESC values.
 
         This function calculates the variability of ESC values within a bin and checks if it exceeds a certain threshold,
         indicating a significant change in the enzymatic substrate concentrations (ESCs) over the course of the bin.
 
-        :param esc_topn_df: DataFrame containing ESC values, where each column corresponds to an enzyme or substrate
+        Args:
+            esc_topn_df: DataFrame containing ESC values, where each column corresponds to an enzyme or substrate
             uptake rate, and rows represent different substrate uptake rates
-        :param bin_id: Identifier for the bin under consideration.
+            bin_id: Identifier for the bin under consideration.
         """
         enzyme_ids = esc_topn_df.enzyme_id.drop_duplicates()
 
@@ -247,23 +281,25 @@ class PAMParametrizer():
                 self.parametrization_results.bins_to_change.loc[len(self.parametrization_results.bins_to_change)] = [bin_id, True, False]
 
     def run_genetic_algorithm(self, bin_info:list, esc_topn_df: pd.DataFrame, filename_extension:str) -> None:
-        """
-        Function to run the genetic algorithm. Results will be stored in a json, pickle and xlsx file with
+        """ Function to run the genetic algorithm.
+
+        Results will be stored in a json, pickle and xlsx file with
         filename defined by: self.hyperparameters.genetic_algorithm_filename_base + filename_extension
 
-        :param bin_info: information about the substrate uptake rates in the bin in the form of:
+        Args:
+            bin_info: information about the substrate uptake rates in the bin in the form of:
                         [start, stop, step]
-        :param esc_topn_df: DataFrame containing ESC values, where each column corresponds to an enzyme or substrate
+            esc_topn_df: DataFrame containing ESC values, where each column corresponds to an enzyme or substrate
                             uptake reaction, and rows represent different substrate uptake rates
-        :param filename_extension: extension of base filename to save the result of the genetic algorithm
+            filename_extension: extension of base filename to save the result of the genetic algorithm
         """
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
 
         ga = self._init_genetic_algorithm(bin_info, enzymes_to_evaluate, filename_extension)
         ga.start()
 
-    def restart_genetic_algorithm(self):
-        json_files = self._get_genetic_algorithm_json_files(subset = 'test')
+    def restart_genetic_algorithm(self, remove_subruns: bool = True) -> None:
+        json_files = self._get_genetic_algorithm_json_files()
         enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
                                 nmbr_kcats_to_pick= self.hyperparameters.number_of_kcats_to_mutate)
 
@@ -275,6 +311,8 @@ class PAMParametrizer():
                                           filename_extension= f'final_run_{self.iteration}')
         ga.restart(json_files)
 
+        if remove_subruns: self._remove_result_files(json_files)
+
 
     def reparametrize_pam(self):
         best_individual_kcat_df = self._get_mutated_kcat_values_from_genetic_algorithm()
@@ -283,8 +321,7 @@ class PAMParametrizer():
                                                                            {'f': row['value']}
                                                                        })
 
-
-    def check_if_pam_is_feasible(self):
+    def _pamodel_is_feasible(self):
         #check for feasibility at a mid substrate uptake rate
         self.pamodel.test((self.max_substrate_uptake_rate -self.min_substrate_uptake_rate/2))
         return self.pamodel.status == 'optimal'
@@ -297,9 +334,12 @@ class PAMParametrizer():
     ###########################################################################################################
 
     def _bin_substrate_uptake_rates(self):
-        """
-        Bin the substrate uptake rate in intervals. If required, the binsize is adjusted
-        :return: dict: dictionary with bin_id: [start, end, stepsize] key value pairs
+        """ Bin the substrate uptake rate in intervals.
+
+         If required, the binsize is adjusted
+
+        Returns:
+            dict: dictionary with bin_id: [start, end, stepsize] key value pairs
         """
         substrate_start = self.min_substrate_uptake_rate
         binned_substrate = {}
@@ -313,15 +353,18 @@ class PAMParametrizer():
 
     def _make_new_bin(self, bin_id:Union[float, int], bin_range: Union[float, int],
                       substrate_start:Union[float, int]):
-        """
-        Creating a dictionary with all information about a single bin (range of substrate uptake rates).
+        """ Creating a dictionary with all information about a single bin (range of substrate uptake rates).
+
         Saves the start, end and stepsize per bin.
         The function also checks if the bin should be adapted based on the previous iteration of the workflow
 
-        :param bin_id: identifier of the bin to make
-        :param bin_range: length of the bin in the units of the substrate uptake rate
-        :param substrate_start: the first substrate uptake rate in the bin
-        :return: dict: dictionary with bin_id: [start, end, stepsize] key value pairs
+        Args:
+            bin_id: identifier of the bin to make
+            bin_range: length of the bin in the units of the substrate uptake rate
+            substrate_start: the first substrate uptake rate in the bin
+
+        Returns:
+            dict: dictionary with bin_id: [start, end, stepsize] key value pairs
         """
         # if bins should be smaller, adjust binsize
         if ((len(self.parametrization_results.bins_to_change) > 0) and
@@ -344,27 +387,31 @@ class PAMParametrizer():
                                 enzymes_to_evaluate: dict,
                                 filename_extension:str) -> GAPOGauss:
         """
-        Initiate core genetic algorithm object. Upon initiation the core genetic algorithm will
-        initiate the genetic algorithm runner (ga_param) and the fitness evaluation class.
-        Hyperparameters related of the genetic algorithm can be adjusted in
-        self.hyperparameters.genetic_algorithm_hyperparameters (dict). The sampling method (uniform
-        or from a normal(Gaussian) distribution) can be chosen by changing the core genetic algorithm
-        object in self.hyperparameters.genetic_algorithm.
+        Initializes the core genetic algorithm object.
 
-        Files will be saved with filename defined by:
-        self.hyperparameters.genetic_algorithm_filename_base + filename_extension
+        Upon initiation, the core genetic algorithm initializes the genetic algorithm runner (ga_param) and the fitness
+        evaluation class. Hyperparameters related to the genetic algorithm can be adjusted in
+        `self.hyperparameters.genetic_algorithm_hyperparameters` (dict). The sampling method (uniform or from a normal
+        distribution) can be chosen by changing the core genetic algorithm object in `self.hyperparameters.genetic_algorithm`.
 
-        :param substrate_uptake_rates: information about the substrate uptake rates to evaluate in the form of:
-                        [start, stop]
-        :param enzymes_to_evaluate: dictionary with required information about which enzyme parameters
-                                    should be optimized. Format:
-                                    {'enzyme_id':{
-                                        'reaction':'reaction_id',
-                                        'kcat':kcat_value,
-                                        'sensitivity': esc_value
-                                                }}
-        :param filename_extension: extension of base filename to save the result of the genetic algorithm
-        :return: ga: core genetic algorithm object ready to be started
+        Files will be saved with a filename defined by:
+        `self.hyperparameters.genetic_algorithm_filename_base + filename_extension`
+
+        Args:
+            substrate_uptake_rates (list): Information about the substrate uptake rates to evaluate in the form of [start, stop].
+            enzymes_to_evaluate (dict): Dictionary with required information about which enzyme parameters should be optimized.
+                Format:
+                {
+                    'enzyme_id': {
+                        'reaction': 'reaction_id',
+                        'kcat': kcat_value,
+                        'sensitivity': esc_value
+                    }
+                }
+            filename_extension (str): Extension of the base filename to save the result of the genetic algorithm.
+
+        Returns:
+            ga: Core genetic algorithm object ready to be started.
         """
 
         results_filename = self.hyperparameters.genetic_algorithm_filename_base + filename_extension
@@ -388,21 +435,22 @@ class PAMParametrizer():
         self.parametrization_results.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
         self.fluxes_df = pd.DataFrame(columns=['bin', 'substrate'] + reactions_to_validate)
         self.parametrization_results.initiate_bins_to_change()
-        # self.parametrization_results.initiate_result_dfs(reactions_to_validate=self.validation_data._get_reactions_to_validate(),
-        #                                                  biomass_reaction=self.validation_data._get_biomass_reactions())
+        self.parametrization_results.initiate_result_dfs(reactions_to_validate=self.validation_data._get_reactions_to_validate(),
+                                                          biomass_reaction=self.validation_data._get_biomass_reactions())
 
     def _select_topn_enzymes(self, esc_results_df: pd.DataFrame, nmbr_kcats_to_pick:int) -> pd.DataFrame:
         """
-                Determine the top n (with n being the nmbr_of_kcats_to_pick) sensitive enzymes. Selection is
-                based on the enzyme sensitivity coefficients (refer to PAModelpy documentation for more
-                details on calculations)
+                Determines the top n (with n being `nmbr_of_kcats_to_pick`) sensitive enzymes.
 
-                :param esc_results_df: dataframe with enzyme sensitivity coefficients obtained
-                                    from the PAModel simulations
-                :param nmbr_kcats_to_pick: number of enzymes to select for optimization
+                Selection is based on the enzyme sensitivity coefficients (refer to PAModelpy documentation for more details on calculations).
 
-                :return esc_topn_df: DataFrame containing the (mean) ESC values of the selected enzymes, with as columns:
-                                    [enzyme_id,  mean,  absolute_esc_mean,  bin,  substrate, rxn_id,  coefficient]
+                Args:
+                    esc_results_df (DataFrame): Dataframe with enzyme sensitivity coefficients obtained from the PAModel simulations.
+                    nmbr_kcats_to_pick (int): Number of enzymes to select for optimization.
+
+                Returns:
+                    esc_topn_df (DataFrame): DataFrame containing the (mean) ESC values of the selected enzymes, with columns:
+                        [enzyme_id, mean, absolute_esc_mean, bin, substrate, rxn_id, coefficient]
                 """
         # 1. determine top n values based on average ESC
         # Group by enzyme and calculate the average coefficient for each enzyme
@@ -421,10 +469,14 @@ class PAMParametrizer():
 
     def _calculate_esc_variability(self, esc_df:pd.DataFrame ,enzyme_id: str) -> float:
         """
-        ESC variability is described as a fractional change.
-        :param esc_df: DataFrame containing ESC values.
-        :param enzyme_id: ID of the enzyme.
-        :return: ESC variability as a percentage change.
+        Calculates ESC variability as a fractional change.
+
+        Args:
+            esc_df (DataFrame): DataFrame containing ESC values.
+            enzyme_id (str): ID of the enzyme.
+
+        Returns:
+            float: ESC variability as a percentage change.
         """
 
         start_esc = esc_df[esc_df['enzyme_id'] == enzyme_id].coefficient.iloc[0]
@@ -442,14 +494,34 @@ class PAMParametrizer():
     def _esc_variability_larger_than_threshold(self, esc_variability: float)-> bool:
         return (esc_variability >= self.hyperparameters.bin_split_deviation_threshold)
 
-    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame, bin_information: list,
-                                          bin_id: Union[float, int]) -> float:
-        flux_df = self.parametrization_results.fluxes_df
-        fluxes = flux_df[flux_df['bin'] == bin_id]
+    def _calculate_error_for_reactions(self, validation_df: pd.DataFrame,
+                                          substrate_start: float, substrate_stop:float,
+                                          bin_id: Union[float, int] = None) -> float:
+        # calculate error for different exchange rates
+        error = []
+        for rxn in self.validation_data._reactions_to_validate + self.validation_data._get_biomass_reactions():
+            # only select the rows which are filled with data
+            validation_data = validation_df.dropna(axis=0, subset=rxn)
+            # if there are no reference data points, continue to the next reaction
+            if len(validation_data) == 0:
+                continue
 
+            flux_df = self.parametrization_results.fluxes_df
+            #check if we want to calculate the error for a single bin
+            if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
+
+            r_squared = self._calculate_r_squared_for_reaction(rxn, validation_df,
+                                                               substrate_start, substrate_stop,
+                                                               flux_df)
+            error += [r_squared]
+        return error
+
+    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
+                                          substrate_start: float, substrate_stop:float,
+                                          fluxes: pd.DataFrame) -> float:
         # calculate difference between simulations and validation data
         # get the linear relation of simulation (using the first and the last datapoint)
-        line = linregress(x=[abs(bin_information[0]), abs(bin_information[1])], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
+        line = linregress(x=[abs(substrate_start), abs(substrate_stop)], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
         ref_data_rxn = validation_data.assign(
                 simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id])
 
@@ -466,19 +538,23 @@ class PAMParametrizer():
 
     def _parse_enzymes_to_evaluate(self, esc_topn_df: pd.DataFrame) -> dict:
         """
-        Function to parse the enzyme-reaction pairs for which the kinetic parameters should be adjusted
-        from the enzyme sensitivity coefficients outputted by the model to an input of the genetic algorithm.
+        Parses the enzyme-reaction pairs for which the kinetic parameters should be adjusted from the enzyme sensitivity coefficients.
 
-        :param esc_topn_df: DataFrame containing the (mean) ESC values of the selected enzymes, with as columns:
-                            [enzyme_id,  mean,  absolute_esc_mean,  bin,  substrate, rxn_id,  coefficient]
-        :return: enzymes_to_evaluate: dictionary with required information about which enzyme parameters
-                                    should be optimized. Format:
-                                    {'enzyme_id':{
-                                        'reaction':'reaction_id',
-                                        'kcat':kcat_value,
-                                        'sensitivity': esc_value
-                                                }}
+        Args:
+            esc_topn_df (DataFrame): DataFrame containing the (mean) ESC values of the selected enzymes, with columns:
+                [enzyme_id, mean, absolute_esc_mean, bin, substrate, rxn_id, coefficient]
+
+        Returns:
+            dict: Dictionary with required information about which enzyme parameters should be optimized. Format:
+                {
+                    'enzyme_id': {
+                        'reaction': 'reaction_id',
+                        'kcat': kcat_value,
+                        'sensitivity': esc_value
+                    }
+                }
         """
+
         enzymes_to_evaluate = {}
 
         for index, row in esc_topn_df.iterrows():
@@ -497,24 +573,26 @@ class PAMParametrizer():
 
         # Define the regular expression pattern for matching file names
         file_pattern = re.compile(fr'{filename_base}{subset}.*\.json$')
-
         # Get a list of all files in the folder and filter using the regular expression
         json_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if file_pattern.match(f)]
         return json_files
 
     def _determine_enzymes_to_evaluate_for_all_bins(self, nmbr_kcats_to_pick) -> dict:
         """
-            Function to parse the enzyme-reaction pairs for which the kinetic parameters should be adjusted
-            from the enzyme sensitivity coefficients outputted by the model to an input of the genetic algorithm.
+        Parses enzyme-reaction pairs for adjusting kinetic parameters from enzyme sensitivity coefficients.
 
-            :param nmbr_kcats_to_pick: number of enzymes to select based on the enzyme sensitivity coefficients
-            :return: enzymes_to_evaluate: dictionary with required information about which enzyme parameters
-                                        should be optimized. Format:
-                                        {'enzyme_id':{
-                                            'reaction':'reaction_id',
-                                            'kcat':kcat_value,
-                                            'sensitivity': esc_value
-                                                    }}
+        Args:
+            nmbr_kcats_to_pick (int): Number of enzymes to select based on the enzyme sensitivity coefficients.
+
+        Returns:
+            dict: Dictionary with required information about which enzyme parameters should be optimized. Format:
+                {
+                    'enzyme_id': {
+                        'reaction': 'reaction_id',
+                        'kcat': kcat_value,
+                        'sensitivity': esc_value
+                    }
+                }
         """
         esc_results_df = self.parametrization_results.esc_df
         esc_topn_df = self._select_topn_enzymes(esc_results_df,
@@ -530,6 +608,20 @@ class PAMParametrizer():
         path_to_results_excel = os.path.join(folder_path,
                                              filename_base + f'final_run_{self.iteration}.xlsx')
         return pd.read_excel(path_to_results_excel, sheet_name= 'best_individual')
+
+
+    def _remove_result_files(self, file_base: Union[list, str]) -> None:
+        """ Removes files resulting from genetic algorithm runs.
+
+        Args:
+            file_base (list, string): list of stings or pathlib.Path objects or a string with the files
+            to remove. If there are file extensions, they will be removed.
+        """
+        if not hasattr(file_base, '__iter__'): file_base = [file_base]
+        for file in file_base:
+            if not isinstance(file, str): file = str(file)
+            file_path_base = file.split('.')[0]
+            [os.remove(file_path_base + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
     #################################################################################################################
     # VISUALIZATION
@@ -548,6 +640,7 @@ class PAMParametrizer():
                            color='firebrick', marker='o', s=30, linewidths=1.3,
                            facecolors=None, zorder=0,
                            label='Data')
+            ax.set_xlabel(self.substrate_uptake_id + ' $mmol/g_{CDW}/h$')
         plt.ion()   # set interactive mode
         fig.tight_layout()
         fig.show()

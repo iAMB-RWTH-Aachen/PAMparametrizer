@@ -37,9 +37,7 @@ class PAMParametrizerMock(PAMParametrizer):
 
 
     def set_up_validation_data_mock(self):
-        script_directory = os.path.dirname(os.path.abspath(__file__))
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_directory)))
-        DATA_DIR = os.path.join(base_dir, 'Scripts', 'Testing', 'Data')
+        DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'Testing', 'Data')
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
         valid_data_df = pd.read_csv(RESULT_DF_FILE)
 
@@ -53,6 +51,7 @@ class PAMParametrizerMock(PAMParametrizer):
         hyperparams.number_of_kcats_to_mutate = 3
         hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
         hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_test_'
+        hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
         return hyperparams
 
 
@@ -149,6 +148,8 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     sut = PAMParametrizerMock()
     bin_id = 1
     bin_information = {bin_id:[0.001, 0.002, 0.001/5]}
+    start = 0.001
+    stop = 0.002
     pamodel = setup_toy_pam()
 
     #get exactly the simulation results which we would obtain in the model
@@ -156,8 +157,16 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     validation_data_mock = fluxes[bin_id]
     sut.run_pamodel_simulations_in_bin(bin_information)
 
+    flux_df = sut.parametrization_results.fluxes_df
+    # check if we want to calculate the error for a single bin
+    flux_df = flux_df[flux_df['bin'] == bin_id]
+
     #act
-    r_squared_to_validate = sut._calculate_r_squared_for_reaction('R7', validation_data_mock, bin_information[bin_id], bin_id)
+    r_squared_to_validate = sut._calculate_r_squared_for_reaction(reaction_id ='R7',
+                                                                  validation_data = validation_data_mock,
+                                                                  substrate_start = start,
+                                                                  substrate_stop = stop,
+                                                                  fluxes = flux_df)
 
     #assert
     #manual calculation results in an R^2 of 0.88 for this bin
@@ -280,7 +289,7 @@ def test_if_restart_genetic_algorithm_runs():
     full_file_path = os.path.join(os.getcwd(), 'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base + 'final_run_' + str(sut.iteration))
     full_file_path_test = os.path.join(os.getcwd(), 'Results',
-                                  sut.hyperparameters.genetic_algorithm_filename_base + 'test')
+                                  sut.hyperparameters.genetic_algorithm_filename_base)
     # Act
     sut.restart_genetic_algorithm()
     json_files = sut._get_genetic_algorithm_json_files(subset = 'final_run')
@@ -288,9 +297,9 @@ def test_if_restart_genetic_algorithm_runs():
     # Assert
     assert 1 == len(json_files)
     # remove the produced files
-    [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
-    for bin_id in bin_information.keys():
-        [os.remove(full_file_path_test + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    # [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    # for bin_id in bin_information.keys():
+    #     [os.remove(full_file_path_test + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
 def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Arrange
@@ -355,13 +364,20 @@ def test_pam_parametrizer_plots_progress():
     fig = sut.plot_simulation(fig, axs)
 
 #TODO
-# def test_pam_parametrizer_runs():
-#     # Arrange
-#     sut = PAMParametrizerMock()
-#     sut.min_substrate_uptake_rate = 0.07
-#     sut.max_substrate_uptake_rate = 0.09
-#     # Act
-#     sut.run()
+def test_pam_parametrizer_runs():
+    # Arrange
+    sut = PAMParametrizerMock()
+    sut.min_substrate_uptake_rate = 0.07
+    sut.max_substrate_uptake_rate = 0.09
+    # Act
+    sut.run()
+
+    #remove result files (incl figure)
+    filename_extension = f'final_run_{sut.iteration}'
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
+    [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    os.remove(sut.result_figure_file)
 
 def test_save_diagnostics():
     pass

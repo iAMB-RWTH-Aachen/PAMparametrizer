@@ -59,7 +59,8 @@ class HyperParameters:
                                 'processes': 2,  # number of parallel workers
                                 'time_limit': 600,  # time limit in seconds
                                 'folderpath_save': Path(r"Results"),  # path for saving results
-                                'overwrite_intermediate_results': True  # if true, saved intermediate results are overwritten
+                                'overwrite_intermediate_results': True,  # if true, saved intermediate results are overwritten
+                                'print_progress': True # if True, progress of the genetic algorithm is printed
                                      }
     #change fitness function if Gaussian sampling is applied
     if isinstance(genetic_algorithm, GAPOGauss):
