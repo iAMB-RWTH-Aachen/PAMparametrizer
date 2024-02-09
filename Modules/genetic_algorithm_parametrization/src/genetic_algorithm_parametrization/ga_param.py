@@ -74,7 +74,7 @@ class Genetic_Algorithm():
 
 
     # main genetic algorithm iterations
-    def main(self, pop, toolbox, start_time, fitfun, sensitivities, fitness_dict={}, pop_id="") -> (list, dict):
+    def main(self, pop, toolbox, start_time, fitfun, sensitivities, fitness_dict={}, pop_id="", print_progress = True) -> (list, dict):
         """Main genetic algorithm framework
         - supports elitism
         - mutation operator
@@ -114,15 +114,12 @@ class Genetic_Algorithm():
         while (g < self.number_generations) and ((time()-start_time) < self.time_limit):
             # A new generation
             g = g + 1
-            print("({3}) Population {0}: Generation {1}/{2} --".format(pop_id, g, self.number_generations, print_time()))
+            if print_progress:
+                print("({3}) Population {0}: Generation {1}/{2} --".format(pop_id, g, self.number_generations, print_time()))
             
             
             # get best individual of population for elitism
-            elite = pop[0]
-            for ind in pop:
-                if ind.fitness._wsum() < elite.fitness._wsum():
-                    # new best solution, swap
-                    elite = ind
+            elite = self._get_best_individual_from_population(pop)
             #make clones of the elite individuals
             elite = list(map(toolbox.clone, [elite]))
     
@@ -201,14 +198,24 @@ class Genetic_Algorithm():
             mean = sum(fits) / length
             sum2 = sum(x*x for x in fits)
             std = abs(sum2 / length - mean**2)**0.5
-            
-            print("({4}) Population {0}: Generation {1}/{2} evaluated {3} individuals".format(
-                pop_id, g, self.number_generations, len(invalid_ind), print_time())
-                )
-            print("\tMin %s" % min(fits), "\tMax %s" % max(fits), "\tAvg %s" % mean, "\tStd %s" % std)
 
-        print("({1}) Population {0}: End of (successful) evolution --".format(pop_id, print_time()))
+            if print_progress:
+                print("({4}) Population {0}: Generation {1}/{2} evaluated {3} individuals".format(
+                    pop_id, g, self.number_generations, len(invalid_ind), print_time())
+                    )
+                print("\tMin %s" % min(fits), "\tMax %s" % max(fits), "\tAvg %s" % mean, "\tStd %s" % std)
+
+        if print_progress:
+            print("({1}) Population {0}: End of (successful) evolution --".format(pop_id, print_time()))
         
     
         
         return (pop, fitness_dict)
+
+    def _get_best_individual_from_population(self, population):
+        elite = population[0]
+        for ind in population:
+            if ind.fitness._wsum() > elite.fitness._wsum():
+                # new best solution, swap
+                elite = ind
+        return elite

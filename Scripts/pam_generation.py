@@ -2,6 +2,7 @@ import cobra
 import pandas as pd
 import os
 from typing import Union
+import numpy as np
 
 # load PAModelpy modules
 from PAModelpy.PAModel import PAModel
@@ -9,6 +10,7 @@ from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, Tran
 from PAModelpy.configuration import Config
 
 from .toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
+from .toy_ec_pam2 import build_toy_gem2, build_active_enzyme_sector2
 
 'Function library for making Protein Allocation Models as described in the publication'
 
@@ -33,11 +35,32 @@ def setup_toy_pam(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 
     config.reset()
     return pamodel
 
-def set_up_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True, translational_enzymes:bool = True, unused_enzymes:bool = True, sensitivity =True):
+
+def setup_toy_pam2(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 1.5]) -> PAModel:
+    config = Config()
+    #setting the configuration for the toy model
+    config.BIOMASS_REACTION = 'R7'
+    config.GLUCOSE_EXCHANGE_RXNID = 'R1'
+    config.CO2_EXHANGE_RXNID = 'R8'
+    config.ACETATE_EXCRETION_RXNID = 'R9'
+
+    Etot = 0.6*1e-3
+    model = build_toy_gem2()
+    active_enzyme = build_active_enzyme_sector2(config, kcat_fwd)
+    unused_enzyme = build_unused_protein_sector(config)
+    translation_enzyme = build_translational_protein_sector(config)
+    pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
+                      translational_sector=translation_enzyme,
+                      unused_sector=unused_enzyme, p_tot=Etot, sensitivity=sensitivity)
+    pamodel.objective = 'R7'
+    config.reset()
+    return pamodel
+
+def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True, translational_enzymes:bool = True, unused_enzymes:bool = True, sensitivity =True):
     # Setting the relative paths
-    DATA_DIR = os.path.join(os.path.split(os.getcwd())[0], 'Data')
-    MODEL_DIR = os.path.join(os.path.split(os.getcwd())[0], 'Models')
-    PAM_DATA_FILE_PATH = os.path.join(DATA_DIR, 'proteinAllocationModel_iML1515_EnzymaticData_py.xls')
+    DATA_DIR = os.path.join(os.getcwd(), 'Data')
+    MODEL_DIR = os.path.join(os.getcwd(), 'Models')
+    PAM_DATA_FILE_PATH = os.path.join(DATA_DIR, 'proteinAllocationModel_iML1515_EnzymaticData_230503.xls')
 
     # some other constants
     BIOMASS_REACTION = 'BIOMASS_Ecoli_core_w_GAM'
@@ -74,69 +97,41 @@ def set_up_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
         enzyme_db.loc[nan_values, 'EC_nmbr'] = nan_ids
 
         # create enzyme objects for each gene-associated reaction
+
+        # parse the enzyme information (kcat values, identifiers and molmasses)
+        kcats_dict = {rxn:kcat for rxn, kcat in enzyme_db.loc[:, 'kcat'].to_dict().items() if rxn in model.reactions}
+        ec_dict = {rxn:kcat for rxn, kcat in enzyme_db.loc[:, 'EC_nmbr'].to_dict().items() if rxn in model.reactions}
+        molmass_dict = {rxn:kcat for rxn, kcat in enzyme_db.loc[:, 'molMass'].to_dict().items() if rxn in model.reactions}
+
         kcats = {}
+        # save fwd and bckw kcats separately in the form of: {rxnID: {'f': kcat_f, 'b': kcat_b}}
+        for rxn, kcat in kcats_dict.items():
+            # reversible reaction
+            if rxn[-2:] == '_f' or rxn[-2:] == '_b':
+                direction = rxn[-1]
+                # check if the reaction already exists in the kcat dictionary
+                try:
+                    kcats[rxn[:-2]][direction] = kcat
+                except:
+                    kcats[rxn[:-2]] = {direction: kcat}
+            # irreversible reaction
+            else:
+                kcats[rxn] = {'f': kcat}
+
         rxn2ec = {}
+        # parse the enzyme identifiers for the reactions
+        for rxn, ec in ec_dict.items():
+            if rxn[-2:] == '_f' or rxn[-2:] == '_b':
+                rxn = rxn[:-2]
+            for enz in str(ec).split(','):
+                rxn2ec[rxn] = enz.strip()
+
         molmass = {}
-        for rxn in model.reactions:
-            if rxn.genes:
-                # correct transport reactions
-                if 't' in rxn.id:
-                    rxn.id = rxn.id
-                # are enzyme information in the PAM database?
-                rev = 0  # denotes reversibility
-                if rxn.lower_bound >= 0:
-                    # irreversible reaction (forward direction)
-                    rev = 0
-                    rxn_id = rxn.id  # save reaction ID for retrieveing molar masses/enzyme information later
-                    if rxn.id in enzyme_db.index:
-                        kcats[rxn.id] = {'f': enzyme_db.loc[rxn.id, 'kcat']}
-                elif rxn.upper_bound <= 0:
-                    # irreversible reaction (reverse direction)
-                    rev = 1
-                    rxn_id = rxn.id + '_b'
-                    if rxn_id in enzyme_db.index:
-                        kcats[rxn.id] = {'b': enzyme_db.loc[rxn_id, 'kcat']}
-                else:
-                    rev = 2
-                    # reversible reaction
-                    rxn_id_f = rxn.id + '_f'
-                    rxn_id_b = rxn.id + '_b'
-                    if rxn_id_f in enzyme_db.index and rxn_id_b in enzyme_db.index:
-                        rxn_id = rxn_id_f  # save reaction ID for retrieveing molar masses/enzyme information later
-                        kcats[rxn.id] = {'f': enzyme_db.loc[rxn_id_f, 'kcat'],
-                                         'b': enzyme_db.loc[rxn_id_b, 'kcat']}
-
-                    else:
-                        # try if only forward reaction is in database
-                        rxn_id = rxn.id  # save reaction ID for retrieveing molar masses/enzyme information later
-                        kcats[rxn.id] = {'f': enzyme_db.loc[rxn.id, 'kcat'],
-                                         'b': enzyme_db.loc[
-                                                  rxn.id, 'kcat'] / 2}  # deduce backwards kcat from forward value
-
-                # where enzyme information found?
-                if rxn.id in kcats.keys():
-                    # save molmass
-                    molmass[rxn.id] = enzyme_db.loc[rxn_id, 'molMass']
-                    # save enzyme information
-                    # is enzyme information NaN?
-                    if pd.isna(enzyme_db.loc[rxn_id, 'EC_nmbr']):
-                        rxn2ec[rxn.id] = ''
-                    else:
-                        rxn2ec[rxn.id] = enzyme_db.loc[rxn_id, 'EC_nmbr']
-
-
-                else:
-                    # no enzyme information found
-                    print('No enzyme information found for reaction: ' + rxn.id)
-                    # Create generic Enzyme with mean molar masses and kcat
-                    if rev == 0:
-                        kcats[rxn.id] = {'f': 22}
-                    elif rev == 1:
-                        kcats[rxn.id] = {'b': 22}
-                    else:
-                        kcats[rxn.id] = {'f': 22, 'b': 22}
-
-                    molmass[rxn.id] = 3.947778784340140e04
+        # parse the enzyme molmasses for the reactions
+        for rxn, mw in molmass_dict.items():
+            if rxn[-2:] == '_f' or rxn[-2:] == '_b':
+                rxn = rxn[:-2]
+            molmass[rxn] = mw
 
         rxn2protein = {}
         for rxn, ec in rxn2ec.items():
@@ -148,7 +143,6 @@ def set_up_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
             else:
                 rxn2protein[rxn] = {ec: ec_dict}
 
-        # create active enzymes sector
         active_enzyme_sector = ActiveEnzymeSector(rxn2protein=rxn2protein)
 
     else:

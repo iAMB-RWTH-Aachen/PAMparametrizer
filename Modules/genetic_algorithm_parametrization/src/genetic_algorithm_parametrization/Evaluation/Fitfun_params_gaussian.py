@@ -13,6 +13,8 @@ import pandas as pd
 from pathlib import Path
 import os
 from os.path import dirname, abspath
+from scipy.stats import linregress
+from typing import Union
 
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
@@ -53,11 +55,11 @@ class FitnessEvaluation():
         self.fixed_attr_list = fixed_attr_list
 
         #initiate reference values
-        valid_data_df = valid_data_df.round({substrate_uptake_id: 5}) #round the substrate uptake ids for easy matching
-        values_to_select = [round(rate, 5) for rate in substrate_uptake_rates]
-        self.ref_data = valid_data_df[
-            valid_data_df[substrate_uptake_id + '_ub'].apply(lambda x: any(np.isclose(x, v) for v in values_to_select))
-        ]
+        # valid_data_df = valid_data_df.round({substrate_uptake_id: 5}) #round the substrate uptake ids for easy matching
+        # values_to_select = [round(rate, 5) for rate in substrate_uptake_rates]
+        # self.ref_data = valid_data_df[
+        #     valid_data_df[substrate_uptake_id + '_ub'].apply(lambda x: any(np.isclose(x, v) for v in values_to_select))
+        # ]
 
         # only get exchanges and growth rate
         self.growth_rate = [data for data in valid_data_df.columns if data.split('_')[0] == objective_id]
@@ -255,32 +257,30 @@ class FitnessEvaluation():
         # (one low substrate uptake rate and a high substrate uptake rate are recommended)
 
         # apply kcat changes and compute metabolic functionalities
-        fitness_list = []
         kcat_old = [self.model.enzymes.get_by_id(enz_id).get_kcat_values(individual.reactions[i]) for i, enz_id in enumerate(individual.enzymes_to_eval)]
         with individual.model as model:
             # change the kcat value of the enzymes with the highest sensitivity
-            for i, enz_id in enumerate(individual.enzymes_to_eval):
-                rxn = model.reactions.get_by_id(individual.reactions[i])
-                model.change_kcat_value(enz_id,
-                                  {individual.reactions[i]:
-                                       {'f':individual.kcat_list[i]/(3600*1e-6), 'b':individual.kcat_list[i]/(3600*1e-6)}})
-                # model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]}) #TODO remove after PAModelpy update
-                # model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
-                #     {rxn.reverse_variable: 1 / individual.kcat_list[i]})
+            self._change_kcat_values_for_individual(individual)
+            # perform simulations and save results
+            fluxes_df = pd.DataFrame(columns = ['substrate_uptake'] + self.reactions_with_data)
 
-            # perform simulations
             for rate in self.substrate_uptake_rates:
-                model.change_reaction_bounds(self.substrate_uptake_id,
-                                                  lower_bound = 0, upper_bound = rate)
-                model.slim_optimize()
-                if model.solver.status != 'optimal':error = 1e2
-                # calculate fitness (sum of simulation error to reactions with data)
-                else: error = self._calculate_simulation_error(model, substrate_uptake=rate)
+                new_row = [rate] + [0] * len(fluxes_df.columns[1:])
+                fluxes_df.loc[len(fluxes_df)] = new_row
 
-                fitness_list += [error]
+                individual.model.change_reaction_bounds(self.substrate_uptake_id,
+                                                  lower_bound = 0, upper_bound = rate)
+                individual.model.slim_optimize()
+                if model.solver.status != 'optimal':continue
+                # calculate fitness (sum of simulation error to reactions with data)
+                else:
+                    for rxn_id in fluxes_df.columns[1:]:
+                        if rxn_id in model.reactions:
+                            fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = model.reactions.get_by_id(rxn_id).flux
+            error = self._calculate_simulation_error(fluxes_df)
 
             #average fitness:
-            fitness = float(np.mean(fitness_list))
+            fitness = float(error)
             individual.r_squared = fitness
             individual.fitness.values = [fitness]
 
@@ -298,30 +298,56 @@ class FitnessEvaluation():
     ##########################################################################
     # CUSTOM HELPER FUNCTIONS
     ##########################################################################
-    
-    def _calculate_simulation_error(self, model, substrate_uptake:float):
+    def _change_kcat_values_for_individual(self, individual):
+        for i, enz_id in enumerate(individual.enzymes_to_eval):
+            rxn = individual.model.reactions.get_by_id(individual.reactions[i])
+            # individual.model.change_kcat_value(enz_id,
+            #                         {individual.reactions[i]:
+            #                              {'f': individual.kcat_list[i] / (3600 * 1e-6),
+            #                               'b': individual.kcat_list[i] / (3600 * 1e-6)}})
+            individual.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]})
+            individual.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
+                 {rxn.reverse_variable: 1 / individual.kcat_list[i]})
+
+
+    def _calculate_simulation_error(self,flux_df: pd.DataFrame):
         error = []
         for rxn in self.reactions_with_data:
             #only select the rows which are filled with data
 
-            ref_data_rxn = self.ref_data.dropna(axis = 0, subset = rxn)
+            ref_data_rxn = self.valid_data_df.dropna(axis = 0, subset = rxn)
             #if there are no reference data points, continue to the next reaction
             if len(ref_data_rxn) == 0: continue
 
-            #select the right substrate uptake rate
-            ref_data_rxn = ref_data_rxn[np.isclose(ref_data_rxn[self.substrate_uptake_id + '_ub'] ,substrate_uptake)]#|
-            # np.isclose(ref_data_rxn[self.substrate_uptake_id], substrate_uptake)]
-
-            # calculate difference between simulations and validation data
-            ref_data_rxn = ref_data_rxn.assign(simulation=model.reactions.get_by_id(rxn).flux)
-
-
-            # error: squared difference
-            ref_data_rxn = ref_data_rxn.assign(error=lambda x: abs((x[rxn] - x['simulation'])))
-            error += [ref_data_rxn.error.mean()]
+            r_squared = self._calculate_r_squared_for_reaction(rxn, ref_data_rxn,
+                                                               flux_df)
+            error += [r_squared]
         if len(error) == 0: return 1
 
         return sum(error)/len(error)
+
+    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
+                                          fluxes: pd.DataFrame) -> float:
+        # calculate difference between simulations and validation data
+        # get the linear relation of simulation (using the first and the last datapoint)
+        line = linregress(x=[abs(self.substrate_uptake_rates[0]), abs(self.substrate_uptake_rates[-1])], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
+        ref_data_rxn = validation_data.assign(
+                simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id+'_ub'])
+        # simulation mean
+        data_average = ref_data_rxn[reaction_id].mean()
+        # error: squared difference
+        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
+
+        # calculate R^2:
+        residual_ss = sum(ref_data_rxn.error)
+        total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
+        if (residual_ss == 0) | (total_ss == 0):
+            r_squared = 0
+        else:
+            r_squared = 1 - residual_ss / total_ss
+        return r_squared
+
         
     def _mutate_kcat_value(self, kcat:float, sensitivity:float = 0.5, toolbox:deap.base.Toolbox = None) -> float:
         """

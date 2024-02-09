@@ -10,16 +10,6 @@ from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, Tran
 from PAModelpy.PAModel import PAModel
 from PAModelpy.configuration import Config
 
-"""
-Script to create a dataset for testing the genetic algorithm: a toy model which predicts a respiratory phenotype 
-with the initial kcat parameterset, and respiro-fermentative metabolism with the final kcat parameterset for enzymes:
-
-[E1, E2, E3, E4, E5, E6]
-
-Initial kcats:[1, 0.5, 1, 0.5 ,0.45, 1.5]
-Final kcats:[1, 0.5, 5, 0.1, 0.25, 1.5]
-"""
-
 Config.BIOMASS_REACTION = 'R7'
 Config.GLUCOSE_EXCHANGE_RXNID = 'R1'
 Config.CO2_EXHANGE_RXNID = 'R8'
@@ -27,8 +17,8 @@ Config.ACETATE_EXCRETION_RXNID = 'R9'
 
 #need to have gurobipy installed
 
-DATA_DIR = os.path.join(os.getcwd(), 'Data')
-RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
+DATA_DIR = os.path.join(os.getcwd(),'Scripts', 'Testing', 'Data')
+RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga2.csv')
 
 
 #global variables:
@@ -36,12 +26,12 @@ global metabolites, n, m, Etot
 #global variables:
 global metabolites, n, m, Etot
 metabolites = ['Substrate', 'ATP', 'CO2', 'Precursor', 'Biomass', 'Byproduct', 'Intermediate']
-n = 9
-m = 7
+n = 10
+m = 8
 Etot = 0.6*1e-3 #will be adjusted in the model with 1e3
 
 #functions:
-def build_toy_gem():
+def build_toy_gem2():
     '''
     Rebuild the toymodel as in the MATLAB script.
     sub int byp atp co2 pre bio
@@ -96,7 +86,7 @@ S  = [R1;R2;R3;R3r;R4;R5;R6;R7;R8;R9]';
     r3.add_metabolites({Metabolite('Intermediate'): -1, Metabolite('Byproduct'):1, Metabolite('ATP'):1})
     # R4:
     r4 = model.reactions.get_by_id('R4')
-    r4.add_metabolites({Metabolite('Intermediate'): -1, Metabolite('ATP'): 2, Metabolite('CO2'):1})
+    r4.add_metabolites({Metabolite('Intermediate'): -1, Metabolite('TCA_Intermediate'): 1, Metabolite('CO2'):1})
     # R5:
     r5 = model.reactions.get_by_id('R5')
     r5.add_metabolites({Metabolite('Intermediate'): -1, Metabolite('Precursor'): 1})
@@ -113,19 +103,23 @@ S  = [R1;R2;R3;R3r;R4;R5;R6;R7;R8;R9]';
     # R9:
     r9 = model.reactions.get_by_id('R9')
     r9.add_metabolites({Metabolite('Byproduct'): -1})
+    #R10
+    r10 = model.reactions.get_by_id('R10')
+    r10.add_metabolites({Metabolite('TCA_Intermediate'): -1, Metabolite('ATP'):2})
 
     return model
 
-def build_active_enzyme_sector(Config):
-    kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5] #the 'final' dataset
-
+def build_active_enzyme_sector2(Config, kcat_fwd: list  =[1, 0.5, 4, 0.1 ,0.25, 1.5] ):
     kcat_rev = [kcat for kcat in kcat_fwd]
     rxn2kcat = {}
-    for i in range(n-3): # all reactions have an enzyme, except excretion reactions
+    for i in range(n-4): # all reactions have an enzyme, except excretion reactions
         rxn_id = f'R{i+1}'
         # 1e-6 to correct for the unit transformation in the model (meant to make the calculations preciser for different unit dimensions)
         #dummy molmass like in MATLAB script
         rxn2kcat = {**rxn2kcat, **{rxn_id: {f'E{i+1}':{'f': kcat_fwd[i]/(3600*1e-6), 'b': kcat_rev[i]/(3600*1e-6), 'molmass': 1e6}}}}
+
+    rxn2kcat = {**rxn2kcat, **{
+        'R10': {f'E{10}': {'f': 0.5 / (3600 * 1e-6), 'b': 0.5 / (3600 * 1e-6), 'molmass': 1e6}}}}
 
     return ActiveEnzymeSector(rxn2protein = rxn2kcat, configuration=Config)
 
@@ -150,21 +144,51 @@ def run_simulations(pamodel, substrate_rates):
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
+def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.091],
+                               reference_data_file_path:str = 'Testing/Data/toy_model_simulations_ga.csv') -> float:
+    """
+    Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
+    :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
+    """
+    validation_results = pd.read_csv(reference_data_file_path)
+    simulation_results = run_simulations2(toy_model, substrate_rates)
+
+    error = []
+    for rxn in validation_results.columns[2:]:
+        for sub_upt in [0.001, 0.091]:
+            validation_result = validation_results[rxn][np.isclose(validation_results.R1_ub,sub_upt)].iloc[0]
+            simulation_result = simulation_results[rxn][simulation_results['R1_ub'] == sub_upt].iloc[0]
+            error += [validation_result - simulation_result]
+    return sum(error)/len(error)
+
+
 if __name__ == "__main__":
-    model = build_toy_gem()
-    active_enzyme = build_active_enzyme_sector(Config)
+    model = build_toy_gem2()
+    # kcat_fwd = [1,0.5,2.3202676809732568, 0.00022332736693788058, 0.06080483962749876, 1.5]
+
+    # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
+    active_enzyme = build_active_enzyme_sector2(Config)#, kcat_fwd=kcat_fwd)
     unused_enzyme = build_unused_protein_sector(Config)
     translation_enzyme = build_translational_protein_sector(Config)
     pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
                       translational_sector = translation_enzyme,
                       unused_sector = unused_enzyme, p_tot=Etot, configuration=Config)
 
+
     #optimize biomass formation
     pamodel.objective={pamodel.reactions.get_by_id('R7') :1}
-
+    # print(evaluate_toy_model_fitness(pamodel, substrate_rates=list(np.arange(1e-3, 1e-1, 1e-2))))
 
     substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
-
+    #
     simulation_results = run_simulations(pamodel, substrate_rates)
-    # simulation_results.to_csv(RESULT_DF_FILE)
+    simulation_results.to_csv(RESULT_DF_FILE)
     print(simulation_results.to_markdown())
+    #
+    #
+    # pamodel.change_kcat_value('E4', {'R4':{'f':10, 'b':10}})
+    # simulation_results = run_simulations(pamodel, substrate_rates)
+    # # simulation_results.to_csv(RESULT_DF_FILE)
+    # print(simulation_results.to_markdown())
+    #
+    # print(evaluate_toy_model_fitness(pamodel))

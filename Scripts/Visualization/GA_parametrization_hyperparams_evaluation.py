@@ -13,10 +13,9 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 os.chdir('..')
-from PAM_Parametrization.Scripts.genetic_algorithm_analysis import get_kcat_error_from_ga, reverse_nested_dictionary
+from Scripts.genetic_algorithm_analysis import get_kcat_error_from_ga, reverse_nested_dictionary
 
-os.chdir('Testing/Genetic_algorithm_tests/')
-from PAM_Parametrization.Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
+from Scripts.Testing.Genetic_algorithm_tests.toy_model import init_toy_parametrization_ga
 
 
 sys.path.append('../../Visualization')
@@ -132,10 +131,9 @@ def plot_hyperparams(result_list:list, parameter:str = 'hyperparameter', save:bo
 
     fig.set_figwidth(10)
     fig.set_figheight(7)
-    os.chdir('../../Visualization/')
-    if save: plt.savefig('Figures_hyperparams/'+parameter+'.png')
+    if save: plt.savefig('Scripts/Visualization/Figures_hyperparams/'+parameter+'.png')
     else: plt.show()
-    os.chdir('../Testing/Genetic_algorithm_tests/')
+
 
 
 if __name__ == '__main__':
@@ -143,5 +141,6 @@ if __name__ == '__main__':
 
     for param in hyperparameters.keys():
         hyperparam_range(param, hyperparameters[param], save =True)
+        break
 
 

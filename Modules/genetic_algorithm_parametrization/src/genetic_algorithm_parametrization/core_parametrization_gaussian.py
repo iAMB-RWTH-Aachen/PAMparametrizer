@@ -166,7 +166,6 @@ class GAPO():
             print("({}) Initialize DEAP toolbox --".format(print_time()))
 
         self.toolbox = self._init_deap_toolbox() # initialize the toolbox
-        pop = self.ga.init_pop(self.toolbox, self.population_size, True)
 
         # save evaluation class
         with open(self.folderpath_save.joinpath(self.filename_save+".pickle"), "wb") as f:
@@ -348,7 +347,7 @@ class GAPO():
         # generation: each individual of the current generation
         # is replaced by the 'fittest' (best) of three individuals
         # drawn randomly from the current generation.
-        toolbox.register("select", tools.selWorst)#, tournsize=2)
+        toolbox.register("select", tools.selBest)#, tournsize=2)
 
         return toolbox
 
@@ -401,8 +400,6 @@ class GAPO():
                     pops[pop_idx][ind_idx] = unq_pop[shuffled_idx[unq_ind_idx]]
                     unq_ind_idx += 1
 
-            # self.ga.main(pops[0], toolbox, start_time, self.FitEval,  fitness_dict, '1')
-               
             # multiprocessing
             if self.print_progress:
                 print("Start genetic algorithm --")
@@ -410,7 +407,7 @@ class GAPO():
                 # distribute populations to separate workers
 
                 gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
-                                                           fitness_dict, str(i+1)) for i in range(len(pops))])
+                                                           fitness_dict, str(i+1), self.print_progress) for i in range(len(pops))])
 
                 # extract populations
                 if self.print_progress:

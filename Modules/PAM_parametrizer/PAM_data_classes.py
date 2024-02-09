@@ -39,7 +39,7 @@ class ValidationData:
 
 @dataclass
 class HyperParameters:
-    threshold_error = 0.1
+    threshold_error = 0.9
     threshold_iteration = 100
     number_of_kcats_to_mutate = 5
     number_of_bins = 5
@@ -48,7 +48,7 @@ class HyperParameters:
     genetic_algorithm_filename_base = 'genetic_algorithm_run_'
     genetic_algorithm: Callable = GAPOUniform
     genetic_algorithm_hyperparams = {'mutation_probability':0.5, # probability with which an individual (solution) is mutated in a generation
-                                'mutation_rate':1, # probability with which an attribute (e.g. gene) of an individual is mutated
+                                'mutation_rate':0.5, # probability with which an attribute (e.g. gene) of an individual is mutated
                                 'population_size':10, # number of individuals (solution) per population
                                 'crossover_probability':0.8, # probability with which two indivduals/offsprings are crossed over
                                 'number_generations':20, # number of consecutive generations per gene flow event
@@ -75,6 +75,9 @@ class ParametrizationResults:
     fluxes_df = pd.DataFrame()
     substrate_range = []
     _color = 440154
+    best_individuals = pd.DataFrame(columns = ['run_id', 'enzyme_id', 'rxn_id', 'kcat[s-1]', 'ga_error'])
+    computational_time = pd.DataFrame(columns = ['run_id', 'time_s', 'time_h'])
+    final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
 
     def initiate_result_dfs(self, reactions_to_validate, biomass_reaction) -> None:
         self.error_df = pd.DataFrame(columns=['bin']+ reactions_to_validate)
@@ -85,17 +88,39 @@ class ParametrizationResults:
     def initiate_bins_to_change(self) -> None:
         self.bins_to_change = pd.DataFrame(columns=['bin', 'split', 'merge'])
 
-    def add_fluxes(self, pamodel, bin_id: Union[float, int], substrate_uptake_rate: Union[float, int]):
-        fluxes_to_save = []
+    def add_fluxes(self, pamodel, bin_id: Union[float, int, str], substrate_uptake_rate: Union[float, int],
+                   fluxes_abs:bool = True):
+        new_row = [bin_id, substrate_uptake_rate]+[0]*len(self.fluxes_df.columns[2:])
+        self.fluxes_df.loc[len(self.fluxes_df)] = new_row
         for rxn in pamodel.reactions:
             if rxn.id in self.fluxes_df.columns:
-                fluxes_to_save += [rxn.flux]
-        self.fluxes_df.loc[len(self.fluxes_df)] = [bin_id, substrate_uptake_rate] + fluxes_to_save
+                if fluxes_abs: flux = abs(rxn.flux)
+                else: flux = rxn.flux
+                self.fluxes_df.iloc[-1, self.fluxes_df.columns.get_loc(rxn.id)] = flux
+
+    def add_fluxes_from_fluxdict(self, flux_dict:dict, bin_id: Union[float, int, str], substrate_uptake_rate: Union[float, int],
+                   fluxes_abs:bool = True):
+        new_row = [bin_id, substrate_uptake_rate]+[0]*len(self.fluxes_df.columns[2:])
+        self.fluxes_df.loc[len(self.fluxes_df)] = new_row
+        for rxn_id, flux in flux_dict.items():
+            if rxn_id in self.fluxes_df.columns:
+                if fluxes_abs: flux = abs(flux)
+                else: flux = flux
+                self.fluxes_df.iloc[-1, self.fluxes_df.columns.get_loc(rxn_id)] = flux
 
     def add_enzyme_sensitivity_coefficients(self, enzyme_sensitivity_coeff: pd.DataFrame,
-                                            bin_id:Union[float, int], substrate_uptake_rate: Union[float, int]):
+                                            bin_id:Union[float, int, str], substrate_uptake_rate: Union[float, int]):
         # we are only interested in the enzymes
-        enzyme_sensitivity_coeff['bin'] = [float(bin_id)]*len(enzyme_sensitivity_coeff)
+        if not isinstance(bin_id, str): bin_id = float(bin_id)
+        enzyme_sensitivity_coeff['bin'] = [bin_id]*len(enzyme_sensitivity_coeff)
         enzyme_sensitivity_coeff['substrate'] = [substrate_uptake_rate]*len(enzyme_sensitivity_coeff)
         self.esc_df = pd.concat([self.esc_df, enzyme_sensitivity_coeff])
         self.esc_df.reset_index(drop = True)
+
+    def add_best_individuals(self, run_id: str, best_indiv_enz_rxn_kcat: list, ga_error:float) -> None:
+        self.best_individuals.loc[len(self.best_individuals)] = [run_id] + best_indiv_enz_rxn_kcat + [ga_error]
+    def add_computational_time(self, run_id: str, time_in_sec: float):
+        self.computational_time.loc[len(self.computational_time)] = [run_id, time_in_sec, time_in_sec/3600]
+
+    def add_final_error(self, run_id: str, final_error: float):
+        self.final_errors.loc[len(self.final_errors)] = [run_id, final_error]

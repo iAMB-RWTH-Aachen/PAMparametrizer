@@ -1,7 +1,10 @@
+import time
+
 import PAModelpy.PAModel
 import pandas as pd
 import numpy as np
 import os
+from typing import Callable
 
 import pytest
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
@@ -43,6 +46,7 @@ class PAMParametrizerMock(PAMParametrizer):
 
         validation_data = ValidationData(valid_data_df)
         validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
+        validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
         return validation_data
 
     def set_up_hyperparameter_mock(self):
@@ -155,6 +159,7 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     #get exactly the simulation results which we would obtain in the model
     fluxes, esc_coeff_df = run_pamodel_binned(pamodel, bin_information)
     validation_data_mock = fluxes[bin_id]
+    validation_data_mock['R1_ub'] = validation_data_mock['R1']
     sut.run_pamodel_simulations_in_bin(bin_information)
 
     flux_df = sut.parametrization_results.fluxes_df
@@ -291,7 +296,8 @@ def test_if_restart_genetic_algorithm_runs():
     full_file_path_test = os.path.join(os.getcwd(), 'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base)
     # Act
-    sut.restart_genetic_algorithm()
+    files_to_remove = sut.restart_genetic_algorithm()
+    sut._remove_result_files(files_to_remove)
     json_files = sut._get_genetic_algorithm_json_files(subset = 'final_run')
 
     # Assert
@@ -347,31 +353,53 @@ def test_pam_parametrizer_plots_progress():
     # Arrange
     sut = PAMParametrizerMock()
     fig, axs = sut.plot_valid_data()
-    # reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
-    # sut._init_results_objects()
-    #
-    # # 1. Get the binned substrate values and adjust binsize if required
-    # binned_substrate = sut._bin_substrate_uptake_rates()
-    # # 2. Run model in bins, get sensitivities and calculate errors
-    # for bin_id, bin in binned_substrate.items():
-    #     sut.process_bin(bin, bin_id)
-
-    # remove the produced files
-    full_file_path = os.path.join(os.getcwd(), 'Results',
-                                      sut.hyperparameters.genetic_algorithm_filename_base)
-
     # Act
     fig = sut.plot_simulation(fig, axs)
 
+def test_pam_parametrizer_calculates_final_error_correctly():
+    # Arrange
+    sut = PAMParametrizerMock()
+
+def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
+    # Arrange
+    bin_id = 1
+    bin_info = [0.001, 0.002, 0.001/5]
+
+    sut = PAMParametrizerMock()
+    sut._init_results_objects()
+    sut.iteration = 1
+
+    start_time = time.perf_counter()
+    sut.process_bin(bin_info, bin_id)
+    computational_time = time.perf_counter() - start_time
+
+    sut.final_error = 1
+    results_filename = (os.path.join(os.getcwd(), 'Results', sut.hyperparameters.genetic_algorithm_filename_base + 'iteration_'+
+                                     str(sut.iteration) + '_bin_1.xlsx'))
+
+    full_file_path = os.path.join(os.getcwd(), 'Results',
+                                  sut.hyperparameters.genetic_algorithm_filename_base)
+    # Act
+    sut.save_diagnostics(computational_time,
+                         results_filename)
+
+    # Assert
+    assert_run_diagnostics_are_saved(sut.parametrization_results,
+                                     number_of_best_individuals= sut.hyperparameters.number_of_kcats_to_mutate)
+
+    #remove produced files
+    [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
 #TODO
-def test_pam_parametrizer_runs():
+def test_pam_parametrizer_runs_full_workflow():
     # Arrange
     sut = PAMParametrizerMock()
     sut.min_substrate_uptake_rate = 0.07
     sut.max_substrate_uptake_rate = 0.09
+    sut.hyperparameters.threshold_error = 1
+
     # Act
     sut.run()
-
     #remove result files (incl figure)
     filename_extension = f'final_run_{sut.iteration}'
     full_file_path = os.path.join(os.getcwd(), 'Results',
@@ -379,14 +407,15 @@ def test_pam_parametrizer_runs():
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
     os.remove(sut.result_figure_file)
 
-def test_save_diagnostics():
-    pass
+    # Assert
+    # if it runs all is fine, only testing functionality
+    assert True
 
 
 ###########################################################################
 #HELPER FUNCTIONS
 ###########################################################################
-def bin_substrate():
+def bin_substrate() -> dict:
     bin_range = (max_substrate_uptake_rate - min_substrate_uptake_rate) / HyperParameters.number_of_bins
     stepsize = bin_range / HyperParameters.bin_resolution
     substrate_start = 0.001
@@ -399,7 +428,7 @@ def bin_substrate():
 
     return valid_binned_substrate
 
-def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict):
+def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict) -> tuple:
     fluxes = {}
     esc = {}
     for bin_id, bin_info in bin_information.items():
@@ -432,7 +461,9 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict):
     return fluxes, esc
 
 def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
-                               bin_information: dict =  {1: [0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]}):
+                               bin_information: dict = {1:
+                                                             [0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]
+                                                         }) -> PAMParametrizerMock:
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1, 1, 1],
         'enzyme_id': ['E3', 'E4', 'E5'],
@@ -447,3 +478,9 @@ def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
         sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension_bin)
 
     return sut
+
+def assert_run_diagnostics_are_saved(parametrization_results_object: Callable,
+                                     number_of_best_individuals: int) -> None:
+    assert len(parametrization_results_object.best_individuals) == number_of_best_individuals
+    assert len(parametrization_results_object.computational_time) == 1
+    assert len(parametrization_results_object.final_errors) == 1

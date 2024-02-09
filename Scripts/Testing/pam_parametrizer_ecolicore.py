@@ -1,67 +1,65 @@
 import os
 import pandas as pd
 import numpy as np
-import warnings
-warnings.filterwarnings("ignore")
+
+from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation import setup_toy_pam, setup_toy_pam2
+from Scripts.pam_generation import setup_ecolicore_pam
 
-MAX_SUBSTRATE_UPTAKE_RATE = 0.1
-MIN_SUBSTRATE_UPTAKE_RATE = 0.001
+MAX_SUBSTRATE_UPTAKE_RATE = -0.1
+MIN_SUBSTRATE_UPTAKE_RATE = -10
+config = Config()
+config.reset()
+RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, config.OXYGEN_UPTAKE_RXNID, 'BIOMASS_Ecoli_core_w_GAM']
 
 def set_up_validation_data():
-    DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'Testing', 'Data')
-    RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
-    valid_data_df = pd.read_csv(RESULT_DF_FILE)
+    DATA_DIR = os.path.join(os.getcwd(), 'Data')
+    VALID_DATA_PATH = os.path.join(DATA_DIR, 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls')
 
+    valid_data_df = pd.read_excel(VALID_DATA_PATH,sheet_name='Yields')
+    valid_data_df = valid_data_df.rename(columns = {config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID+'_ub',
+                                                    config.BIOMASS_REACTION: 'BIOMASS_Ecoli_core_w_GAM'})
     validation_data = ValidationData(valid_data_df)
-    validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
-    validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
+    validation_data._reactions_to_plot = RXNS_TO_VALIDATE
+    validation_data._reactions_to_validate = RXNS_TO_VALIDATE
     return validation_data
 
 def set_up_hyperparameter():
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 5
-    hyperparams.threshold_error = 0.8
-    hyperparams.number_of_kcats_to_mutate = 4
+    hyperparams.threshold_iteration = 10
+    hyperparams.number_of_kcats_to_mutate = 5
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_toy_'
-    # hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
+    hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
     return hyperparams
 
-def set_up_toy_model(kcat_fwd:list = [1, 0.5, 1, 0.5, 0.45, 1.5]):
-    # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5] #the 'final' dataset
-    toy_pam = setup_toy_pam(kcat_fwd=kcat_fwd)
-    return toy_pam
-
-def run_simulations(pamodel, substrate_rates):
-    result_df = pd.DataFrame(columns= ['R1_ub','R1', 'R7', 'R8', 'R9'])
+def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE):
+    result_df = pd.DataFrame(columns= rxn_to_validate)
 
     for substrate in substrate_rates:
-        pamodel.change_reaction_bounds(rxn_id='R1',
+        pamodel.change_reaction_bounds(rxn_id=config.GLUCOSE_EXCHANGE_RXNID,
                                        lower_bound=0, upper_bound=substrate)
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         pamodel.optimize()
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
             results_row = []
-            for rxn in ['R1', 'R7', 'R8', 'R9']:
+            for rxn in rxn_to_validate:
                 results_row += [pamodel.reactions.get_by_id(rxn).flux]
 
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
-def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
-                           kcat_fwd: list = [1, 0.5, 1, 0.5, 0.45, 1.5]):
-    toy_pam = set_up_toy_model(kcat_fwd)
+def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float):
+    ecolicore_pam = setup_ecolicore_pam()
     validation_data = set_up_validation_data()
     hyperparameters = set_up_hyperparameter()
 
-    return PAMParametrizer(pamodel=toy_pam,
+    return PAMParametrizer(pamodel=ecolicore_pam,
                      validation_data=validation_data,
                      hyperparameters=hyperparameters,
-                     substrate_uptake_id='R1',
+                     substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
                      max_substrate_uptake_rate=max_substrate_uptake_rate,
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 

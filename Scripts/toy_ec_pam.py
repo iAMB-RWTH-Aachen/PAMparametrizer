@@ -2,6 +2,7 @@ import pandas as pd
 from cobra import Configuration
 from cobra import Model, Reaction, Metabolite
 import os
+from scipy.stats import linregress
 
 import numpy as np
 
@@ -140,7 +141,7 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.091],
-                               reference_data_file_path:str = 'Testing/Data/toy_model_simulations_ga.csv') -> float:
+                               reference_data_file_path:str = 'Scripts/Testing/Data/toy_model_simulations_ga.csv') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
@@ -150,11 +151,31 @@ def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.0
 
     error = []
     for rxn in validation_results.columns[2:]:
-        for sub_upt in [0.001, 0.091]:
-            validation_result = validation_results[rxn][np.isclose(validation_results.R1_ub,sub_upt)].iloc[0]
-            simulation_result = simulation_results[rxn][simulation_results['R1_ub'] == sub_upt].iloc[0]
-            error += [validation_result - simulation_result]
+        line = linregress(x=[abs(substrate_rates[0]), abs(substrate_rates[-1])],
+                              y=[simulation_results[rxn].iloc[0], simulation_results[rxn].iloc[-1]])
+        ref_data_rxn = validation_results.assign(
+            simulation=lambda x: line.intercept + line.slope * x['R1_ub'])
+        print('reference, ', rxn)
+        print(ref_data_rxn)
+        print(simulation_results)
+
+        # simulation mean
+        data_average = ref_data_rxn[rxn].mean()
+        # error: squared difference
+        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[rxn] - x['simulation']) ** 2)
+
+        # calculate R^2:
+        residual_ss = sum(ref_data_rxn.error)
+        total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[rxn]])
+        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
+        if (residual_ss == 0) | (total_ss == 0):
+            r_squared = 0
+        else:
+            r_squared = 1 - residual_ss / total_ss
+
+        error += [r_squared]
     return sum(error)/len(error)
+
 
 
 if __name__ == "__main__":
