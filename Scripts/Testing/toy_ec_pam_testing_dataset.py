@@ -118,7 +118,6 @@ S  = [R1;R2;R3;R3r;R4;R5;R6;R7;R8;R9]';
 
 def build_active_enzyme_sector(Config):
     kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5] #the 'final' dataset
-
     kcat_rev = [kcat for kcat in kcat_fwd]
     rxn2kcat = {}
     for i in range(n-3): # all reactions have an enzyme, except excretion reactions

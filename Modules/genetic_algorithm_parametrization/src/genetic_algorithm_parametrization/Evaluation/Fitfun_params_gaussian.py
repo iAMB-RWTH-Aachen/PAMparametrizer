@@ -258,38 +258,41 @@ class FitnessEvaluation():
 
         # apply kcat changes and compute metabolic functionalities
         kcat_old = [self.model.enzymes.get_by_id(enz_id).get_kcat_values(individual.reactions[i]) for i, enz_id in enumerate(individual.enzymes_to_eval)]
-        with individual.model as model:
-            # change the kcat value of the enzymes with the highest sensitivity
-            self._change_kcat_values_for_individual(individual)
-            # perform simulations and save results
-            fluxes_df = pd.DataFrame(columns = ['substrate_uptake'] + self.reactions_with_data)
+        # change the kcat value of the enzymes with the highest sensitivity
+        self._change_kcat_values_for_individual(individual)
+        # perform simulations and save results
+        fluxes_df = pd.DataFrame(columns = ['substrate_uptake'] + self.reactions_with_data)
 
-            for rate in self.substrate_uptake_rates:
-                new_row = [rate] + [0] * len(fluxes_df.columns[1:])
-                fluxes_df.loc[len(fluxes_df)] = new_row
+        for rate in self.substrate_uptake_rates:
+            new_row = [rate] + [0] * len(fluxes_df.columns[1:])
+            fluxes_df.loc[len(fluxes_df)] = new_row
 
-                individual.model.change_reaction_bounds(self.substrate_uptake_id,
-                                                  lower_bound = 0, upper_bound = rate)
-                individual.model.slim_optimize()
-                if model.solver.status != 'optimal':continue
-                # calculate fitness (sum of simulation error to reactions with data)
-                else:
-                    for rxn_id in fluxes_df.columns[1:]:
-                        if rxn_id in model.reactions:
-                            fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = model.reactions.get_by_id(rxn_id).flux
-            error = self._calculate_simulation_error(fluxes_df)
+            individual.model.change_reaction_bounds(self.substrate_uptake_id,
+                                              lower_bound = 0, upper_bound = rate)
+            individual.model.slim_optimize()
+            if individual.model.solver.status != 'optimal':continue
+            # calculate fitness (sum of simulation error to reactions with data)
+            else:
+                for rxn_id in fluxes_df.columns[1:]:
+                    if rxn_id in individual.model.reactions:
+                        fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = individual.model.reactions.get_by_id(rxn_id).flux
+        error = self._calculate_simulation_error(fluxes_df)
 
-            #average fitness:
-            fitness = float(error)
-            individual.r_squared = fitness
-            individual.fitness.values = [fitness]
+        #average fitness:
+        fitness = float(error)
+        print('kcat', individual.kcat_list, 'error', error, 'fitness', fitness)
+        print(fluxes_df)
+
+        individual.r_squared = fitness
+        individual.fitness.values = [fitness]
 
 
         #revert kcat_changes
         for i, enz_id in enumerate(individual.enzymes_to_eval):
-            model.change_kcat_value(enz_id,
+            individual.model.change_kcat_value(enz_id,
                                      {individual.reactions[i]:
                                           {'f': kcat_old[i], 'b': kcat_old[i]}})
+        print(individual.fitness.values)
         # return a tuple of one element
         return tuple([float(fitness)])
     
@@ -308,6 +311,7 @@ class FitnessEvaluation():
             individual.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]})
             individual.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
                  {rxn.reverse_variable: 1 / individual.kcat_list[i]})
+
 
 
     def _calculate_simulation_error(self,flux_df: pd.DataFrame):
