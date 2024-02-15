@@ -361,9 +361,7 @@ class GAPO():
         
         # create individuals representing metabolic genes as variables/targets
         param_ind = self.FitEval.init_individual()
-        new_model = self.model.copy()
-        new_model.change_total_protein_constraint(p_tot = self.model.p_tot)
-        creator.create("Individual", param_ind["individual_type"], model =new_model,
+        creator.create("Individual", param_ind["individual_type"],
                        fitness=creator.FitnessObj(), reactions = self.rxns, enzymes_to_eval = self.enzymes_to_eval,
                        kcat_list = self.kcat_list)
         
@@ -474,7 +472,7 @@ class GAPO():
             pop_list.append({**ind_properties, **ind_custom_properties})
             
             # save best individual
-            if best_ind.fitness._wsum() > ind.fitness._wsum():
+            if best_ind.fitness._wsum() < ind.fitness._wsum():
                 best_ind = ind
               
         pop_frame = pd.DataFrame(pop_list)    

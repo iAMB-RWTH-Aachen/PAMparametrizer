@@ -180,8 +180,7 @@ def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.0
 
 if __name__ == "__main__":
     model = build_toy_gem()
-    # kcat_fwd = [1,0.5,2.3202676809732568, 0.00022332736693788058, 0.06080483962749876, 1.5]
-
+    # kcat_fwd = [145.27370876158741*(3600*1e-6),427.47844556258013*(3600*1e-6),277.77777777777777*(3600*1e-6), 242.8425835229654*(3600*1e-6),0.25, 1.5]
     # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
     active_enzyme = build_active_enzyme_sector(Config)#, kcat_fwd=kcat_fwd)
     unused_enzyme = build_unused_protein_sector(Config)

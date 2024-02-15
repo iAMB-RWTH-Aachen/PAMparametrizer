@@ -120,9 +120,10 @@ class Genetic_Algorithm():
             
             # get best individual of population for elitism
             elite = self._get_best_individual_from_population(pop)
+
             #make clones of the elite individuals
             elite = list(map(toolbox.clone, [elite]))
-    
+
             
             # Select the next generation individuals for breeding
             # offspring = toolbox.select(pop, int(population_size * selection_rate))
@@ -190,7 +191,7 @@ class Genetic_Algorithm():
             # The population is entirely replaced by the offspring and the elite
             offspring = elite + offspring
             pop[:] = offspring
-            
+
             # Gather all the fitnesses in one list and print the stats
             fits = [ind.fitness._wsum() for ind in pop]
             

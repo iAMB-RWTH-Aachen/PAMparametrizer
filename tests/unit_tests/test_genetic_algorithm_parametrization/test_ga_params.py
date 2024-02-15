@@ -75,6 +75,22 @@ def test_genetic_algorithm_finds_best_individual():
     # Assert
     assert elite_actual == elite_according_to_ga
 
+def test_genetic_algorithm_clones_elite_properly():
+    # Arrange
+    sut = GeneticAlgorithmMock()
+    toolbox = sut._init_deap_toolbox()
+    population = sut.get_initial_population()
+
+    # define the best individual
+    elite = population[3]
+
+    # Act
+    elite_cloned = list(map(toolbox.clone, [elite]))
+
+    # Assert
+    assert [elite] == elite_cloned
+
+
 def test_genetic_algorithm_adjust_kcat_correctly():
     # Arrange
     sut = GeneticAlgorithmMock()
@@ -85,7 +101,7 @@ def test_genetic_algorithm_adjust_kcat_correctly():
     individual_ut.kcat_list = kcat_new
     constraint_names = [f'EC_{enzyme}_f' for enzyme in individual_ut.enzymes_to_eval]
     reaction_names = individual_ut.reactions
-    model = individual_ut.model
+    model = sut.FitEval.model
 
     # Act
     sut.FitEval._change_kcat_values_for_individual(individual_ut)
@@ -94,7 +110,9 @@ def test_genetic_algorithm_adjust_kcat_correctly():
     for rxn_id, constraint_id in zip(reaction_names, constraint_names):
         rxn = model.reactions.get_by_id(rxn_id)
         coeff = model.constraints[constraint_id].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
-        kcats_after_ga_adjustment += [1/coeff]#unit conversion
+        kcats_after_ga_adjustment += [1/coeff/(3600*1e-6)]#unit conversion
+    print(kcats_after_ga_adjustment)
+    print([kcat/(3600*1e-6) for kcat in kcats_after_ga_adjustment])
 
     # Assert
     assert kcat_old != pytest.approx(kcats_after_ga_adjustment,abs=1e-2)
@@ -111,21 +129,22 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     toolbox = sut._init_deap_toolbox()
     toy_ga = sut.ga
     population = toolbox.population(n=1)
-    population[0].kcat_list = [5,0.1,0.25]
+    new_kcats = [kcat/(3600*1e-6) for kcat in [5,0.1,0.25]]
+    population[0].kcat_list = [kcat/(3600*1e-6) for kcat in [5,0.1,0.25]]
     # Act
     population = toy_ga.evaluate_pop(population, toolbox)
     individual_to_evaluate = population[0]
     fitness_simulated = individual_to_evaluate.fitness._wsum()
 
     #adjust for altered kcat_values
-    kcats = [1, 0.5]+individual_to_evaluate.kcat_list+[1.5]
+    kcats = [1, 0.5,5,0.1,0.25,1.5]
     toy_pam = setup_toy_pam(kcat_fwd = kcats)
 
     # Assert
     fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file_path = sut.RESULT_DF_FILE)
 
     #1e-6 is solver feasibility tolerance
-    assert [5,0.1,0.25] == individual_to_evaluate.kcat_list
+    assert new_kcats == individual_to_evaluate.kcat_list
     assert fitness_validation == pytest.approx(fitness_simulated, 1e-4)
 
 def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
@@ -135,7 +154,7 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     population = sut.get_initial_population()
     kcat_lists = [[5,0.1,0.25],[1,0.5,0.45],[0.1,0.1,0.1],[1,1,1], [3,3,3]]
     for individual, kcat_list in zip(population, kcat_lists):
-        individual.kcat_list = kcat_list
+        individual.kcat_list = [kcat/(3600*1e-6) for kcat in kcat_list]
 
     #calculate actual fitnesses (expected result)
     expected_fitnesses = []

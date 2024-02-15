@@ -89,7 +89,8 @@ class FitnessEvaluation():
         
         """
         self.model = model
-        
+
+
     def compute_individuals_properties(self, pop) -> list:
         """Compute custom properties of a population's individuals. For each 
         individual return a dictionary with properties as keys
@@ -257,8 +258,12 @@ class FitnessEvaluation():
         # (one low substrate uptake rate and a high substrate uptake rate are recommended)
 
         # apply kcat changes and compute metabolic functionalities
-        kcat_old = [self.model.enzymes.get_by_id(enz_id).get_kcat_values(individual.reactions[i]) for i, enz_id in enumerate(individual.enzymes_to_eval)]
+        kcat_old = [self.model.enzymes.get_by_id(enz_id).get_kcat_values(individual.reactions[i])['f'] for i, enz_id in enumerate(individual.enzymes_to_eval)]
         # change the kcat value of the enzymes with the highest sensitivity
+        # model = self._copy_pamodel(self.model, individual)
+        # self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0
+        # self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub = 0.0001
+        # print(self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID])
         self._change_kcat_values_for_individual(individual)
         # perform simulations and save results
         fluxes_df = pd.DataFrame(columns = ['substrate_uptake'] + self.reactions_with_data)
@@ -267,21 +272,35 @@ class FitnessEvaluation():
             new_row = [rate] + [0] * len(fluxes_df.columns[1:])
             fluxes_df.loc[len(fluxes_df)] = new_row
 
-            individual.model.change_reaction_bounds(self.substrate_uptake_id,
+            self.model.change_reaction_bounds(self.substrate_uptake_id,
                                               lower_bound = 0, upper_bound = rate)
-            individual.model.slim_optimize()
-            if individual.model.solver.status != 'optimal':continue
+            # for constr in model.constraints.values():
+                # if any(enz in constr.name for enz in individual.enzymes_to_eval):
+                #     print([(rxn, 1/coeff) for rxn, coeff in zip(individual.reactions, individual.kcat_list)], constr.expression)
+            self.model.optimize()
+            if self.model.solver.status != 'optimal':continue
             # calculate fitness (sum of simulation error to reactions with data)
             else:
                 for rxn_id in fluxes_df.columns[1:]:
-                    if rxn_id in individual.model.reactions:
-                        fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = individual.model.reactions.get_by_id(rxn_id).flux
+                    if rxn_id in self.model.reactions:
+                        rxn = self.model.reactions.get_by_id(rxn_id)
+                        # print(rate ,rxn_id, rxn.flux)
+                        fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
         error = self._calculate_simulation_error(fluxes_df)
+
+        # actual_coeff_list = []
+        # for i, enz_id in enumerate(individual.enzymes_to_eval):
+        #     rxn = self.model.reactions.get_by_id(individual.reactions[i])
+        #     actual_coeff_list.append(self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([rxn.forward_variable]))
+
 
         #average fitness:
         fitness = float(error)
-        print('kcat', individual.kcat_list, 'error', error, 'fitness', fitness)
-        print(fluxes_df)
+        # print('reactions', individual.reactions)
+        # print(actual_coeff_list)
+        # print('kcat', individual.kcat_list,'fitness', fitness)
+        # print(self.model.capacity_sensitivity_coefficients)
+        # print(fluxes_df)
 
         individual.r_squared = fitness
         individual.fitness.values = [fitness]
@@ -289,10 +308,11 @@ class FitnessEvaluation():
 
         #revert kcat_changes
         for i, enz_id in enumerate(individual.enzymes_to_eval):
-            individual.model.change_kcat_value(enz_id,
+            self.model.change_kcat_value(enz_id,
                                      {individual.reactions[i]:
                                           {'f': kcat_old[i], 'b': kcat_old[i]}})
-        print(individual.fitness.values)
+        # print(model.capacity_sensitivity_coefficients.to_markdown())
+        # print(individual.fitness.values)
         # return a tuple of one element
         return tuple([float(fitness)])
     
@@ -303,16 +323,15 @@ class FitnessEvaluation():
     ##########################################################################
     def _change_kcat_values_for_individual(self, individual):
         for i, enz_id in enumerate(individual.enzymes_to_eval):
-            rxn = individual.model.reactions.get_by_id(individual.reactions[i])
-            # individual.model.change_kcat_value(enz_id,
+            rxn = self.model.reactions.get_by_id(individual.reactions[i])
+            # self.model.change_kcat_value(enz_id,
             #                         {individual.reactions[i]:
-            #                              {'f': individual.kcat_list[i] / (3600 * 1e-6),
-            #                               'b': individual.kcat_list[i] / (3600 * 1e-6)}})
-            individual.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({rxn.forward_variable:1/individual.kcat_list[i]})
-            individual.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
-                 {rxn.reverse_variable: 1 / individual.kcat_list[i]})
-
-
+            #                              {'f': individual.kcat_list[i],
+            #                               'b': individual.kcat_list[i]}})
+            self.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({
+                rxn.forward_variable:1/(individual.kcat_list[i]*(3600*1e-6))})
+            self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
+                 {rxn.reverse_variable: 1 / (individual.kcat_list[i]*(3600*1e-6))})#TODO something is fishy here
 
     def _calculate_simulation_error(self,flux_df: pd.DataFrame):
         error = []

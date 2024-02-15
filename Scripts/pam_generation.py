@@ -27,6 +27,7 @@ def setup_toy_pam(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 
     model = build_toy_gem()
     active_enzyme = build_active_enzyme_sector(config, kcat_fwd)
     unused_enzyme = build_unused_protein_sector(config)
+    unused_enzyme.id = 'UnusedEnzymeSector'
     translation_enzyme = build_translational_protein_sector(config)
     pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
                       translational_sector=translation_enzyme,

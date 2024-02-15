@@ -118,6 +118,9 @@ S  = [R1;R2;R3;R3r;R4;R5;R6;R7;R8;R9]';
 
 def build_active_enzyme_sector(Config):
     kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5] #the 'final' dataset
+    # kcat_fwd = [145.27370876158741*(3600*1e-6),427.47844556258013*(3600*1e-6),277.77777777777777*(3600*1e-6), 242.8425835229654*(3600*1e-6),0.25, 1.5]
+
+
     kcat_rev = [kcat for kcat in kcat_fwd]
     rxn2kcat = {}
     for i in range(n-3): # all reactions have an enzyme, except excretion reactions
@@ -160,6 +163,7 @@ if __name__ == "__main__":
 
     #optimize biomass formation
     pamodel.objective={pamodel.reactions.get_by_id('R7') :1}
+    print(pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID])
 
 
     substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
