@@ -185,6 +185,7 @@ class GAPO():
         # start optimization with parallel gene flow events
         if self.print_progress:
             print("({}) Start optimization --".format(print_time()))
+            #TODO check how elite is handled within multiple gene_flow_events
         self.pops_final = self._parallel_gene_flow(pops, self.toolbox, start_time)
 
         # evaluate final population
@@ -377,6 +378,8 @@ class GAPO():
         fitness_dict = {}
     
         drift = previous_drifts
+        best_ind = None
+        worst_ind = None
 
         if self.print_progress:
             print('\nTime left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
@@ -410,8 +413,29 @@ class GAPO():
                 # extract populations
                 if self.print_progress:
                     print("Postprocess evolved population --")
+
+                #make sure the elite is saved and retained
+                if best_ind is None:
+                    best_ind = gen_results[0][0][0]
+                    best_fitness = best_ind.fitness._wsum()
+                if worst_ind is None:
+                    worst_ind = gen_results[0][0][1]
+                    worst_ind_index = [0,1]
+                    worst_fitness = worst_ind.fitness._wsum()
+
                 for i in range(len(gen_results)):
                     pops[i] = gen_results[i][0] # individuals of the returned population
+                    for j, ind in enumerate(pops[i]):
+                        if best_fitness < ind.fitness._wsum():
+                            best_ind = ind
+                            best_fitness = ind.fitness._wsum()
+                        elif worst_fitness > ind.fitness._wsum():
+                            worst_ind_index = [i, j]
+                            worst_ind = ind
+                            worst_fitness = ind.fitness._wsum()
+
+                # replace the worst individual with best individual
+                pops[worst_ind_index[0]][worst_ind_index[1]] = best_ind
 
                 
             # evaluate and save all populations

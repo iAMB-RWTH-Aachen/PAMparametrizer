@@ -24,7 +24,7 @@ def set_up_validation_data():
 def set_up_hyperparameter():
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 3
-    hyperparams.threshold_error = 0.8
+    hyperparams.threshold_error = 0.95
     hyperparams.number_of_kcats_to_mutate = 4
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_toy_'

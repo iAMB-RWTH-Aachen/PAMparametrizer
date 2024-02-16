@@ -335,10 +335,10 @@ class PAMParametrizer():
         enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
                                 nmbr_kcats_to_pick= self.hyperparameters.number_of_kcats_to_mutate)
 
-        substrate_start = self.validation_data.valid_data_df[self.substrate_uptake_id +'_ub'].iloc[0]
-        substrate_stop = self.validation_data.valid_data_df[self.substrate_uptake_id+'_ub'].iloc[-1]
-        substrate_step = (substrate_stop - substrate_start)/self.hyperparameters.number_of_bins
-        substrate_rates = list(np.arange(substrate_start, substrate_stop, substrate_step))
+        # substrate_start = self.validation_data.valid_data_df[self.substrate_uptake_id +'_ub'].iloc[0]
+        # substrate_stop = self.validation_data.valid_data_df[self.substrate_uptake_id+'_ub'].iloc[-1]
+        # substrate_step = (substrate_stop - substrate_start)/self.hyperparameters.number_of_bins
+        # substrate_rates = list(np.arange(substrate_start, substrate_stop, substrate_step))
 
         step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / 10
         substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate,step))
@@ -353,7 +353,6 @@ class PAMParametrizer():
     def reparametrize_pam(self):
         best_individual_kcat_df, best_indiv_error = self._get_mutated_kcat_values_from_genetic_algorithm()
         error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
-        print(best_indiv_error, error_threshold, self.final_error)
         if best_indiv_error < error_threshold:
             return
         for i, row in best_individual_kcat_df.iterrows():
