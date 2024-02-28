@@ -8,7 +8,10 @@ models in COBRA format
 
 import random
 from time import time, strftime
+
+import deap.base
 import numpy as np
+from copy import deepcopy
 
 # anonymus function for printing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
@@ -67,7 +70,8 @@ class Genetic_Algorithm():
         # Evaluate the entire population
         fitnesses = list(map(toolbox.evaluate, pop)) #[model for i in range(len(pop))]))
         for ind, fit in zip(pop, fitnesses):
-            ind.fitness.values = fit
+            ind.fitness = fit
+            # ind.fitness.values = fit
             
         return pop
         
@@ -109,44 +113,65 @@ class Genetic_Algorithm():
         
         # lambda function to create a hashable representation of an individual
         ind_str = lambda ind: "".join([str(a) for a in ind])
+        elite_fitness_prev = 0
+        elite_kcat_prev =[0,0,0]
         
         # Begin the evolution
         while (g < self.number_generations) and ((time()-start_time) < self.time_limit):
             # A new generation
             g = g + 1
+
             if print_progress:
                 print("({3}) Population {0}: Generation {1}/{2} --".format(pop_id, g, self.number_generations, print_time()))
-            
-            
+            #
+            # kcat_old = elite_kcat_prev.copy()
+            # if g>1:
+            #     print('elite in pop', elite[0] in pop, elite[0].fitness._wsum())
+            #     for ind in pop:
+            #         print(ind.fitness._wsum(), ind.kcat_list)
             # get best individual of population for elitism
             elite = self._get_best_individual_from_population(pop)
-
+            # print('new elite fitness', elite.fitness._wsum())
             #make clones of the elite individuals
-            elite = list(map(toolbox.clone, [elite]))
+            elite = self._clone_elite([elite], toolbox)
 
-            
+            # import pytest
+            # if elite[0].kcat_list == elite_kcat_prev:
+            #     print('it is the same indiv!')
+            #     if elite[0].fitness._wsum() == pytest.approx(elite_fitness_prev, abs = 1e-3):
+            #         print('and the fitness is also the same!')
+            # elif elite[0].fitness._wsum() < elite_fitness_prev:# & g>1:
+            #     print('something fishy is happening here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            #
+            #     print(elite[0].kcat_list == elite_kcat_prev, elite[0].kcat_list, elite_kcat_prev)
+            elite_fitness_prev = elite[0].fitness._wsum()
+            elite_kcat_prev = elite[0].kcat_list
+            # print('elite fitness', elite[0].fitness._wsum())
+
+
             # Select the next generation individuals for breeding
             # offspring = toolbox.select(pop, int(population_size * selection_rate))
+            # pop_elite = self._clone_elite(elite, toolbox)
+            # if elite[0] in pop: pop = [item for item in pop if item!= elite[0]]#[item if item != elite[0] else pop_elite for item in pop]
             offspring = toolbox.select(pop, population_size-1)
             # Clone the selected individuals
             offspring = list(map(toolbox.clone, offspring))
-                      
-    
+
             # Apply crossover and mutation on the offspring
             # the input individuals are being changed themselves
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
     
                 # cross the kcat_lists of two individuals with probability CXPB
                 if random.random() < self.crossover_probability:
+                    # child1.kcat_list, child2.kcat_list =toolbox.mate(child1.kcat_list, child2.kcat_list)
                     child1.kcat_list, child2.kcat_list =toolbox.mate(child1.kcat_list, child2.kcat_list)
 
-        
                     # fitness values of the children
                     # must be recalculated later
                     del child1.fitness.values
                     del child2.fitness.values
-    
-    
+
+            # print('after crossover', elite[0].fitness._wsum() == elite_fitness_prev,elite_fitness_prev, elite[0].fitness._wsum())
             # mutation operator
             for mutant in offspring:
                 # if infeasible solutions are likely, mutate an individual only by chance
@@ -158,16 +183,12 @@ class Genetic_Algorithm():
                                                                     sensitivity=sens,
                                                                     toolbox=toolbox)
                                  for kcat, sens in zip(mutant.kcat_list, sensitivities)]
-                    # new_kcats =[toolbox.mutate([mutant.kcat_list[i]], mu=mutant.kcat_list[i], sigma = mutant.kcat_list[i]/10,
-                    #                indpb=(1-sens))[0][0] for i, sens in enumerate(mutant.sensitivities)]
                     #make sure kcat is always positive
                     mutant.kcat_list= [kcat if kcat>0 else 0.001 for kcat in new_kcats]
                     for i in range(len(new_kcats)):
                         mutant[i] = mutant.kcat_list[i]
-                    # mutant = [kcat if kcat>0 else 0.001 for kcat in new_kcats]
                     del mutant.fitness.values
-        
-            # Evaluate the individuals with an invalid fitness
+            # print('after mutation', elite[0].fitness._wsum() == elite_fitness_prev)
             invalid_ind = []
             for ind in offspring:
                 if not ind.fitness.valid:
@@ -175,26 +196,29 @@ class Genetic_Algorithm():
                     ind_hashable = ind_str(ind.kcat_list)
                     if ind_hashable in fitness_dict:
                         # load stored individual fitness
-                        ind.fitness.values = fitness_dict[ind_hashable]
+                        ind.fitness = fitness_dict[ind_hashable]
+
+                        # ind.fitness.values = fitness_dict[ind_hashable]
                     else:
                         # mark individual as invalid
                         invalid_ind.append(ind)
 
-            
+            # Evaluate the individuals with an invalid fitness
             fitnesses = map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit
+                ind.fitness = fit
+
+                # ind.fitness.values = fit
                 # store fitness
                 fitness_dict[ind_str(ind.kcat_list)] = fit
 
-            
+
             # The population is entirely replaced by the offspring and the elite
             offspring = elite + offspring
             pop[:] = offspring
-
             # Gather all the fitnesses in one list and print the stats
             fits = [ind.fitness._wsum() for ind in pop]
-            
+            # print('kcats did not change',kcat_old == elite[0].kcat_list)
             length = len(pop)
             mean = sum(fits) / length
             sum2 = sum(x*x for x in fits)
@@ -208,9 +232,6 @@ class Genetic_Algorithm():
 
         if print_progress:
             print("({1}) Population {0}: End of (successful) evolution --".format(pop_id, print_time()))
-        
-    
-        
         return (pop, fitness_dict)
 
     def _get_best_individual_from_population(self, population):
@@ -220,3 +241,16 @@ class Genetic_Algorithm():
                 # new best solution, swap
                 elite = ind
         return elite
+
+    def _clone_elite(self, pop_to_clone: list, toolbox: deap.base.Toolbox) -> list:
+        new_population = []
+        for indiv in pop_to_clone:
+            kcat_list = deepcopy(indiv.kcat_list)
+            new_indiv = toolbox.individual()
+            new_indiv.kcat_list = kcat_list
+            new_indiv.fitness = toolbox.evaluate(new_indiv)
+
+            # new_indiv.fitness.values = toolbox.evaluate(new_indiv)
+            new_population.append(new_indiv)
+
+        return new_population

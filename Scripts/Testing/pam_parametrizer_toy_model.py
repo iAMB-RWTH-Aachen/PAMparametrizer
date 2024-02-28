@@ -23,12 +23,15 @@ def set_up_validation_data():
 
 def set_up_hyperparameter():
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 3
+    hyperparams.threshold_iteration = 10
     hyperparams.threshold_error = 0.95
     hyperparams.number_of_kcats_to_mutate = 4
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
+    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 4
+    hyperparams.genetic_algorithm_hyperparams['processes'] = 4
+
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_toy_'
-    # hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
+    hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
 
 def set_up_toy_model(kcat_fwd:list = [1, 0.5, 1, 0.5, 0.45, 1.5]):
@@ -67,6 +70,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
-    pam_parametrizer.run(remove_subruns=True)
+    pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_toy_model

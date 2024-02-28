@@ -155,9 +155,6 @@ def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.0
                               y=[simulation_results[rxn].iloc[0], simulation_results[rxn].iloc[-1]])
         ref_data_rxn = validation_results.assign(
             simulation=lambda x: line.intercept + line.slope * x['R1_ub'])
-        print('reference, ', rxn)
-        print(ref_data_rxn)
-        print(simulation_results)
 
         # simulation mean
         data_average = ref_data_rxn[rxn].mean()
@@ -180,9 +177,10 @@ def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.0
 
 if __name__ == "__main__":
     model = build_toy_gem()
-    # kcat_fwd = [145.27370876158741*(3600*1e-6),427.47844556258013*(3600*1e-6),277.77777777777777*(3600*1e-6), 242.8425835229654*(3600*1e-6),0.25, 1.5]
-    # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
-    active_enzyme = build_active_enzyme_sector(Config)#, kcat_fwd=kcat_fwd)
+    #[1, 0.5, 1, 0.5, 0.45, 1.5] the initial dataset
+    # kcat_fwd = [0.000714801759902067,0.0031403256767839,1, 0.0204382115642068,0.00142103969403549, 1.5]
+    kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]  # the 'final' dataset
+    active_enzyme = build_active_enzyme_sector(Config, kcat_fwd=kcat_fwd)
     unused_enzyme = build_unused_protein_sector(Config)
     translation_enzyme = build_translational_protein_sector(Config)
     pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
@@ -192,13 +190,13 @@ if __name__ == "__main__":
 
     #optimize biomass formation
     pamodel.objective={pamodel.reactions.get_by_id('R7') :1}
-    print(evaluate_toy_model_fitness(pamodel, substrate_rates=list(np.arange(1e-3, 1e-1, 1e-2))))
+    print('final error: ',evaluate_toy_model_fitness(pamodel, substrate_rates=list(np.arange(1e-3, 1e-1, 1e-2))),'\n\n')
 
-    # substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
-    #
-    # simulation_results = run_simulations(pamodel, substrate_rates)
-    # # simulation_results.to_csv(RESULT_DF_FILE)
-    # print(simulation_results.to_markdown())
+    substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
+
+    simulation_results = run_simulations(pamodel, substrate_rates)
+    # simulation_results.to_csv(RESULT_DF_FILE)
+    print(simulation_results.to_markdown())
     #
     #
     # pamodel.change_kcat_value('E4', {'R4':{'f':10, 'b':10}})

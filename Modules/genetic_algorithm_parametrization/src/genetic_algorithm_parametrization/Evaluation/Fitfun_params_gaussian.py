@@ -15,6 +15,7 @@ import os
 from os.path import dirname, abspath
 from scipy.stats import linregress
 from typing import Union
+from ..core_parametrization_gaussian import MyFitness
 
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
@@ -314,7 +315,11 @@ class FitnessEvaluation():
         # print(model.capacity_sensitivity_coefficients.to_markdown())
         # print(individual.fitness.values)
         # return a tuple of one element
-        return tuple([float(fitness)])
+        param_fit = self.init_fitness()
+        new_fitness = MyFitness()#weights = param_fit["weights"])
+        new_fitness.weights = param_fit["weights"]
+        new_fitness.values = tuple([float(fitness)])
+        return new_fitness
     
     
     

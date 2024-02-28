@@ -70,7 +70,7 @@ class HyperParameters:
 class ParametrizationResults:
     error_df: pd.DataFrame = None
     esc_df: pd.DataFrame = None
-    bins_to_change: pd.DataFrame = None
+    bins_to_change: pd.DataFrame = pd.DataFrame(columns=['bin', 'split', 'merge'])
     sensitive_enzymes: pd.DataFrame = pd.DataFrame(columns=['bin', 'mean_sensitivity', 'enzyme_id'])
     fluxes_df = pd.DataFrame()
     substrate_range = []

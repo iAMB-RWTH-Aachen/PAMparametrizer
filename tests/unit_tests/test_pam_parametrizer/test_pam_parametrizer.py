@@ -10,6 +10,7 @@ import pytest
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_toy_pam
+from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import evaluate_toy_model_fitness
 
 
 max_substrate_uptake_rate = 0.01
@@ -33,6 +34,7 @@ class PAMParametrizerMock(PAMParametrizer):
                          max_substrate_uptake_rate=max_substrate_uptake_rate,
                          min_substrate_uptake_rate = min_substrate_uptake_rate)
 
+        self.result_figure_file = os.path.join('Results', 'pam_parametrizer_progress_test.png')
 
 
         self.parametrization_results.initiate_result_dfs(reactions_to_validate= ['R1', 'R7', 'R8', 'R9'],
@@ -291,21 +293,14 @@ def test_if_restart_genetic_algorithm_runs():
     #run genetic algorithm to get output files for restarting
     sut = run_mock_genetic_algorithm(sut, bin_information)
 
-    full_file_path = os.path.join(os.getcwd(), 'Results',
-                                  sut.hyperparameters.genetic_algorithm_filename_base + 'final_run_' + str(sut.iteration))
-    full_file_path_test = os.path.join(os.getcwd(), 'Results',
-                                  sut.hyperparameters.genetic_algorithm_filename_base)
     # Act
     files_to_remove = sut.restart_genetic_algorithm()
-    sut._remove_result_files(files_to_remove)
     json_files = sut._get_genetic_algorithm_json_files(subset = 'final_run')
+    sut._remove_result_files(files_to_remove)
+
 
     # Assert
     assert 1 == len(json_files)
-    # remove the produced files
-    # [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
-    # for bin_id in bin_information.keys():
-    #     [os.remove(full_file_path_test + str(bin_id) +file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
 def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Arrange
@@ -322,7 +317,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
     sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension)
 
-    best_individual_kcat_df = sut._get_mutated_kcat_values_from_genetic_algorithm()
+    best_individual_kcat_df, error = sut._get_mutated_kcat_values_from_genetic_algorithm()
     kcats_expected = [[row['id'] ,row['rxn_id'], row['value']] for i, row in best_individual_kcat_df.iterrows()]
 
     # Act
@@ -331,19 +326,53 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Assert
     for kcat_info in kcats_expected:
         enzyme_id, rxn_id, kcat_expected = kcat_info[0], kcat_info[1], kcat_info[2]
-        kcat_test = 1/sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']/(3600*1e-6) #adjust for units adjustment in the PAModel
-        assert kcat_expected == sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']
+        kcat_test = sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']
+        assert kcat_expected == kcat_test
 
     # remove the produced files
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
+def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
+    # Arrange
+    kcat = 5
+    enzyme_id = 'E1'
+    reaction_id = 'R1'
+    kcat_dict = {reaction_id: {'f': kcat}}
+    enzymes_to_evaluate = {enzyme_id: {
+                        'reaction': reaction_id,
+                        'kcat': kcat,
+                        'sensitivity': 0.1}}
+    substrate_rates = [1e-3, 1e-2]
+
+    #set up parametrizer and genetic algorithm objects
+    sut = PAMParametrizerMock()
+    ga = sut._init_genetic_algorithm(substrate_rates,
+                                     enzymes_to_evaluate,
+                                     filename_extension=''
+                                     )
+    #for the genetic algorithm we need a dummy individual to change the kcat
+    toolbox = ga._init_deap_toolbox()
+    population = ga.ga.init_pop(toolbox, ga.population_size, True)
+    individual = population[0]
+    individual.kcat_list = [kcat]
+
+    # Act
+    sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
+    ga.FitEval._change_kcat_values_for_individual(individual)
+
+    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+
+    # Assert
+    assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)
+    assert kcat == pytest.approx(kcat_model_sut, abs = 1e-3)
+    assert kcat == pytest.approx(kcat_model_ga, abs = 1e-3)
+
+
+
 def test_pam_parametrizer_plots_validation_data():
     # Arrange
     sut = PAMParametrizerMock()
-
-    #remove the produced files
-    full_file_path = os.path.join(os.getcwd(), 'Results',
-                                  sut.hyperparameters.genetic_algorithm_filename_base)
 
     # Act
     fig, axs = sut.plot_valid_data()
@@ -359,6 +388,20 @@ def test_pam_parametrizer_plots_progress():
 def test_pam_parametrizer_calculates_final_error_correctly():
     # Arrange
     sut = PAMParametrizerMock()
+    # Build the PAModel with expected outcome
+    sut.pamodel = setup_toy_pam(kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
+    # get the expected flux distribution
+    fluxes, substrate_range = sut.run_simulations_to_plot()
+
+    # Act
+    final_error_validation = evaluate_toy_model_fitness(toy_model = sut.pamodel,
+                                                        substrate_rates = substrate_range)
+    final_error_sut = sut.calculate_final_error(fluxes, substrate_range)
+
+    #assert
+    #manual calculation results in an R^2 of 0.88 for this bin
+    assert final_error_validation == pytest.approx(final_error_sut, 1e-2)
+
 
 def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     # Arrange
@@ -377,8 +420,6 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     results_filename = (os.path.join(os.getcwd(), 'Results', sut.hyperparameters.genetic_algorithm_filename_base + 'iteration_'+
                                      str(sut.iteration) + '_bin_1.xlsx'))
 
-    full_file_path = os.path.join(os.getcwd(), 'Results',
-                                  sut.hyperparameters.genetic_algorithm_filename_base)
     # Act
     sut.save_diagnostics(computational_time,
                          results_filename)
@@ -390,8 +431,7 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     #remove produced files
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
-#TODO
-def test_pam_parametrizer_runs_full_workflow():
+def test_pam_parametrizer_runs_full_workflow_with_bins():
     # Arrange
     sut = PAMParametrizerMock()
     sut.min_substrate_uptake_rate = 0.07
@@ -405,6 +445,35 @@ def test_pam_parametrizer_runs_full_workflow():
     full_file_path = os.path.join(os.getcwd(), 'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    os.remove(sut.result_figure_file)
+
+    # Assert
+    # if it runs all is fine, only testing functionality
+    assert True
+
+def test_pam_parametrizer_runs_full_workflow_with_bins_before_iterations():
+    # Arrange
+    sut = PAMParametrizerMock()
+    sut.min_substrate_uptake_rate = 0.07
+    sut.max_substrate_uptake_rate = 0.09
+    sut.hyperparameters.threshold_error = 1
+
+    # Act
+    sut.run(binned = 'before')
+
+    # Assert
+    # if it runs all is fine, only testing functionality
+    assert True
+def test_pam_parametrizer_runs_full_workflow_without_bins():
+    # Arrange
+    sut = PAMParametrizerMock()
+    sut.min_substrate_uptake_rate = 0.07
+    sut.max_substrate_uptake_rate = 0.09
+    sut.hyperparameters.threshold_error = 1
+
+    # Act
+    sut.run(binned = 'False')
+    #remove result files (incl figure)
     os.remove(sut.result_figure_file)
 
     # Assert
@@ -461,9 +530,8 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict) 
     return fluxes, esc
 
 def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
-                               bin_information: dict = {1:
-                                                             [0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]
-                                                         }) -> PAMParametrizerMock:
+                               bin_information: dict = {1:[0.001, 0.002, 0.001 / 5],
+                                                        2: [0.001, 0.002, 0.001 / 5]}) -> PAMParametrizerMock:
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1, 1, 1],
         'enzyme_id': ['E3', 'E4', 'E5'],
@@ -478,6 +546,16 @@ def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
         sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension_bin)
 
     return sut
+
+def get_kcat_values_from_model(model:PAModelpy.PAModel, enzyme_ids:list, reaction_names: list) -> list:
+    # get kcats from model
+    constraint_names = [f'EC_{enz_id}_f' for enz_id in enzyme_ids]
+    kcats_after_ga_adjustment = []
+    for rxn_id, constraint_id in zip(reaction_names, constraint_names):
+        rxn = model.reactions.get_by_id(rxn_id)
+        coeff = model.constraints[constraint_id].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
+        kcats_after_ga_adjustment += [1 / coeff / (3600 * 1e-6)]  # unit conversion
+    return kcats_after_ga_adjustment
 
 def assert_run_diagnostics_are_saved(parametrization_results_object: Callable,
                                      number_of_best_individuals: int) -> None:

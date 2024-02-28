@@ -6,3 +6,4 @@ timepip
 gurobipy
 scipy
 pytest
+seaborn==0.13.2

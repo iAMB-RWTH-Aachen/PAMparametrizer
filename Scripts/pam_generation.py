@@ -312,3 +312,11 @@ def parse_coefficients(pamodel):
 def parse_esc(pamodel):
     return pamodel.enzyme_sensitivity_coefficients.coefficient.to_list()
 
+# if __name__ == '__main__':
+#     import numpy as np
+#
+#     pam = setup_ecolicore_pam()
+#     for i in np.arange(0, 12, 1):
+#         pam.change_reaction_bounds('EX_glc__D_e', lower_bound=-i, upper_bound=0)
+#         pam.optimize()
+#         print(pam.objective.value)

@@ -30,7 +30,6 @@ from deap import creator
 from deap import tools
 
 from .ga_param import Genetic_Algorithm
-import genetic_algorithm_parametrization
 
 # anonymus function for printing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
@@ -350,6 +349,9 @@ class GAPO():
         # drawn randomly from the current generation.
         toolbox.register("select", tools.selBest)#, tournsize=2)
 
+        #overwrite the clone function of the toolbox
+        # toolbox.register('clone', self._copy_deap_individual, toolbox)
+
         return toolbox
 
     def _init_deap_toolbox_mutation(self, toolbox):
@@ -367,10 +369,17 @@ class GAPO():
                        kcat_list = self.kcat_list)
         
     def _init_deap_fitness(self):
-        
         param_fit = self.FitEval.init_fitness()
         creator.create("FitnessObj", MyFitness, weights=param_fit["weights"])
-    
+        return creator
+
+    def _copy_deap_individual(self,  toolbox, to_copy):
+        copied_individuals = []
+        for indiv in to_copy:
+            new_individual = toolbox.individual()
+            new_individual.kcat_list = [indiv.kcat_list]
+            copied_individuals +=new_individual
+        return copied_individuals
     
     def _parallel_gene_flow(self, pops, toolbox, start_time, previous_drifts=0):
         
@@ -392,6 +401,7 @@ class GAPO():
                 print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
                 print("Create populations --")
             # shuffle individuals among populations
+            # print(pops)
             unq_pop = sum(pops, []) # unique set of all individuals
             shuffled_idx = random.sample([i for i in range(len(unq_pop))], len(unq_pop))
             unq_ind_idx = 0
@@ -400,7 +410,13 @@ class GAPO():
                     # randomly pick an individual from the total set of individuals
                     pops[pop_idx][ind_idx] = unq_pop[shuffled_idx[unq_ind_idx]]
                     unq_ind_idx += 1
-
+            # identical_pops = 0
+            # for i, pop in enumerate(pops):
+            #     for j, indiv in enumerate(pop):
+            #         if indiv == pop[j-1]:
+            #             identical_pops += 1
+            #
+            # print('number of identical individuals: ', identical_pops)
             # multiprocessing
             if self.print_progress:
                 print("Start genetic algorithm --")
@@ -408,34 +424,35 @@ class GAPO():
                 # distribute populations to separate workers
 
                 gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
-                                                           fitness_dict, str(i+1), self.print_progress) for i in range(len(pops))])
-
+                                                           fitness_dict, str(i+1), self.print_progress) for i in range(len(pops))])#TODO something is happening in the starmap fnctin when returning the populations
+                # Extract populations to prevent copying of individual within a population
+                pops = [pop_fitness_ga[0] for pop_fitness_ga in gen_results]
                 # extract populations
                 if self.print_progress:
                     print("Postprocess evolved population --")
 
-                #make sure the elite is saved and retained
-                if best_ind is None:
-                    best_ind = gen_results[0][0][0]
-                    best_fitness = best_ind.fitness._wsum()
-                if worst_ind is None:
-                    worst_ind = gen_results[0][0][1]
-                    worst_ind_index = [0,1]
-                    worst_fitness = worst_ind.fitness._wsum()
-
-                for i in range(len(gen_results)):
-                    pops[i] = gen_results[i][0] # individuals of the returned population
-                    for j, ind in enumerate(pops[i]):
-                        if best_fitness < ind.fitness._wsum():
-                            best_ind = ind
-                            best_fitness = ind.fitness._wsum()
-                        elif worst_fitness > ind.fitness._wsum():
-                            worst_ind_index = [i, j]
-                            worst_ind = ind
-                            worst_fitness = ind.fitness._wsum()
-
-                # replace the worst individual with best individual
-                pops[worst_ind_index[0]][worst_ind_index[1]] = best_ind
+                # #make sure the elite is saved and retained
+                # if best_ind is None:
+                #     best_ind = gen_results[0][0][0]
+                #     best_fitness = best_ind.fitness._wsum()
+                # if worst_ind is None:
+                #     worst_ind = gen_results[0][0][1]
+                #     worst_ind_index = [0,1]
+                #     worst_fitness = worst_ind.fitness._wsum()
+                #
+                # for i in range(len(gen_results)):
+                #     pops[i] = gen_results[i][0] # individuals of the returned population
+                #     for j, ind in enumerate(pops[i]):
+                #         if best_fitness < ind.fitness._wsum():
+                #             best_ind = ind
+                #             best_fitness = ind.fitness._wsum()
+                #         elif worst_fitness > ind.fitness._wsum():
+                #             worst_ind_index = [i, j]
+                #             worst_ind = ind
+                #             worst_fitness = ind.fitness._wsum()
+                #
+                # # replace the worst individual with best individual
+                # pops[worst_ind_index[0]][worst_ind_index[1]] = best_ind
 
                 
             # evaluate and save all populations
@@ -576,7 +593,8 @@ class GAPO():
 # DEAP's comparators work with Python's "funny" tuple comparator
  
 class MyFitness(base.Fitness):
-    
+
+    weights = (1,)
     def _wsum(self):
         # return sum of weighted values
         return sum(self.wvalues)

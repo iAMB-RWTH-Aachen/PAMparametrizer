@@ -43,7 +43,7 @@ class PAMParametrizer():
         self.result_diagnostics_file = os.path.join('Results', 'pam_parametrizer_diagnostics.xlsx')
 
 
-    def run(self, remove_subruns:bool = True) -> None:
+    def run(self, remove_subruns:bool = True, binned:str = 'all') -> None:
         """ Run the parametrization framework.
 
         For each iteration of parametrization the following steps are taken:
@@ -66,39 +66,31 @@ class PAMParametrizer():
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
         fig = self.plot_simulation(fig=fig, axs=axs, color='010328')
-        #TODO prevent getting stuck in local optimum if error is not sufficient and stays the same?
 
         #keep track of time for computational performance
         start = time.perf_counter()
+
+        if binned == 'before':
+            self._init_results_objects()
+            files_to_remove = self.perform_iteration_in_bins(start)
+            self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
         #perform parametrization until a max number of iterations
         while (self.iteration <= self.hyperparameters.threshold_iteration ) & (self.final_error <= self.hyperparameters.threshold_error):
             # 0. initiate structures and objects to save results and keep track of process
             start_time_iteration = time.perf_counter()
             self.iteration +=1
-            self._init_results_objects()
 
-            # 1. Get the binned substrate values and adjust binsize if required
-            binned_substrate = self._bin_substrate_uptake_rates()
+            if binned == 'all': #binning in all iterations
+                # 1-4. Run simulations and genetic algorithm in bins and
+                # restart a genetic algorithm using the resulting populations
+                files_to_remove = self.perform_iteration_in_bins(start)
+            else: # no binning
+                # 1-4. Run genetic algorithm without bins
+                files_to_remove = self.perform_iteration_without_bins()
 
-            # 2. Run model in bins, get sensitivities and calculate errors
-            for bin_id, bin_info in binned_substrate.items():
-                self.process_bin(bin_info, bin_id)
-                #print running time to check on progress
-                print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
-                  (time.perf_counter() - start) / 3600, 'hour\n')
-
-            files_to_remove = self.restart_genetic_algorithm()
-            self.reparametrize_pam()
-            if self._pamodel_is_feasible:
-                #visualize results
-                fig, fluxes, substrate_rates = self.plot_simulation(fig, axs, return_fluxes=True)
-                self.final_error = self.calculate_final_error(fluxes, substrate_rates)
-                self.save_diagnostics(computational_time = time.perf_counter() - start_time_iteration)
-                if remove_subruns: self._remove_result_files(files_to_remove)
-
-            else:
-                continue
+            # 5. Reparametrize the model with best results and save/visualize results
+            self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
 
             # 6. Display progress and repeat
             print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
@@ -107,7 +99,62 @@ class PAMParametrizer():
             print('-------------------------------------------------------------------------------------------')
 
         self.save_final_diagnostics(figure = fig)
+        plt.close(fig)
 
+    def perform_iteration_in_bins(self, start_time:float) -> list:
+        self._init_results_objects()
+        # 1. Get the binned substrate values and adjust binsize if required
+        binned_substrate = self._bin_substrate_uptake_rates()
+
+        # 2. Run model in bins, get sensitivities and calculate errors
+        for bin_id, bin_info in binned_substrate.items():
+            self.process_bin(bin_info, bin_id)
+            # print running time to check on progress
+            print('time elapsed: ', time.perf_counter() - start_time, 'sec, ', (time.perf_counter() - start_time) / 60, 'min',
+                  (time.perf_counter() - start_time) / 3600, 'hour\n')
+
+
+        # 3. Restart genetic algorithm using populations from bins
+        files_to_remove = self.restart_genetic_algorithm()
+
+        return files_to_remove
+
+    def perform_iteration_without_bins(self) -> list:
+        # 1. If there are no results yet, perform simulations for a range of glc_uptake_rates
+        if self.iteration == 1:
+            self._init_results_objects()
+            self.run_simulations_to_plot(save_fluxes_esc=True)
+
+        # 2. Get the most sensitive enzymes from all runs
+        enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
+            nmbr_kcats_to_pick=self.hyperparameters.number_of_kcats_to_mutate)
+
+        # 3. run genetic algorithm for a range of substrate uptake rates
+        step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / 10
+        substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step))
+
+        ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
+                                          enzymes_to_evaluate=enzymes_to_evaluate,
+                                          filename_extension=f'final_run_{self.iteration}')
+        ga.start()
+
+        # 3. Restart genetic algorithm using populations from bins
+        files_to_remove = self._get_genetic_algorithm_json_files()
+
+        return files_to_remove
+
+    def evaluate_and_save_results_of_iteration(self, start_time_iteration:float, files_to_remove:list,
+                                               remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
+        self.reparametrize_pam()
+        if self._pamodel_is_feasible:
+            self._init_results_objects()
+            # visualize results
+            fig, fluxes, substrate_rates = self.plot_simulation(fig, axs, return_fluxes=True, save_esc=True)
+            self.final_error = self.calculate_final_error(fluxes, substrate_rates)
+            self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
+            if remove_subruns: self._remove_result_files(files_to_remove)
+        else:
+            return
 
     def process_bin(self, bin_information:list, bin_id: str) -> None:
         """ Process a bin with specified substrate uptake rate information.
@@ -335,12 +382,7 @@ class PAMParametrizer():
         enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
                                 nmbr_kcats_to_pick= self.hyperparameters.number_of_kcats_to_mutate)
 
-        # substrate_start = self.validation_data.valid_data_df[self.substrate_uptake_id +'_ub'].iloc[0]
-        # substrate_stop = self.validation_data.valid_data_df[self.substrate_uptake_id+'_ub'].iloc[-1]
-        # substrate_step = (substrate_stop - substrate_start)/self.hyperparameters.number_of_bins
-        # substrate_rates = list(np.arange(substrate_start, substrate_stop, substrate_step))
-
-        step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / 10
+        step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / self.hyperparameters.number_of_bins
         substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate,step))
 
         #TODO need to adjust the range of substrate uptake rates for validation
@@ -356,9 +398,10 @@ class PAMParametrizer():
         if best_indiv_error < error_threshold:
             return
         for i, row in best_individual_kcat_df.iterrows():
-            self.pamodel.change_kcat_value(enzyme_id=row['id'], kcats={row['rxn_id']:
+            self._change_kcat_value_for_enzyme(enzyme_id= row['id'], kcat_dict = {row['rxn_id']:
                                                                            {'f': row['value']}
                                                                        })
+
 
     def save_diagnostics(self, computational_time: float,
                          results_filename:str = None):
@@ -511,9 +554,11 @@ class PAMParametrizer():
                 """
         # 0. get data in shape: make sure each reaction has their own row and substrate value is absolute
         # Splitting rxn_id column and creating new rows
+
         esc_results_df['rxn_id'] = esc_results_df['rxn_id'].str.split(',')
         esc_results_df = esc_results_df.explode('rxn_id', ignore_index=True)
         esc_results_df['substrate'] = esc_results_df['substrate'].abs()
+
 
         # 1. determine top n values based on average ESC
         # Group by enzyme and calculate the average coefficient for each enzyme
@@ -681,6 +726,8 @@ class PAMParametrizer():
         error = float(error_df.iloc[0]['fitness_weighted_sum'])
         return final_run_results_best_indiv ,error
 
+    def _change_kcat_value_for_enzyme(self, enzyme_id:str, kcat_dict:dict) -> None:
+        self.pamodel.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
 
     def _remove_result_files(self, file_base: Union[list, str]) -> None:
         """ Removes files resulting from genetic algorithm runs.
@@ -742,13 +789,14 @@ class PAMParametrizer():
 
     def plot_simulation(self, fig, axs,
                         return_fluxes:bool = False,
+                        save_esc = False,
                         color:int= None) -> plt.Figure:
         if color is None:
             #adjust color to visualize progress
             self.parametrization_results._color -= 50
             color = self.parametrization_results._color
 
-        fluxes, substrate_range = self.run_simulations_to_plot()
+        fluxes, substrate_range = self.run_simulations_to_plot(save_esc)
 
         for r, ax in zip(self.validation_data._reactions_to_plot, axs.flatten()):
             # plot data
@@ -760,7 +808,7 @@ class PAMParametrizer():
         if return_fluxes: return fig, fluxes, substrate_range
         return fig
 
-    def run_simulations_to_plot(self):
+    def run_simulations_to_plot(self, save_fluxes_esc:bool = False):
         fluxes = list()
         substrate_range = list()
         step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
@@ -777,4 +825,6 @@ class PAMParametrizer():
             if self.pamodel.solver.status == 'optimal' and self.pamodel.objective.value != 0:
                 substrate_range += [abs(substrate)]
                 fluxes.append(sol_pam.fluxes)
+                if save_fluxes_esc: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
+                                                                         bin_id= 'no bins')
         return fluxes, substrate_range

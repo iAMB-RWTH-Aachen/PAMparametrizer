@@ -13,22 +13,7 @@ try:
 except ImportError:
     pass
 
-import random
-from time import time
 from time import strftime
-import pickle
-from pathlib import Path
-import importlib
-import pandas as pd
-import json
-
-from multiprocessing import Pool
-
-from deap import base
-from deap import creator
-from deap import tools
-
-from genetic_algorithm_parametrization.ga_param import Genetic_Algorithm
 
 # anonymus function for printing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
