@@ -57,15 +57,23 @@ def setup_toy_pam2(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45,
     config.reset()
     return pamodel
 
-def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True, translational_enzymes:bool = True, unused_enzymes:bool = True, sensitivity =True):
+def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
+                        translational_enzymes:bool = True, unused_enzymes:bool = True, sensitivity =True,
+                        pam_data_file_path:str = ''):
     # Setting the relative paths
     DATA_DIR = os.path.join(os.getcwd(), 'Data')
     MODEL_DIR = os.path.join(os.getcwd(), 'Models')
-    PAM_DATA_FILE_PATH = os.path.join(DATA_DIR, 'proteinAllocationModel_iML1515_EnzymaticData_230503.xls')
+    if len(pam_data_file_path)<1:
+        PAM_DATA_FILE_PATH = os.path.join(DATA_DIR, 'proteinAllocationModel_iML1515_EnzymaticData_230503.xls')
+    else:
+        PAM_DATA_FILE_PATH = pam_data_file_path
 
     # some other constants
     BIOMASS_REACTION = 'BIOMASS_Ecoli_core_w_GAM'
     TOTAL_PROTEIN_CONCENTRATION = 0.16995  # [g_prot/g_cdw]
+
+    config = Config()
+    config.reset()
 
     # load the genome-scale information
     model = cobra.io.load_json_model(os.path.join(MODEL_DIR, 'e_coli_core.json'))
@@ -144,7 +152,7 @@ def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True, 
             else:
                 rxn2protein[rxn] = {ec: ec_dict}
 
-        active_enzyme_sector = ActiveEnzymeSector(rxn2protein=rxn2protein)
+        active_enzyme_sector = ActiveEnzymeSector(rxn2protein=rxn2protein, configuration=config)
 
     else:
         active_enzyme_sector = None
@@ -162,6 +170,7 @@ def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True, 
             tps_0=tps_0,
             tps_mu=tps_mu,
             mol_mass=molmass_tps,
+            configuration=config
         )
     else:
         translation_enzyme_sector = None
@@ -177,13 +186,14 @@ def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True, 
             ups_0=ups_0,
             ups_mu=ups_mu,
             mol_mass=molmass_ups,
+            configuration=config,
         )
     else:
         unused_enzyme_sector = None
 
     if total_protein: total_protein = TOTAL_PROTEIN_CONCENTRATION
 
-    pa_model = PAModel(id_or_model=model, p_tot=total_protein, sensitivity=sensitivity,
+    pa_model = PAModel(id_or_model=model, p_tot=total_protein, sensitivity=sensitivity, configuration=config,
                        active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector, unused_sector=unused_enzyme_sector)
     return pa_model
 

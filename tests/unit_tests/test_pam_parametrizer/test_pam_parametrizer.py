@@ -3,63 +3,19 @@ import time
 import PAModelpy.PAModel
 import pandas as pd
 import numpy as np
+from sklearn.metrics import silhouette_score
 import os
 from typing import Callable
 
 import pytest
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
-from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_toy_pam
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import evaluate_toy_model_fitness
+from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
 
 
 max_substrate_uptake_rate = 0.01
 min_substrate_uptake_rate = 0.001
-
-###########################################################################################################################
-#MOCK OBJECTS
-###########################################################################################################################
-
-class PAMParametrizerMock(PAMParametrizer):
-    def __init__(self):
-        kcat_fwd = [i/5 for i in [1, 0.5, 1, 0.5, 0.45, 1.5]]
-        toy_pam = setup_toy_pam(kcat_fwd)
-        validation_data = self.set_up_validation_data_mock()
-        hyperparameters = self.set_up_hyperparameter_mock()
-
-        super().__init__(pamodel=toy_pam,
-                         validation_data=validation_data,
-                         hyperparameters=hyperparameters,
-                         substrate_uptake_id = 'R1',
-                         max_substrate_uptake_rate=max_substrate_uptake_rate,
-                         min_substrate_uptake_rate = min_substrate_uptake_rate)
-
-        self.result_figure_file = os.path.join('Results', 'pam_parametrizer_progress_test.png')
-
-
-        self.parametrization_results.initiate_result_dfs(reactions_to_validate= ['R1', 'R7', 'R8', 'R9'],
-                                                         biomass_reaction= ['R7'])
-
-
-    def set_up_validation_data_mock(self):
-        DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'Testing', 'Data')
-        RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
-        valid_data_df = pd.read_csv(RESULT_DF_FILE)
-
-        validation_data = ValidationData(valid_data_df)
-        validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
-        validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
-        return validation_data
-
-    def set_up_hyperparameter_mock(self):
-        hyperparams = HyperParameters
-        hyperparams.threshold_iteration = 3
-        hyperparams.number_of_kcats_to_mutate = 3
-        hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
-        hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_test_'
-        hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
-        return hyperparams
-
 
 
 ##########################################################################################################################
@@ -216,10 +172,9 @@ def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
         'mean': [0.5, 0.2, 0.1]
     })
 
-    # unit correction to be consistent with the way it is saved (see toymodel setup function)
-    enzymes_to_evaluate_validation = {'E3':{'reaction':'R3','kcat':1/(3600 * 1e-6), 'sensitivity':0.5},
-                                      'E4':{'reaction':'R4','kcat':0.5/(3600 * 1e-6), 'sensitivity':0.2},
-                                      'E5':{'reaction':'R5','kcat':0.45/(3600 * 1e-6), 'sensitivity':0.1}}
+    enzymes_to_evaluate_validation = {'E3':{'reaction':'R3','kcat':1/1, 'sensitivity':0.5},
+                                      'E4':{'reaction':'R4','kcat':1/0.5, 'sensitivity':0.2},
+                                      'E5':{'reaction':'R5','kcat':1/0.45, 'sensitivity':0.1}}
 
     # Act
     enzymes_to_evaluate_to_test = sut._parse_enzymes_to_evaluate(esc_topn_df_dummy)
@@ -319,6 +274,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
 
     best_individual_kcat_df, error = sut._get_mutated_kcat_values_from_genetic_algorithm()
     kcats_expected = [[row['id'] ,row['rxn_id'], row['value']] for i, row in best_individual_kcat_df.iterrows()]
+    print(best_individual_kcat_df)
 
     # Act
     sut.reparametrize_pam()
@@ -326,8 +282,8 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Assert
     for kcat_info in kcats_expected:
         enzyme_id, rxn_id, kcat_expected = kcat_info[0], kcat_info[1], kcat_info[2]
-        kcat_test = sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']
-        assert kcat_expected == kcat_test
+        kcat_test = 1/(sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f']*3600*1e-6)
+        assert kcat_expected == pytest.approx(kcat_test, abs=1e-6)
 
     # remove the produced files
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
@@ -354,7 +310,7 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     toolbox = ga._init_deap_toolbox()
     population = ga.ga.init_pop(toolbox, ga.population_size, True)
     individual = population[0]
-    individual.kcat_list = [kcat]
+    individual.kcat_list = [1/(kcat*3600*1e-6)]
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
@@ -481,9 +437,9 @@ def test_pam_parametrizer_runs_full_workflow_without_bins():
     assert True
 
 
-###########################################################################
+#########################################################################################################################
 #HELPER FUNCTIONS
-###########################################################################
+#########################################################################################################################
 def bin_substrate() -> dict:
     bin_range = (max_substrate_uptake_rate - min_substrate_uptake_rate) / HyperParameters.number_of_bins
     stepsize = bin_range / HyperParameters.bin_resolution

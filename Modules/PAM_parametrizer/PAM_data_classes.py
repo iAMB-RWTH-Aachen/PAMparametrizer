@@ -46,6 +46,7 @@ class HyperParameters:
     bin_resolution = 5
     bin_split_deviation_threshold = 0.20
     genetic_algorithm_filename_base = 'genetic_algorithm_run_'
+    filename_extension = ''
     genetic_algorithm: Callable = GAPOUniform
     genetic_algorithm_hyperparams = {'mutation_probability':0.5, # probability with which an individual (solution) is mutated in a generation
                                 'mutation_rate':0.5, # probability with which an attribute (e.g. gene) of an individual is mutated

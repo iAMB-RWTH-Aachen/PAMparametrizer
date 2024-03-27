@@ -4,6 +4,7 @@ import os
 import pandas as pd
 from scipy.stats import linregress
 from pathlib import Path
+from typing import Union
 from deap.base import Fitness
 
 from Modules.genetic_algorithm_parametrization import GAPOUniform
@@ -112,7 +113,8 @@ def test_genetic_algorithm_adjust_kcat_correctly():
     for rxn_id, constraint_id in zip(reaction_names, constraint_names):
         rxn = model.reactions.get_by_id(rxn_id)
         coeff = model.constraints[constraint_id].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
-        kcats_after_ga_adjustment += [1/coeff/(3600*1e-6)]#unit conversion
+        kcats_after_ga_adjustment.append(coeff)
+        # kcats_after_ga_adjustment += [1/coeff/(3600*1e-6)]#unit conversion
 
     # Assert
     assert kcat_old != pytest.approx(kcats_after_ga_adjustment,abs=1e-2)
@@ -129,12 +131,15 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     toolbox = sut._init_deap_toolbox()
     toy_ga = sut.ga
     population = toolbox.population(n=3)
-    new_kcats = [kcat/(3600*1e-6) for kcat in [5,0.1,0.25]]
-    new_kcats_other = [kcat / (3600 * 1e-6) for kcat in [10, 10, 10]]
-    population[0].kcat_list = new_kcats
+    # new_kcats = [kcat/(3600*1e-6) for kcat in [5,0.1,0.25]]
+    # new_kcats_other = [kcat / (3600 * 1e-6) for kcat in [10, 10, 10]]
+
+    new_kcats = [5,0.1,0.25]
+    new_kcats_other = [10, 10, 10]
+    population[0].kcat_list = [1/kcat for kcat in new_kcats]
     #also check if other individual is not affected by changing the kcat values
     other_individual = population[2]
-    other_individual.kcat_list = new_kcats_other
+    other_individual.kcat_list = [1/kcat for kcat in new_kcats_other]
 
     # Act
     population = toy_ga.evaluate_pop(population, toolbox)
@@ -145,6 +150,11 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     #adjust for altered kcat_values
     kcats = [1, 0.5,5,0.1,0.25,1.5]
     toy_pam = setup_toy_pam(kcat_fwd = kcats)
+    # for key, value in toy_pam.constraints.items():
+    #     print(value)
+    #
+    # for key, value in sut.FitEval.model.constraints.items():
+    #     print(value)
 
     # Assert
     fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file_path = sut.RESULT_DF_FILE)
@@ -152,7 +162,7 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     #1e-6 is solver feasibility tolerance
     assert individual_to_evaluate.fitness is not other_individual.fitness
     assert fitness_other_indiv_simulated != fitness_simulated
-    assert new_kcats == individual_to_evaluate.kcat_list
+    assert new_kcats == [1/ kcat for kcat in individual_to_evaluate.kcat_list]
     assert fitness_validation == pytest.approx(fitness_simulated, abs=1e-6)
 
 def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
@@ -162,7 +172,8 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     population = sut.get_initial_population()
     kcat_lists = [[5,0.1,0.25],[1,0.5,0.45],[0.1,0.1,0.1],[1,1,1], [3,3,3]]
     for individual, kcat_list in zip(population, kcat_lists):
-        individual.kcat_list = [kcat/(3600*1e-6) for kcat in kcat_list]
+        # individual.kcat_list = [kcat/(3600*1e-6) for kcat in kcat_list]
+        individual.kcat_list = [1/kcat for kcat in kcat_list]
 
     #calculate actual fitnesses (expected result)
     expected_fitnesses = []
@@ -202,19 +213,23 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def evaluate_toy_model_fitness(toy_model, substrate_rates = [0.001, 0.091],
-                               reference_data_file_path:str = 'Scripts/Testing/Data/toy_model_simulations_ga.csv') -> float:
+                               reference_data_file_path:Union[str, pd.DataFrame] = 'Scripts/Testing/Data/toy_model_simulations_ga.csv',
+                               substrate_rxn:str = 'R1_ub') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
     """
-    validation_results = pd.read_csv(reference_data_file_path)
+    if isinstance(reference_data_file_path, str):
+        validation_results = pd.read_csv(reference_data_file_path)
+    else:
+        validation_results = reference_data_file_path
     simulation_results = run_simulations(toy_model, substrate_rates)
     error = []
     for rxn in validation_results.columns[2:]:
         line = linregress(x=[abs(substrate_rates[0]), abs(substrate_rates[-1])],
                               y=[simulation_results[rxn].iloc[0], simulation_results[rxn].iloc[-1]])
         ref_data_rxn = validation_results.assign(
-            simulation=lambda x: line.intercept + line.slope * x['R1_ub'])
+            simulation=lambda x: line.intercept + line.slope * x[substrate_rxn])
         # simulation mean
         data_average = ref_data_rxn[rxn].mean()
         # error: squared difference

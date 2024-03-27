@@ -1,12 +1,19 @@
 import os
 import pandas as pd
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
+
+
 
 from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_ecolicore_pam
+
+# import sys
+# sys.stdout = open('output.txt','wt')
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -10
@@ -23,16 +30,17 @@ def set_up_validation_data():
                                                     config.BIOMASS_REACTION: 'BIOMASS_Ecoli_core_w_GAM'})
     validation_data = ValidationData(valid_data_df)
     validation_data._reactions_to_plot = RXNS_TO_VALIDATE
-    validation_data._reactions_to_validate = RXNS_TO_VALIDATE
+    validation_data._reactions_to_validate = [RXNS_TO_VALIDATE[0], RXNS_TO_VALIDATE[-1]]
     return validation_data
 
 def set_up_hyperparameter():
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 10
-    hyperparams.number_of_kcats_to_mutate = 5
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
-    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_toy_'
-    hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
+    hyperparams.number_of_kcats_to_mutate = 4
+    hyperparams.filename_extension = 'ecolicore_before'
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
+    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecolicore_'
+    hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
 
 def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE):
@@ -40,7 +48,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 
     for substrate in substrate_rates:
         pamodel.change_reaction_bounds(rxn_id=config.GLUCOSE_EXCHANGE_RXNID,
-                                       lower_bound=0, upper_bound=substrate)
+                                       lower_bound=substrate, upper_bound=0)
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         pamodel.optimize()
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
@@ -65,6 +73,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
-    pam_parametrizer.run(remove_subruns=True)
+
+    pam_parametrizer.run(remove_subruns=True, binned = 'false')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_toy_model

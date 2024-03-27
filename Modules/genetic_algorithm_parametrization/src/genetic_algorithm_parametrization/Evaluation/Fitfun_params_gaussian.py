@@ -259,27 +259,49 @@ class FitnessEvaluation():
         # (one low substrate uptake rate and a high substrate uptake rate are recommended)
 
         # apply kcat changes and compute metabolic functionalities
-        kcat_old = [self.model.enzymes.get_by_id(enz_id).get_kcat_values(individual.reactions[i])['f'] for i, enz_id in enumerate(individual.enzymes_to_eval)]
+        # self.model.optimize()
+        # print('before changing kcat the model is ', self.model.solver.status)
+        reactions = [self.model.reactions.get_by_id(rxn) for rxn in individual.reactions]
+        kcat_old = [self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients(
+            [reactions[i].forward_variable])[reactions[i].forward_variable]
+                    for i, enz_id in enumerate(individual.enzymes_to_eval)]
         # change the kcat value of the enzymes with the highest sensitivity
         # model = self._copy_pamodel(self.model, individual)
         # self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0
         # self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub = 0.0001
         # print(self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID])
         self._change_kcat_values_for_individual(individual)
+        # for i, enz_id in enumerate(individual.enzymes_to_eval):
+        #     rxn = self.model.reactions.get_by_id(individual.reactions[i])
+        #     # self.model.change_kcat_value(enz_id,
+        #     #                         {individual.reactions[i]:
+        #     #                              {'f': individual.kcat_list[i],
+        #     #                               'b': individual.kcat_list[i]}})
+        #     print('changed kcat',self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([
+        #         rxn.forward_variable]),self.model.constraints[f'EC_{enz_id}_b'].get_linear_coefficients([
+        #         rxn.reverse_variable]))
+        # self.model.optimize()
+        # print('after changing kcat the model is ', self.model.solver.status)
+
         # perform simulations and save results
         fluxes_df = pd.DataFrame(columns = ['substrate_uptake'] + self.reactions_with_data)
 
         for rate in self.substrate_uptake_rates:
             new_row = [rate] + [0] * len(fluxes_df.columns[1:])
             fluxes_df.loc[len(fluxes_df)] = new_row
-
-            self.model.change_reaction_bounds(self.substrate_uptake_id,
+            if rate >= 0:
+                self.model.change_reaction_bounds(self.substrate_uptake_id,
                                               lower_bound = 0, upper_bound = rate)
+            else:
+                self.model.change_reaction_bounds(self.substrate_uptake_id,
+                                                      lower_bound=rate, upper_bound=0)
             # for constr in model.constraints.values():
                 # if any(enz in constr.name for enz in individual.enzymes_to_eval):
                 #     print([(rxn, 1/coeff) for rxn, coeff in zip(individual.reactions, individual.kcat_list)], constr.expression)
             self.model.optimize()
-            if self.model.solver.status != 'optimal':continue
+            if self.model.solver.status != 'optimal':
+                # print('The used set of parameters is infeasible', individual.kcat_list)
+                continue
             # calculate fitness (sum of simulation error to reactions with data)
             else:
                 for rxn_id in fluxes_df.columns[1:]:
@@ -302,16 +324,12 @@ class FitnessEvaluation():
         # print('kcat', individual.kcat_list,'fitness', fitness)
         # print(self.model.capacity_sensitivity_coefficients)
         # print(fluxes_df)
-
         individual.r_squared = fitness
         individual.fitness.values = [fitness]
 
 
         #revert kcat_changes
-        for i, enz_id in enumerate(individual.enzymes_to_eval):
-            self.model.change_kcat_value(enz_id,
-                                     {individual.reactions[i]:
-                                          {'f': kcat_old[i], 'b': kcat_old[i]}})
+        self._change_kcat_values_for_individual(individual, kcat_old)
         # print(model.capacity_sensitivity_coefficients.to_markdown())
         # print(individual.fitness.values)
         # return a tuple of one element
@@ -326,57 +344,7 @@ class FitnessEvaluation():
     ##########################################################################
     # CUSTOM HELPER FUNCTIONS
     ##########################################################################
-    def _change_kcat_values_for_individual(self, individual):
-        for i, enz_id in enumerate(individual.enzymes_to_eval):
-            rxn = self.model.reactions.get_by_id(individual.reactions[i])
-            # self.model.change_kcat_value(enz_id,
-            #                         {individual.reactions[i]:
-            #                              {'f': individual.kcat_list[i],
-            #                               'b': individual.kcat_list[i]}})
-            self.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({
-                rxn.forward_variable:1/(individual.kcat_list[i]*(3600*1e-6))})
-            self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
-                 {rxn.reverse_variable: 1 / (individual.kcat_list[i]*(3600*1e-6))})#TODO something is fishy here
 
-    def _calculate_simulation_error(self,flux_df: pd.DataFrame):
-        error = []
-        for rxn in self.reactions_with_data:
-            #only select the rows which are filled with data
-
-            ref_data_rxn = self.valid_data_df.dropna(axis = 0, subset = rxn)
-            #if there are no reference data points, continue to the next reaction
-            if len(ref_data_rxn) == 0: continue
-
-            r_squared = self._calculate_r_squared_for_reaction(rxn, ref_data_rxn,
-                                                               flux_df)
-            error += [r_squared]
-        if len(error) == 0: return 1
-
-        return sum(error)/len(error)
-
-    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
-                                          fluxes: pd.DataFrame) -> float:
-        # calculate difference between simulations and validation data
-        # get the linear relation of simulation (using the first and the last datapoint)
-        line = linregress(x=[abs(self.substrate_uptake_rates[0]), abs(self.substrate_uptake_rates[-1])], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
-        ref_data_rxn = validation_data.assign(
-                simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id+'_ub'])
-        # simulation mean
-        data_average = ref_data_rxn[reaction_id].mean()
-        # error: squared difference
-        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
-
-        # calculate R^2:
-        residual_ss = sum(ref_data_rxn.error)
-        total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
-        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
-        if (residual_ss == 0) | (total_ss == 0):
-            r_squared = 0
-        else:
-            r_squared = 1 - residual_ss / total_ss
-        return r_squared
-
-        
     def _mutate_kcat_value(self, kcat:float, sensitivity:float = 0.5, toolbox:deap.base.Toolbox = None) -> float:
         """
         Helper function to mutate a kcat value based on a user-defined standard deviation scale.
@@ -401,3 +369,157 @@ class FitnessEvaluation():
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
             return float(np.random.normal(loc=kcat, scale=stdev))
+
+
+    def _change_kcat_values_for_individual(self, individual, kcat_values: list = []):
+        if len(kcat_values) == 0:
+            kcat_values = individual.kcat_list
+        for i, enz_id in enumerate(individual.enzymes_to_eval):
+            rxn = self.model.reactions.get_by_id(individual.reactions[i])
+            # self.model.change_kcat_value(enz_id,
+            #                         {individual.reactions[i]:
+            #                              {'f': individual.kcat_list[i],
+            #                               'b': individual.kcat_list[i]}})
+
+            self.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({
+                rxn.forward_variable:(kcat_values[i])})
+            # self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
+            #      {rxn.reverse_variable: (kcat_values[i])}) TODO how to handle reverse kcat
+            # print(self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([rxn.forward_variable]), individual.kcat_list[i])
+
+            # self.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({
+            #     rxn.forward_variable: 1 / (individual.kcat_list[i] * (3600 * 1e-6))})
+            # self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
+            #     {rxn.reverse_variable: 1 / (individual.kcat_list[i] * (3600 * 1e-6))})
+
+    def _calculate_simulation_error(self,flux_df: pd.DataFrame):
+        error = []
+        for rxn in self.reactions_with_data:
+            #only select the rows which are filled with data
+
+            ref_data_rxn = self.valid_data_df.dropna(axis = 0, subset = rxn)
+            #if there are no reference data points, continue to the next reaction
+            if len(ref_data_rxn) == 0: continue
+
+            r_squared = self._calculate_r_squared_for_reaction(rxn, ref_data_rxn,
+                                                               flux_df)
+            error += [r_squared]
+        if len(error) == 0: return np.NaN
+
+        return sum(error)/len(error)
+
+
+    # def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
+    #                                       fluxes: pd.DataFrame) -> float:
+    #     # calculate difference between simulations and validation data
+    #     # get the linear relation of simulation (using the first and the last datapoint)
+    #     line = linregress(x=[abs(self.substrate_uptake_rates[0]), abs(self.substrate_uptake_rates[-1])], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
+    #     ref_data_rxn = validation_data.assign(
+    #             simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id+'_ub'])
+    #     # simulation mean
+    #     data_average = ref_data_rxn[reaction_id].mean()
+    #     # error: squared difference
+    #     ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
+    #
+    #     # calculate R^2:
+    #     residual_ss = sum(ref_data_rxn.error)
+    #     total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+    #     # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
+    #     if (residual_ss == 0) | (total_ss == 0):
+    #         r_squared = 0
+    #     else:
+    #         r_squared = 1 - residual_ss / total_ss
+    #     return r_squared
+
+    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
+                                          fluxes: pd.DataFrame) -> float:
+        # calculate difference between simulations and validation data
+        # get the linear relation of simulation (using the first and the last datapoint)
+        exp_x = validation_data[self.substrate_uptake_id + '_ub']
+        exp_y = validation_data[reaction_id]
+        # Get simulated data points
+        sim_x = self.substrate_uptake_rates
+        sim_y = fluxes[reaction_id].iloc[0:len(self.substrate_uptake_rates)]
+        # Calculate R^2 values using sliding window approach
+        r_squared = self._interpolated_r_squared(exp_x, exp_y, sim_x, sim_y)
+        return r_squared
+
+
+    def _interpolated_r_squared(self, exp_x: list, exp_y: list, sim_x: list, sim_y: list) -> np.array:
+        """
+        Calculate the R^2 value between experimental and simulated data points by interpolating the simulated
+        data for a given experimental x coordinate.
+
+        Args:
+        - exp_x (array-like): X-coordinates of experimental data points.
+        - exp_y (array-like): Y-coordinates of experimental data points.
+        - sim_x (array-like): X-coordinates of simulated data points.
+        - sim_y (array-like): Y-coordinates of simulated data points.
+        - window_size (int): Size of the sliding window.
+
+        Returns:
+        - r_squared_values (array): squared error values computed for each sliding window.
+        """
+        error = []
+        for x_exp, y_exp in zip(exp_x, exp_y):
+            # Find the indices of experimental data points within the sliding window
+            simulation = self._interpolate_datapoint(sim_x, sim_y, x_exp)
+            error += [(simulation - abs(y_exp)) ** 2]
+        # calculate R^2:
+        exp_average = np.nanmean(exp_y)
+        residual_ss = np.nansum(error)
+        total_ss = np.nansum([(data - exp_average) ** 2 for data in exp_y])
+        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
+        if (residual_ss == 0) | (total_ss == 0):
+            r_squared = 0
+        else:
+            r_squared = 1 - residual_ss / total_ss
+
+        return r_squared
+
+    def _interpolate_datapoint(self, x_values, y_values, x_target):
+        """
+        Interpolate a data point between two different x coordinates.
+
+        Args:
+        - x_values (array-like): Array of x-coordinates of the data points.
+        - y_values (array-like): Array of y-coordinates of the data points.
+        - x_target (float): Target x-coordinate to interpolate the data point.
+
+        Returns:
+        - interpolated_datapoint (float): Interpolated y-coordinate corresponding to the target x-coordinate.
+        """
+        # Find the indices of the two nearest x-coordinates
+        idx_left = self._find_closest_datapoint(x_values, x_target)
+        if x_target< 0 and idx_left >0:
+            idx_right = idx_left - 1
+        else:
+            idx_right = idx_left + 1
+        if idx_right >= len(x_values): idx_right = idx_left - 1
+
+        # Correct datatypes
+        if isinstance(x_values, pd.Series): x_values = x_values.values
+        if isinstance(y_values, pd.Series): y_values = y_values.values
+        # Perform linear interpolation
+        x_left, x_right = x_values[idx_left], x_values[idx_right]
+        y_left, y_right = y_values[idx_left], y_values[idx_right]
+        interpolated_datapoint = y_left + (y_right - y_left) * abs(x_target - x_left) / abs(x_right - x_left)
+
+        return interpolated_datapoint
+
+    def _find_closest_datapoint(self, x_values, target_x):
+        """
+        Find the data point closest to a specific x value.
+
+        Parameters:
+        - x_values (array-like): Array of x-coordinates.
+        - target_x (float): Target x value.
+
+        Returns:
+        - closest_index (int): Index of the data point closest to the target x value.
+        """
+        # Calculate absolute differences between target x value and each x-coordinate
+        absolute_differences = [np.abs(x - target_x) for x in x_values]
+        # Find index of the minimum absolute difference
+        closest_index = np.argmin(absolute_differences)
+        return closest_index

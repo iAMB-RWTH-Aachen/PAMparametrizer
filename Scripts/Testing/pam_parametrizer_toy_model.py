@@ -25,7 +25,8 @@ def set_up_hyperparameter():
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 10
     hyperparams.threshold_error = 0.95
-    hyperparams.number_of_kcats_to_mutate = 4
+    hyperparams.number_of_kcats_to_mutate = 3
+    hyperparams.filename_extension = 'toy_senz'
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 4
     hyperparams.genetic_algorithm_hyperparams['processes'] = 4
@@ -56,20 +57,28 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
-                           kcat_fwd: list = [1, 0.5, 1, 0.5, 0.45, 1.5]):
-    toy_pam = set_up_toy_model(kcat_fwd)
-    validation_data = set_up_validation_data()
-    hyperparameters = set_up_hyperparameter()
+                           kcat_fwd: list = [1, 0.5, 1, 0.5, 0.45, 1.5], sensitivity:bool = True):
+    params = {'pamodel': set_up_toy_model(kcat_fwd),
+              'validation_data': set_up_validation_data(),
+              'hyperparameters': set_up_hyperparameter(),
+              'substrate_uptake_id': 'R1',
+              'max_substrate_uptake_rate': max_substrate_uptake_rate,
+              'min_substrate_uptake_rate': min_substrate_uptake_rate,
+                'sensitivity': sensitivity}
+    if not sensitivity:
+        params['hyperparameters'].filename_extension = 'toy_no_senz'
+        params['enzymes_to_evaluate'] = {'E3':{'reaction':'R3','kcat':1, 'sensitivity':0.5}, #should become 5
+                           'E4':{'reaction':'R4','kcat':0.5, 'sensitivity':0.2},#should become 0.1
+                           'E5':{'reaction':'R5','kcat':0.45, 'sensitivity':0.1}},#should become 0.25
 
-    return PAMParametrizer(pamodel=toy_pam,
-                     validation_data=validation_data,
-                     hyperparameters=hyperparameters,
-                     substrate_uptake_id='R1',
-                     max_substrate_uptake_rate=max_substrate_uptake_rate,
-                     min_substrate_uptake_rate=min_substrate_uptake_rate)
+    return PAMParametrizer(**params)
 
 if __name__ == "__main__":
+    # pam_parametrizer = set_up_pamparametrizer('False')
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
-    pam_parametrizer.run(remove_subruns=True, binned = 'False')
+    pam_parametrizer.run(binned = 'before')
+    # pam_parametrizer_no_senz = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+    #                                                   sensitivity= False)
+    # pam_parametrizer_no_senz.run()
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_toy_model

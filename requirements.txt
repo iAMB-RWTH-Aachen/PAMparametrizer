@@ -7,3 +7,4 @@ gurobipy
 scipy
 pytest
 seaborn==0.13.2
+scikit-learn==1.4.1

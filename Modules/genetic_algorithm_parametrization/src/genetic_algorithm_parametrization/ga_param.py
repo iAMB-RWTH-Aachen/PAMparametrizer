@@ -13,7 +13,7 @@ import deap.base
 import numpy as np
 from copy import deepcopy
 
-# anonymus function for printing the time
+# anonymus function for Fing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
 
 
@@ -115,7 +115,6 @@ class Genetic_Algorithm():
         ind_str = lambda ind: "".join([str(a) for a in ind])
         elite_fitness_prev = 0
         elite_kcat_prev =[0,0,0]
-        
         # Begin the evolution
         while (g < self.number_generations) and ((time()-start_time) < self.time_limit):
             # A new generation
@@ -144,8 +143,7 @@ class Genetic_Algorithm():
             #     print('something fishy is happening here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             #
             #     print(elite[0].kcat_list == elite_kcat_prev, elite[0].kcat_list, elite_kcat_prev)
-            elite_fitness_prev = elite[0].fitness._wsum()
-            elite_kcat_prev = elite[0].kcat_list
+            elite_kcat = elite[0].kcat_list
             # print('elite fitness', elite[0].fitness._wsum())
 
 
@@ -206,7 +204,11 @@ class Genetic_Algorithm():
             # Evaluate the individuals with an invalid fitness
             fitnesses = map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness = fit
+                if fit._wsum() is np.NaN:
+                    ind.kcat_list = elite_kcat
+                    ind.fitness = elite[0].fitness
+                else:
+                    ind.fitness = fit
 
                 # ind.fitness.values = fit
                 # store fitness

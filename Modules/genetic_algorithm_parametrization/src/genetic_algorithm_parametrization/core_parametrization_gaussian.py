@@ -389,7 +389,6 @@ class GAPO():
         drift = previous_drifts
         best_ind = None
         worst_ind = None
-
         if self.print_progress:
             print('\nTime left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
         
@@ -420,6 +419,7 @@ class GAPO():
             # multiprocessing
             if self.print_progress:
                 print("Start genetic algorithm --")
+
             with Pool(processes=self.processes) as pool:
                 # distribute populations to separate workers
 

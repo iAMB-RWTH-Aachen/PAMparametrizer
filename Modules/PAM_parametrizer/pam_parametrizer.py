@@ -3,9 +3,12 @@ import numpy as np
 import os
 import time
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_hex
 from PAModelpy.PAModel import PAModel
 import pandas as pd
 from scipy.stats import linregress
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
 import re
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
@@ -18,7 +21,9 @@ class PAMParametrizer():
                  hyperparameters: HyperParameters = HyperParameters,
                  substrate_uptake_id: str = 'EX_glc__D_e',
                  max_substrate_uptake_rate: Union[float, int] = 11,
-                 min_substrate_uptake_rate: Union[float, int] = 0):
+                 min_substrate_uptake_rate: Union[float, int] = 0,
+                 sensitivity: bool = True,
+                 enzymes_to_evaluate:list = []):
 
         self.core_genetic_algorithm = None
         self.pamodel = pamodel
@@ -36,11 +41,17 @@ class PAMParametrizer():
         self.final_error = 0
         self.error_fraction_to_deviate_between_runs = 0.1
 
+        self.sensitivity = sensitivity
+        if not sensitivity:
+            self.enzymes_to_evaluate = enzymes_to_evaluate
+
         # attributes for keeping track of the workflow
-        self.iteration =0
+        self.iteration = 0
         self.bins = list(range(self.hyperparameters.number_of_bins))
-        self.result_figure_file = os.path.join('Results', 'pam_parametrizer_progress.png')
-        self.result_diagnostics_file = os.path.join('Results', 'pam_parametrizer_diagnostics.xlsx')
+        self.result_figure_file = os.path.join(
+            'Results', f'pam_parametrizer_progress_{hyperparameters.filename_extension}.png')
+        self.result_diagnostics_file = os.path.join(
+            'Results', f'pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx')
 
 
     def run(self, remove_subruns:bool = True, binned:str = 'all') -> None:
@@ -65,21 +76,20 @@ class PAMParametrizer():
         """
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
-        fig = self.plot_simulation(fig=fig, axs=axs, color='010328')
+        fig = self.plot_simulation(fig=fig, axs=axs, color='#010328')
 
         #keep track of time for computational performance
         start = time.perf_counter()
-
         if binned == 'before':
             self._init_results_objects()
             files_to_remove = self.perform_iteration_in_bins(start)
             self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
         #perform parametrization until a max number of iterations
-        while (self.iteration <= self.hyperparameters.threshold_iteration ) & (self.final_error <= self.hyperparameters.threshold_error):
+        while (self.iteration+1 <= self.hyperparameters.threshold_iteration) & (self.final_error <= self.hyperparameters.threshold_error):
             # 0. initiate structures and objects to save results and keep track of process
             start_time_iteration = time.perf_counter()
-            self.iteration +=1
+            self.iteration += 1
 
             if binned == 'all': #binning in all iterations
                 # 1-4. Run simulations and genetic algorithm in bins and
@@ -126,13 +136,15 @@ class PAMParametrizer():
             self.run_simulations_to_plot(save_fluxes_esc=True)
 
         # 2. Get the most sensitive enzymes from all runs
-        enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
-            nmbr_kcats_to_pick=self.hyperparameters.number_of_kcats_to_mutate)
+        if self.sensitivity:
+            enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
+                nmbr_kcats_to_pick=self.hyperparameters.number_of_kcats_to_mutate)
+        else:
+            enzymes_to_evaluate = self.enzymes_to_evaluate
 
         # 3. run genetic algorithm for a range of substrate uptake rates
         step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / 10
         substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step))
-
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
                                           enzymes_to_evaluate=enzymes_to_evaluate,
                                           filename_extension=f'final_run_{self.iteration}')
@@ -154,6 +166,7 @@ class PAMParametrizer():
             self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
             if remove_subruns: self._remove_result_files(files_to_remove)
         else:
+            print('Newly parametrized model is not feasible')
             return
 
     def process_bin(self, bin_information:list, bin_id: str) -> None:
@@ -282,7 +295,7 @@ class PAMParametrizer():
 
         # calculate error for different exchange rates
         error = self._calculate_error_for_reactions(validation_df = validation_df,
-                                                    substrate_start= bin_information[0], substrate_stop= bin_information[1],
+                                                    substrate_range = np.arange(bin_information[0], bin_information[1], bin_information[-1]),
                                                     bin_id = bin_id)
 
         error_df = self.parametrization_results.error_df
@@ -305,13 +318,13 @@ class PAMParametrizer():
                                                                   substrate_uptake_rate= substrate_rate)
         validation_results = self.validation_data.valid_data_df
         error = self._calculate_error_for_reactions(validation_df=validation_results,
-                                                    substrate_start=self.min_substrate_uptake_rate,
-                                                    substrate_stop=self.max_substrate_uptake_rate,
+                                                    substrate_range = substrate_rates,
                                                     bin_id='final')
         #remove the simulations from the result dataframe
         self.parametrization_results.fluxes_df = self.parametrization_results.fluxes_df[self.parametrization_results.fluxes_df['bin']!='final']
-        print('The final error is ', np.nanmean(error))
-        return np.mean(error)
+        final_error = np.nanmean(error)
+        print('The final error is ', final_error)
+        return final_error
 
     def determine_most_sensitive_enzymes(self, bin_id: Union[str, float, int], nmbr_kcats_to_pick: int) -> pd.DataFrame:
         """
@@ -333,7 +346,6 @@ class PAMParametrizer():
 
         esc_topn_df = self._select_topn_enzymes(esc_results_df = esc_in_bin,
                                                 nmbr_kcats_to_pick = nmbr_kcats_to_pick)
-
         return esc_topn_df
 
     def determine_bin_to_split(self, esc_topn_df: pd.DataFrame, bin_id: Union[str, float, int]) -> None:
@@ -373,7 +385,6 @@ class PAMParametrizer():
             filename_extension: extension of base filename to save the result of the genetic algorithm
         """
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
-
         ga = self._init_genetic_algorithm(bin_info[:2], enzymes_to_evaluate, filename_extension)
         ga.start()
 
@@ -383,7 +394,7 @@ class PAMParametrizer():
                                 nmbr_kcats_to_pick= self.hyperparameters.number_of_kcats_to_mutate)
 
         step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / self.hyperparameters.number_of_bins
-        substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate,step))
+        substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step))
 
         #TODO need to adjust the range of substrate uptake rates for validation
         ga = self._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
@@ -395,12 +406,26 @@ class PAMParametrizer():
     def reparametrize_pam(self):
         best_individual_kcat_df, best_indiv_error = self._get_mutated_kcat_values_from_genetic_algorithm()
         error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
-        if best_indiv_error < error_threshold:
+        if best_indiv_error < error_threshold and best_indiv_error>0:
             return
         for i, row in best_individual_kcat_df.iterrows():
+            # current value is coefficient calculated as follows:
+            # coeff = 1 / (kcat * 3600 * 1e-6) #3600 to convert to /h to /s *1e-6 to make calculations more accurate
+            # need to convert the coefficient to the actual kcat
+            # rxn = self.pamodel.reactions.get_by_id(row['rxn_id'])
+            # lin_coeff = self.pamodel.constraints[f'EC_{row["id"]}_f'].get_linear_coefficients([rxn.forward_variable])
+            # values = [(val, 1/(val*3600*1e-6)) for val in lin_coeff.values()]
+            # print(values)
+            # self.pamodel.constraints[f'EC_{row["id"]}_f'].set_linear_coefficients({
+            #     rxn.forward_variable: (row['value'])})
+            new_kcat = 1/(row['value']*3600*1e-6)
             self._change_kcat_value_for_enzyme(enzyme_id= row['id'], kcat_dict = {row['rxn_id']:
-                                                                           {'f': row['value']}
+                                                                           {'f': new_kcat}
                                                                        })
+            # print(self.pamodel.constraints[f'EC_{row["id"]}_f'].get_linear_coefficients([rxn.forward_variable]),
+            #       new_kcat, row['value'])
+
+        print('after reparametrization the model is feasible', self._pamodel_is_feasible())
 
 
     def save_diagnostics(self, computational_time: float,
@@ -432,7 +457,7 @@ class PAMParametrizer():
     def _pamodel_is_feasible(self):
         #check for feasibility at a mid substrate uptake rate
         self.pamodel.test((self.max_substrate_uptake_rate -self.min_substrate_uptake_rate/2))
-        return self.pamodel.status == 'optimal'
+        return self.pamodel.solver.status == 'optimal'
 
     def _bin_substrate_uptake_rates(self):
         """ Bin the substrate uptake rate in intervals.
@@ -603,7 +628,7 @@ class PAMParametrizer():
         return (esc_variability >= self.hyperparameters.bin_split_deviation_threshold)
 
     def _calculate_error_for_reactions(self, validation_df: pd.DataFrame,
-                                          substrate_start: float, substrate_stop:float,
+                                          substrate_range: Union[list, np.array],
                                           bin_id: Union[float, int] = None) -> float:
         # calculate error for different exchange rates
         error = []
@@ -619,34 +644,128 @@ class PAMParametrizer():
             if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
 
             r_squared = self._calculate_r_squared_for_reaction(rxn, validation_df,
-                                                               substrate_start, substrate_stop,
+                                                               substrate_range,
                                                                flux_df)
             error += [r_squared]
         return error
 
+    # def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
+    #                                       substrate_start: float, substrate_stop:float,
+    #                                       fluxes: pd.DataFrame) -> float:
+    #     # calculate difference between simulations and validation data
+    #     # get the linear relation of simulation (using the first and the last datapoint)
+    #     line = linregress(x=[abs(substrate_start), abs(substrate_stop)], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
+    #     ref_data_rxn = validation_data.assign(
+    #             simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id+'_ub'])
+    #
+    #     # simulation mean
+    #     data_average = ref_data_rxn[reaction_id].mean()
+    #     # error: squared difference
+    #     ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
+    #
+    #     # calculate R^2:
+    #     residual_ss = sum(ref_data_rxn.error)
+    #     total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+    #     # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
+    #     if (residual_ss == 0) | (total_ss == 0):
+    #         r_squared = 0
+    #     else:
+    #         r_squared = 1 - residual_ss / total_ss
+    #     return r_squared
+
     def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
-                                          substrate_start: float, substrate_stop:float,
+                                          substrate_range: Union[list, np.array],
                                           fluxes: pd.DataFrame) -> float:
         # calculate difference between simulations and validation data
         # get the linear relation of simulation (using the first and the last datapoint)
-        line = linregress(x=[abs(substrate_start), abs(substrate_stop)], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
-        ref_data_rxn = validation_data.assign(
-                simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id+'_ub'])
+        exp_x = validation_data[self.substrate_uptake_id + '_ub']
+        exp_y = validation_data[reaction_id]
+        # Get simulated data points
+        sim_x = substrate_range
+        sim_y = fluxes[reaction_id].iloc[0:len(sim_x)]
+        # Calculate R^2 values using sliding window approach
+        r_squared = self._interpolated_r_squared(exp_x, exp_y, sim_x, sim_y)
+        return r_squared
 
-        # simulation mean
-        data_average = ref_data_rxn[reaction_id].mean()
-        # error: squared difference
-        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
 
+    def _interpolated_r_squared(self, exp_x: list, exp_y: list, sim_x: list, sim_y: list) -> np.array:
+        """
+        Calculate the R^2 value between experimental and simulated data points within a sliding window.
+
+        Args:
+        - exp_x (array-like): X-coordinates of experimental data points.
+        - exp_y (array-like): Y-coordinates of experimental data points.
+        - sim_x (array-like): X-coordinates of simulated data points.
+        - sim_y (array-like): Y-coordinates of simulated data points.
+        - window_size (int): Size of the sliding window.
+
+        Returns:
+        - r_squared_values (array): squared error values computed for each sliding window.
+        """
+        error = []
+        for i in range(len(exp_x)):
+            # Find the indices of experimental data points within the sliding window
+            simulation = self._interpolate_datapoint(sim_x, sim_y, exp_x[i])
+            error += [(simulation - abs(exp_y[i])) ** 2]
         # calculate R^2:
-        residual_ss = sum(ref_data_rxn.error)
-        total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+        exp_average = np.nanmean(exp_y)
+        residual_ss = np.nansum(error)
+        total_ss = np.nansum([(data - exp_average) ** 2 for data in exp_y])
         # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
         if (residual_ss == 0) | (total_ss == 0):
             r_squared = 0
         else:
             r_squared = 1 - residual_ss / total_ss
+
         return r_squared
+
+    def _interpolate_datapoint(self, x_values, y_values, x_target):
+        """
+        Interpolate a data point between two different x coordinates.
+
+        Args:
+        - x_values (array-like): Array of x-coordinates of the data points.
+        - y_values (array-like): Array of y-coordinates of the data points.
+        - x_target (float): Target x-coordinate to interpolate the data point.
+
+        Returns:
+        - interpolated_datapoint (float): Interpolated y-coordinate corresponding to the target x-coordinate.
+        """
+        # Find the indices of the two nearest x-coordinates
+        idx_left = self._find_closest_datapoint(x_values, abs(x_target))
+        if x_target < 0 and idx_left > 0:
+            idx_right = idx_left - 1
+        else:
+            idx_right = idx_left + 1
+        if idx_right >= len(x_values): idx_right = idx_left - 1
+
+        # Correct datatypes
+        if isinstance(x_values, pd.Series): x_values = x_values.values
+        if isinstance(y_values, pd.Series): y_values = y_values.values
+
+        # Perform linear interpolation
+        x_left, x_right = x_values[idx_left], x_values[idx_right]
+        y_left, y_right = y_values[idx_left], y_values[idx_right]
+        interpolated_datapoint = y_left + (y_right - y_left) * (abs(x_target) - x_left) / (x_right - x_left)
+
+        return interpolated_datapoint
+
+    def _find_closest_datapoint(self, x_values, target_x):
+        """
+        Find the data point closest to a specific x value.
+
+        Parameters:
+        - x_values (array-like): Array of x-coordinates.
+        - target_x (float): Target x value.
+
+        Returns:
+        - closest_index (int): Index of the data point closest to the target x value.
+        """
+        # Calculate absolute differences between target x value and each x-coordinate
+        absolute_differences = np.abs(x_values - target_x)
+        # Find index of the minimum absolute difference
+        closest_index = np.argmin(absolute_differences)
+        return closest_index
 
     def _parse_enzymes_to_evaluate(self, esc_topn_df: pd.DataFrame) -> dict:
         """
@@ -672,10 +791,14 @@ class PAMParametrizer():
         for index, row in esc_topn_df.iterrows():
             enzyme_id = row['enzyme_id']
             rxn_id = row['rxn_id']
+            rxn = self.pamodel.reactions.get_by_id(rxn_id)
+            # print(self.pamodel.constraints[f'EC_{enzyme_id}_f'].get_linear_coefficients([rxn.forward_variable]))
             enzyme_dict = {}
             enzyme_dict['sensitivity'] = row['mean']
             enzyme_dict['reaction'] = rxn_id
-            enzyme_dict['kcat'] = self.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f'] # TO DO seperate fwd and rev kcat adjustment
+            kcat = self.pamodel.constraints[f'EC_{enzyme_id}_f'].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
+            # print(self.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f'])
+            enzyme_dict['kcat'] = kcat # TO DO seperate fwd and rev kcat adjustment
             enzymes_to_evaluate[enzyme_id] = enzyme_dict
         return enzymes_to_evaluate
 
@@ -759,7 +882,7 @@ class PAMParametrizer():
 
         """
         #need to convert the units of the kcat from 1/h to 1/s for easy interpretation
-        enz_rxn_kcat_row['value'] = enz_rxn_kcat_row['value']*3600*1e-6
+        enz_rxn_kcat_row['value'] = 1/(enz_rxn_kcat_row['value']*3600*1e-6)
         return enz_rxn_kcat_row.to_list()
 
 
@@ -793,15 +916,16 @@ class PAMParametrizer():
                         color:int= None) -> plt.Figure:
         if color is None:
             #adjust color to visualize progress
-            self.parametrization_results._color -= 50
-            color = self.parametrization_results._color
+            #get viridis color palette
+            cmap = plt.get_cmap('viridis')
+            color = to_hex(cmap(self.iteration/(self.hyperparameters.threshold_iteration-1)))
 
         fluxes, substrate_range = self.run_simulations_to_plot(save_esc)
 
         for r, ax in zip(self.validation_data._reactions_to_plot, axs.flatten()):
             # plot data
             line = ax.plot(substrate_range, [abs(f[r]) for f in fluxes], linewidth=2.5,
-                           zorder=5, color=f'#{color}')
+                           zorder=5, color=color)
 
         fig.canvas.draw()
         fig.canvas.flush_events()
@@ -828,3 +952,59 @@ class PAMParametrizer():
                 if save_fluxes_esc: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
                                                                          bin_id= 'no bins')
         return fluxes, substrate_range
+
+    def cluster_parametrization_results(self, parameter_sets_list, fitness_values_list, n_clusters):
+        """
+        Clusters the concatenated parameter sets obtained from multiple parametrization runs,
+        considering both the parameter values and the enzyme IDs, and estimates the fitness value for each cluster.
+
+        Args:
+        - parameter_sets_list (list of lists of tuples): List of parameter sets obtained from each parametrization run,
+                                                         where each parameter set is represented as a tuple
+                                                         (enzyme_id, parameter_set).
+        - fitness_values_list (list of lists): List of fitness values obtained from each parametrization run.
+        - n_clusters (int): Number of clusters to form.
+
+        Returns:
+        - clustered_results (list of tuples): Clustered parameter sets, where each tuple contains
+                                               the cluster label, parameter sets, enzyme IDs, and estimated fitness value.
+        """
+        # Concatenate parameter sets and enzyme IDs from all runs
+        concatenated_parameter_sets = []
+        for run in parameter_sets_list:
+            concatenated_parameter_sets.extend(run)
+
+        # Extract parameter sets and enzyme IDs
+        parameter_sets = np.array([param_set for enzyme_id, param_set in concatenated_parameter_sets])
+        enzyme_ids = np.array([enzyme_id for enzyme_id, param_set in concatenated_parameter_sets])
+
+        # Standardize parameter sets (optional but recommended for clustering)
+        scaler = StandardScaler()
+        parameter_sets_standardized = scaler.fit_transform(parameter_sets)
+
+        # Concatenate parameter sets and enzyme IDs horizontally
+        data = np.hstack((parameter_sets_standardized, enzyme_ids.reshape(-1, 1)))
+
+        # Initialize Agglomerative Clustering with Ward linkage
+        clustering = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward')
+
+        # Fit clustering model
+        cluster_labels = clustering.fit_predict(data)
+
+        # Compute mean fitness value for each cluster
+        clustered_fitness_values = []
+        for i in range(n_clusters):
+            cluster_indices = np.where(cluster_labels == i)[0]
+            fitness_values = [fitness_values_list[idx] for idx in cluster_indices]
+            mean_fitness = np.mean(fitness_values)
+            clustered_fitness_values.append(mean_fitness)
+
+        # Clustered results (cluster label, parameter sets, enzyme IDs, and estimated fitness value)
+        clustered_results = []
+        for label, cluster_fitness in enumerate(clustered_fitness_values):
+            cluster_indices = np.where(cluster_labels == label)[0]
+            cluster_parameter_sets = [parameter_sets[i] for i in cluster_indices]
+            cluster_enzyme_ids = [enzyme_ids[i] for i in cluster_indices]
+            clustered_results.append((label, cluster_parameter_sets, cluster_enzyme_ids, cluster_fitness))
+
+        return clustered_results
