@@ -38,21 +38,22 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params()
 
 
     # Act
+    print('old params')
     final_error_sut , sut, substrate_range = calculate_simulation_error_with_parametrizer_for_model(old_params_pam)
-    sampled_data = adaptive_sampling(sut.validation_data.valid_data_df)
-
 
     # final_error_validation = evaluate_model_fitness_interpolation(toy_model=sut.pamodel,
     #                                                     substrate_rates=substrate_range,
     #                                                     validation_results = sut.validation_data.valid_data_df,
     #                                                     substrate_rxn = config.GLUCOSE_EXCHANGE_RXNID)
-    final_error_validation = evaluate_model_fitness(model=sut.pamodel,
-                                                        substrate_rates=sampled_data['EX_glc__D_e_ub'],#substrate_range,
-                                                        validation_results = sampled_data,
-                                                        substrate_rxn = config.GLUCOSE_EXCHANGE_RXNID)
-
+    print('new params')
     final_error_new_params, parametrizer_new, substrate_range = calculate_simulation_error_with_parametrizer_for_model(
         new_params_pam)
+
+    final_error_validation = evaluate_model_fitness(model=sut.pamodel,
+                                                    substrate_rates=sut.validation_data.sampled_valid_data_df['EX_glc__D_e_ub'],#substrate_range,
+                                                    validation_results = sut.validation_data.sampled_valid_data_df,
+                                                    substrate_rxn = config.GLUCOSE_EXCHANGE_RXNID)
+
 
     # #plot results and save plot to see what is going on
     # fig, ax = sut.plot_valid_data()
@@ -128,10 +129,10 @@ def evaluate_model_fitness(model, validation_results:pd.DataFrame,
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
     """
     simulation_results = run_pam_simulations(model, [abs(rate) for rate in substrate_rates])
-    ref_data_rxn  = validation_results[validation_results[substrate_rxn+'_ub'].isin(substrate_rates)]
+    ref_data_rxn  = validation_results[validation_results[substrate_rxn+'_ub'].isin(substrate_rates)].apply(lambda x: x.abs() if x.dtype!='object' else x)
+    # ref_data_rxn.update(ref_data_rxn.select_dtypes(include=[np.number]).abs())
     error = []
     for rxn in RXNS_TO_VALIDATE:
-        print(simulation_results[rxn])
         ref_data_rxn['simulation'] = simulation_results[rxn]
         # simulation mean
         data_average = ref_data_rxn[rxn].mean()
@@ -322,6 +323,9 @@ def calculate_simulation_error_with_parametrizer_for_model(pamodel):
     parametrizer.pamodel = pamodel
     parametrizer.validation_data._reactions_to_validate = RXNS_TO_VALIDATE
     parametrizer._init_results_objects()
-    fluxes, substrate_range = parametrizer.run_simulations_to_plot()
+    parametrizer._init_validation_df(bin_information=[1,10])
+    parametrizer.validation_data.sampled_valid_data_df = parametrizer.validation_data.sampled_valid_data_df.apply(lambda x: x.abs() if x.dtype!='object' else x)
+    substrate_rates = [-flux for flux in parametrizer.validation_data.sampled_valid_data_df['EX_glc__D_e_ub']]
+    fluxes, substrate_range = parametrizer.run_simulations_to_plot(substrate_rates=substrate_rates)
 
     return parametrizer.calculate_final_error(fluxes, substrate_range), parametrizer, substrate_range
