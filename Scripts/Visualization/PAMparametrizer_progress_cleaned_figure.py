@@ -30,7 +30,7 @@ def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reacti
         # adjust color to visualize progress
         # get viridis color palette
         cmap = plt.get_cmap('viridis')
-        color = to_hex(cmap(iteration / (max_iteration)))
+        color = to_hex(cmap(iteration / (max_iteration+1)))
 
     label = 'Iteration ' + str(iteration)
     if iteration == 0:
