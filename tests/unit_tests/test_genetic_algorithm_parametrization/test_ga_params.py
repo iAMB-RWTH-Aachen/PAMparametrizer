@@ -2,6 +2,7 @@ import unittest
 import pytest
 import os
 import pandas as pd
+import numpy as np
 from scipy.stats import linregress
 from pathlib import Path
 from typing import Union
@@ -16,14 +17,14 @@ class GeneticAlgorithmMock(GAPOUniform):
 
     def __init__(self,
                  substrate_uptake_rates = [0.001,0.091]):
-        valid_data_df = pd.read_csv(self.RESULT_DF_FILE)
+        valid_data_df = pd.read_csv(self.RESULT_DF_FILE).round({'R1_ub':3}) #need to round for correct matching to simulations
         pamodel = setup_toy_pam()
 
 
         super().__init__(model=pamodel, # Metabolic model,
-        enzymes_to_eval = {'E3':{'reaction':'R3','kcat':1, 'sensitivity':0.5}, #should become 5
-                           'E4':{'reaction':'R4','kcat':0.5, 'sensitivity':0.2},#should become 0.1
-                           'E5':{'reaction':'R5','kcat':0.45, 'sensitivity':0.1}},#should become 0.25
+        enzymes_to_eval = {'E3':{'reaction':'R3','kcats': {'f': 1}, 'sensitivity':0.5}, #should become 5
+                           'E4':{'reaction':'R4','kcats': {'f': 0.5}, 'sensitivity':0.2},#should become 0.1
+                           'E5':{'reaction':'R5','kcats': {'f': 0.45}, 'sensitivity':0.1}},#should become 0.25
         fitness_class="Fitfun_params_uniform", # filename (or module) of the fitness function class
         mutation_probability = 0.5, # probability with which an individual (solution) is mutated in a generation
         mutation_rate = 0.5, # probability with which an attribute (e.g. gene) of an individual is mutated
@@ -131,8 +132,6 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     toolbox = sut._init_deap_toolbox()
     toy_ga = sut.ga
     population = toolbox.population(n=3)
-    # new_kcats = [kcat/(3600*1e-6) for kcat in [5,0.1,0.25]]
-    # new_kcats_other = [kcat / (3600 * 1e-6) for kcat in [10, 10, 10]]
 
     new_kcats = [5,0.1,0.25]
     new_kcats_other = [10, 10, 10]
@@ -141,23 +140,18 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     other_individual = population[2]
     other_individual.kcat_list = [1/kcat for kcat in new_kcats_other]
 
+    # adjust for toy pam altered kcat_values to calculate reference fitness
+    kcats = [1, 0.5, 5, 0.1, 0.25, 1.5]
+    toy_pam = setup_toy_pam(kcat_fwd=kcats)
+
     # Act
     population = toy_ga.evaluate_pop(population, toolbox)
     individual_to_evaluate = population[0]
     fitness_simulated = individual_to_evaluate.fitness._wsum()
     fitness_other_indiv_simulated = other_individual.fitness._wsum()
 
-    #adjust for altered kcat_values
-    kcats = [1, 0.5,5,0.1,0.25,1.5]
-    toy_pam = setup_toy_pam(kcat_fwd = kcats)
-    # for key, value in toy_pam.constraints.items():
-    #     print(value)
-    #
-    # for key, value in sut.FitEval.model.constraints.items():
-    #     print(value)
-
     # Assert
-    fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file_path = sut.RESULT_DF_FILE)
+    fitness_validation = evaluate_toy_model_fitness(toy_pam, reference_data_file= sut.RESULT_DF_FILE)
 
     #1e-6 is solver feasibility tolerance
     assert individual_to_evaluate.fitness is not other_individual.fitness
@@ -181,7 +175,7 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
         # adjust for altered kcat_values
         kcats = [1, 0.5] + kcat_list + [1.5]
         toy_pam = setup_toy_pam(kcat_fwd=kcats)
-        expected_fitnesses += [evaluate_toy_model_fitness(toy_pam, reference_data_file_path=sut.RESULT_DF_FILE)]
+        expected_fitnesses += [evaluate_toy_model_fitness(toy_pam, reference_data_file=sut.RESULT_DF_FILE)]
 
     # Act
     fitnesses_from_ga = [fit._wsum() for fit in map(toolbox.evaluate, population)]
@@ -190,7 +184,23 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     assert len(population) == len(fitnesses_from_ga)
     assert expected_fitnesses == pytest.approx(fitnesses_from_ga, abs = 1e-3)
 
+def test_genetic_algorithm_applies_weighing_scheme_correctly_when_r_squared_is_calculated():
+    # Arrange
+    sut = GeneticAlgorithmMock()
+    weights = {'R8': 5, 'R9':0.1}
+    toolbox = sut._init_deap_toolbox()
+    toy_ga = sut.ga
+    population = toolbox.population(n=1)
 
+    # Act
+    population = toy_ga.evaluate_pop(population, toolbox)
+    fitness_no_weights = population[0].fitness._wsum()
+    sut.FitEval.weights = weights
+    population = toy_ga.evaluate_pop(population, toolbox)
+    fitness_with_weights = population[0].fitness._wsum()
+
+    # Assert
+    assert fitness_no_weights != fitness_with_weights
 
 ##########################################################################################################################
 # HELPER FUNCTIONS
@@ -213,31 +223,31 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def evaluate_toy_model_fitness(toy_model, substrate_rates = [0.001, 0.091],
-                               reference_data_file_path:Union[str, pd.DataFrame] = 'Scripts/Testing/Data/toy_model_simulations_ga.csv',
+                               reference_data_file:Union[str, pd.DataFrame] = 'Scripts/Testing/Data/toy_model_simulations_ga.csv',
                                substrate_rxn:str = 'R1_ub') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
     """
-    if isinstance(reference_data_file_path, str):
-        validation_results = pd.read_csv(reference_data_file_path)
+    if isinstance(reference_data_file, str):
+        validation_data = pd.read_csv(reference_data_file).round({'R1_ub':3})
     else:
-        validation_results = reference_data_file_path
+        validation_data = reference_data_file
     simulation_results = run_simulations(toy_model, substrate_rates)
     error = []
-    for rxn in validation_results.columns[2:]:
-        line = linregress(x=[abs(substrate_rates[0]), abs(substrate_rates[-1])],
-                              y=[simulation_results[rxn].iloc[0], simulation_results[rxn].iloc[-1]])
-        ref_data_rxn = validation_results.assign(
-            simulation=lambda x: line.intercept + line.slope * x[substrate_rxn])
-        # simulation mean
-        data_average = ref_data_rxn[rxn].mean()
+    for reaction_id in validation_data.columns[2:]:
+        # Take the absolute value of substrate uptake to avoid issues with reaction directionality
+        validation_data[substrate_rxn] = [abs(flux) for flux in validation_data[substrate_rxn]]
+        simulated_data = pd.DataFrame({substrate_rxn: [abs(flux) for flux in simulation_results['R1_ub']],
+                                       'simulation': simulation_results[reaction_id]})
+        ref_data_rxn = pd.merge(validation_data, simulated_data, on=substrate_rxn, how='inner')
         # error: squared difference
-        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[rxn] - x['simulation']) ** 2)
+        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
 
         # calculate R^2:
-        residual_ss = sum(ref_data_rxn.error)
-        total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[rxn]])
+        data_average = np.nanmean(validation_data[reaction_id])
+        residual_ss = np.nansum(ref_data_rxn.error)
+        total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
         # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
         if (residual_ss == 0) | (total_ss == 0):
             r_squared = 0

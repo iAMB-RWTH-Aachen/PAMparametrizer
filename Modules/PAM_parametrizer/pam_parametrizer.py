@@ -3,6 +3,7 @@ import numpy as np
 import os
 import time
 import matplotlib.pyplot as plt
+import matplotlib as mpltlib
 from matplotlib.colors import to_hex
 from PAModelpy.PAModel import PAModel
 import pandas as pd
@@ -13,6 +14,8 @@ import re
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
+from Modules.utils.error_calculation import calculate_r_squared_for_reaction
+from Modules.utils.sampling_functions import adaptive_sampling
 
 
 class PAMParametrizer():
@@ -81,7 +84,6 @@ class PAMParametrizer():
         #keep track of time for computational performance
         start = time.perf_counter()
         if binned == 'before':
-            self.validation_data.sampled_valid_data_df = self._adaptive_sampling(self.validation_data.valid_data_df)
             self._init_results_objects()
             files_to_remove = self.perform_iteration_in_bins(start)
             self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
@@ -119,12 +121,13 @@ class PAMParametrizer():
 
         # 2. Run model in bins, get sensitivities and calculate errors
         for bin_id, bin_info in binned_substrate.items():
-            self.process_bin(bin_info, bin_id)
+            self.process_bin(bin_id, bin_information=bin_info)
             # print running time to check on progress
             print('time elapsed: ', time.perf_counter() - start_time, 'sec, ', (time.perf_counter() - start_time) / 60, 'min',
                   (time.perf_counter() - start_time) / 3600, 'hour\n')
 
-
+        #reset the validation dataframe for the entire range of substrate uptake rates
+        self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
         # 3. Restart genetic algorithm using populations from bins
         files_to_remove = self.restart_genetic_algorithm()
 
@@ -133,6 +136,7 @@ class PAMParametrizer():
     def perform_iteration_without_bins(self) -> list:
         # 1. If there are no results yet, perform simulations for a range of glc_uptake_rates
         if self.iteration == 1:
+            self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
             self._init_results_objects()
             self.run_simulations_to_plot(save_fluxes_esc=True)
 
@@ -144,8 +148,8 @@ class PAMParametrizer():
             enzymes_to_evaluate = self.enzymes_to_evaluate
 
         # 3. run genetic algorithm for a range of substrate uptake rates
-        step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / 10
-        substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step))
+        # substrate_rates = self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
+        substrate_rates = self.validation_data.sampled_valid_data_df[self.substrate_uptake_id+'_ub']
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
                                           enzymes_to_evaluate=enzymes_to_evaluate,
                                           filename_extension=f'final_run_{self.iteration}')
@@ -162,7 +166,10 @@ class PAMParametrizer():
         if self._pamodel_is_feasible:
             self._init_results_objects()
             # visualize results
-            fig, fluxes, substrate_rates = self.plot_simulation(fig, axs, return_fluxes=True, save_esc=True)
+            fig = self.plot_simulation(fig, axs, save_esc=True)
+            #calculate error to samples dataset
+            substrate_rates_for_error = self.validation_data.sampled_valid_data_df[self.substrate_uptake_id+'_ub'].to_list()
+            fluxes, substrate_rates = self.run_simulations_to_plot(substrate_rates=substrate_rates_for_error)
             self.final_error = self.calculate_final_error(fluxes, substrate_rates)
             self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
             if remove_subruns: self._remove_result_files(files_to_remove)
@@ -170,7 +177,7 @@ class PAMParametrizer():
             print('Newly parametrized model is not feasible')
             return
 
-    def process_bin(self, bin_information:list, bin_id: str) -> None:
+    def process_bin(self,  bin_id: str, bin_information:list) -> None:
         """ Process a bin with specified substrate uptake rate information.
 
          Performs the following the following steps:
@@ -189,8 +196,9 @@ class PAMParametrizer():
 
         print(
             f'The following range of substrate uptake rates will be analyzed: {bin_information[0]} - {bin_information[1]}')
-        if self._init_validation_df(bin_information) is None: return
-        self.run_pamodel_simulations_in_bin(bin_information={bin_id: bin_information})
+        substrate_uptake_rates = self._init_validation_df(bin_information)
+        if substrate_uptake_rates is None: return
+        self.run_pamodel_simulations_in_bin(bin_id = bin_id, substrate_uptake_rates =substrate_uptake_rates)
         # calculate the error for the different exchange rates
         self.calculate_error(bin_information, bin_id)
         # if there is no solution, continue to the next bin
@@ -205,7 +213,8 @@ class PAMParametrizer():
                                    esc_topn_df=top_enzyme_sensitivities,
                                    filename_extension=f'iteration_{self.iteration}_bin_{bin_id}')
 
-    def run_pamodel_simulations_in_bin(self, bin_information:dict) -> None:
+    def run_pamodel_simulations_in_bin(self, bin_id: Union[float, int], bin_information:list = None,
+                                       substrate_uptake_rates: Union[list, np.array, pd.Series]=None) -> None:
         """ Run pamodel in range of substrate uptake rates defined in bin.
 
         Use the range of substrate uptake rate indicated in the bin_information to run simulations with the PAModel.
@@ -215,12 +224,15 @@ class PAMParametrizer():
             bin_information: dictionary with bin_id:[start, stop, step] key:value pairs, where start, stop and step
                             relate to the start, end and stepsize of the substrate uptake rate range
         """
-        for bin_id, bin_info in bin_information.items():
-            start, stop, step = bin_info[0], bin_info[1], bin_info[2]
-            substrate_range = self.validation_data.valid_data_df[self.substrate_uptake_id+'_ub']
-            print(
-                f'The following range of substrate uptake rates will be analyzed: {start - stop}')
-            for substrate_uptake_rate in substrate_range:
+        if bin_information is not None:
+            start, stop, step = bin_information[0], bin_information[1], bin_information[2]
+            substrate_range = np.arange(start, stop, step)
+        elif substrate_uptake_rates is not None:
+            substrate_range = substrate_uptake_rates
+            start = min(substrate_range)
+            stop = max(substrate_range)
+        print(f'The following range of substrate uptake rates will be analyzed: {start - stop}')
+        for substrate_uptake_rate in substrate_range:
                 self.run_pamodel_simulation(substrate_uptake_rate, bin_id)
 
     def run_pamodel_simulation(self, substrate_uptake_rate: Union[float, int],
@@ -260,7 +272,6 @@ class PAMParametrizer():
                 substrate_uptake_rate: used to constrain the PAModel
                 bin_id: identifier of the bin in which this simulation is run (for saving purposes)
         """
-
         self.parametrization_results.substrate_range += [substrate_uptake_rate]
         self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_rate)
         self.parametrization_results.add_enzyme_sensitivity_coefficients(self.pamodel.enzyme_sensitivity_coefficients,
@@ -305,7 +316,7 @@ class PAMParametrizer():
             self.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
                                                                   bin_id='final',
                                                                   substrate_uptake_rate= substrate_rate)
-        self._init_validation_df(bin_information=[self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
+        # self._init_validation_df(bin_information=[self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
         validation_results = self.validation_data.sampled_valid_data_df.apply(lambda x: x.abs() if x.dtype!='object' else x)
         error = self._calculate_error_for_reactions(validation_df=validation_results,
                                                     bin_id='final')
@@ -374,7 +385,8 @@ class PAMParametrizer():
             filename_extension: extension of base filename to save the result of the genetic algorithm
         """
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
-        ga = self._init_genetic_algorithm(bin_info[:2], enzymes_to_evaluate, filename_extension)
+        substrate_rates = self.validation_data.sampled_valid_data_df[self.substrate_uptake_id+'_ub']
+        ga = self._init_genetic_algorithm(substrate_rates, enzymes_to_evaluate, filename_extension)
         ga.start()
 
     def restart_genetic_algorithm(self) -> None:
@@ -385,7 +397,6 @@ class PAMParametrizer():
         step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / self.hyperparameters.number_of_bins
         substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step))
 
-        #TODO need to adjust the range of substrate uptake rates for validation
         ga = self._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
                                           enzymes_to_evaluate = enzymes_to_evaluate,
                                           filename_extension= f'final_run_{self.iteration}')
@@ -401,15 +412,10 @@ class PAMParametrizer():
             # current value is coefficient calculated as follows:
             # coeff = 1 / (kcat * 3600 * 1e-6) #3600 to convert to /h to /s *1e-6 to make calculations more accurate
             # need to convert the coefficient to the actual kcat
-            # rxn = self.pamodel.reactions.get_by_id(row['rxn_id'])
-            # lin_coeff = self.pamodel.constraints[f'EC_{row["id"]}_f'].get_linear_coefficients([rxn.forward_variable])
-            # values = [(val, 1/(val*3600*1e-6)) for val in lin_coeff.values()]
-            # print(values)
-            # self.pamodel.constraints[f'EC_{row["id"]}_f'].set_linear_coefficients({
-            #     rxn.forward_variable: (row['value'])})
             new_kcat = 1/(row['value']*3600*1e-6)
+            direction = row['direction']
             self._change_kcat_value_for_enzyme(enzyme_id= row['id'], kcat_dict = {row['rxn_id']:
-                                                                           {'f': new_kcat}
+                                                                           {direction: new_kcat}
                                                                        })
             # print(self.pamodel.constraints[f'EC_{row["id"]}_f'].get_linear_coefficients([rxn.forward_variable]),
             #       new_kcat, row['value'])
@@ -519,7 +525,7 @@ class PAMParametrizer():
                 {
                     'enzyme_id': {
                         'reaction': 'reaction_id',
-                        'kcat': kcat_value,
+                        'kcats': (kcat_value_forward, kcat_value_reverse),
                         'sensitivity': esc_value
                     }
                 }
@@ -530,12 +536,13 @@ class PAMParametrizer():
         """
 
         results_filename = self.hyperparameters.genetic_algorithm_filename_base + filename_extension
+
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel,
-            enzymes_to_eval= enzymes_to_evaluate,
+            enzymes_to_eval= enzymes_to_evaluate, #TODO
             valid_df = self.validation_data.sampled_valid_data_df,
             filename_save = results_filename,
-            substrate_uptake_id = self.substrate_uptake_id, #TODO only get those substrate uptake rate which are included in sampled data
+            substrate_uptake_id = self.substrate_uptake_id,
             substrate_uptake_rates = substrate_uptake_rates, # bin_info: [start, stop, step]
             objective_id = self.validation_data._get_biomass_reactions(),
             **self.hyperparameters.genetic_algorithm_hyperparams
@@ -544,19 +551,27 @@ class PAMParametrizer():
 
     def _init_validation_df(self, bin_information):
         validation_results = self.validation_data.valid_data_df
+        # Only sample those points which are lower than upper bound and higher than lower bound
+        # Also correct for reaction direction
+        if bin_information[0] < 0:
+            upper = abs(bin_information[0])
+            lower = abs(bin_information[1])
+        else:
+            upper = bin_information[1]
+            lower = bin_information[0]
         validation_df = validation_results[
-             (abs(validation_results[self.substrate_uptake_id + '_ub']) >= abs(bin_information[0])) &
-             (abs(validation_results[self.substrate_uptake_id + '_ub']) <= abs(bin_information[1]))
+             (abs(validation_results[self.substrate_uptake_id + '_ub']) >= lower) &
+             (abs(validation_results[self.substrate_uptake_id + '_ub']) <= upper)
          ]
+
         #no data to validate within this range available
         if len(validation_df) == 0: return None
-        self.validation_data.sampled_valid_data_df = self._adaptive_sampling(exp_data = validation_df,
-                                                        substrate_rxn=self.substrate_uptake_id+'_ub',
-                                                        num_samples=self.hyperparameters.bin_resolution,
-                                                        min_density=self.hyperparameters.bin_resolution/2,
-                                                        max_density=self.hyperparameters.bin_resolution*2)
+        self.validation_data.sampled_valid_data_df = adaptive_sampling(exp_data = validation_df,
+                                                        num_samples=self.hyperparameters.bin_resolution)
+        self.validation_data.sampled_valid_data_df.reset_index()
+        return self.validation_data.sampled_valid_data_df[self.substrate_uptake_id + '_ub']
         # get reference datapoints
-        # lower than upper bound and higher than lower bound
+
 
 
     def _init_results_objects(self):
@@ -589,7 +604,6 @@ class PAMParametrizer():
         esc_results_df['rxn_id'] = esc_results_df['rxn_id'].str.split(',')
         esc_results_df = esc_results_df.explode('rxn_id', ignore_index=True)
         esc_results_df['substrate'] = esc_results_df['substrate'].abs()
-
 
         # 1. determine top n values based on average ESC
         # Group by enzyme and calculate the average coefficient for each enzyme
@@ -637,7 +651,7 @@ class PAMParametrizer():
                                           bin_id: Union[float, int] = None) -> float:
         # calculate error for different exchange rates
         error = []
-        for rxn in self.validation_data._reactions_to_validate + self.validation_data._get_biomass_reactions():
+        for rxn in self.validation_data._reactions_to_validate: #+ self.validation_data._get_biomass_reactions():
             # only select the rows which are filled with data
             validation_data = validation_df.dropna(axis=0, subset=rxn)
             # if there are no reference data points, continue to the next reaction
@@ -648,164 +662,11 @@ class PAMParametrizer():
             #check if we want to calculate the error for a single bin
             if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
 
-            r_squared = self._calculate_r_squared_for_reaction(rxn, validation_df,
+            r_squared = calculate_r_squared_for_reaction(rxn, validation_df, self.substrate_uptake_id,
                                                                flux_df)
             error += [r_squared]
         return error
 
-    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
-                                          fluxes: pd.DataFrame) -> float:
-        substr_rxn = self.substrate_uptake_id+'_ub'
-        validation_data[substr_rxn] = [abs(flux) for flux in validation_data[substr_rxn]]
-        simulated_data = pd.DataFrame({substr_rxn: [abs(flux) for flux in fluxes['substrate']],
-                                       'simulation': fluxes[reaction_id] }) #TODO
-        ref_data_rxn = validation_data.merge(simulated_data, on=substr_rxn, how='inner')
-        print(simulated_data)
-        print(reaction_id)
-        print(ref_data_rxn.to_markdown())
-        # simulation mean
-        data_average = validation_data[reaction_id].mean()
-        # error: squared difference
-        ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
-        print(ref_data_rxn.to_markdown())
-        # calculate R^2:
-        residual_ss = np.nansum(ref_data_rxn.error)
-        total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
-        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
-        if (residual_ss == 0) | (total_ss == 0):
-            r_squared = 0
-        else:
-            r_squared = 1 - residual_ss / total_ss
-        return r_squared
-
-    def _adaptive_sampling(self, exp_data: pd.DataFrame, substrate_rxn: str = 'EX_glc__D_e_ub', num_samples=10, min_density=5,
-                          max_density=20):
-        """
-        Perform adaptive sampling based on data point distribution and variability.
-
-        Parameters:
-        - x_exp (array-like): X-coordinates of experimental data.
-        - y_exp (array-like): Y-coordinates of experimental data.
-        - num_samples (int): Number of samples to generate.
-        - min_density (int): Minimum density of samples per unit distance.
-        - max_density (int): Maximum density of samples per unit distance.
-
-        Returns:
-        - sampled_x (array): Sampled x-coordinates.
-        """
-        # Calculate distances between consecutive data points
-        distances = np.diff(exp_data[substrate_rxn])
-
-        # Compute local data point density as reciprocal of distance
-        densities = 1 / distances
-
-        # Normalize densities to [min_density, max_density]
-        densities = np.clip(densities, min_density, max_density)
-
-        # Calculate sampling probabilities based on normalized densities
-        probabilities = densities / np.sum(densities)
-
-        # Sample indices with replacement based on probabilities
-        sampled_indices = np.random.choice(np.arange(len(exp_data) - 1), size=num_samples, p=probabilities)
-        exp_data =exp_data.reset_index()
-        # Sample x-coordinates from selected indices
-        sampled = exp_data.loc[sampled_indices]  # + np.random.uniform(low=0, high=distances[sampled_indices])
-
-        return sampled
-
-    # def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
-    #                                       substrate_range: Union[list, np.array],
-    #                                       fluxes: pd.DataFrame) -> float:
-    #     # calculate difference between simulations and validation data
-    #     # get the linear relation of simulation (using the first and the last datapoint)
-    #     exp_x = validation_data[self.substrate_uptake_id + '_ub']
-    #     exp_y = validation_data[reaction_id]
-    #     # Get simulated data points
-    #     sim_x = substrate_range
-    #     sim_y = fluxes[reaction_id].iloc[0:len(sim_x)]
-    #     # Calculate R^2 values using sliding window approach
-    #     r_squared = self._interpolated_r_squared(exp_x, exp_y, sim_x, sim_y)
-    #     return r_squared
-
-
-    def _interpolated_r_squared(self, exp_x: list, exp_y: list, sim_x: list, sim_y: list) -> np.array:
-        """
-        Calculate the R^2 value between experimental and simulated data points within a sliding window.
-
-        Args:
-        - exp_x (array-like): X-coordinates of experimental data points.
-        - exp_y (array-like): Y-coordinates of experimental data points.
-        - sim_x (array-like): X-coordinates of simulated data points.
-        - sim_y (array-like): Y-coordinates of simulated data points.
-        - window_size (int): Size of the sliding window.
-
-        Returns:
-        - r_squared_values (array): squared error values computed for each sliding window.
-        """
-        error = []
-        for i in range(len(exp_x)):
-            # Find the indices of experimental data points within the sliding window
-            simulation = self._interpolate_datapoint(sim_x, sim_y, exp_x[i])
-            error += [(simulation - abs(exp_y[i])) ** 2]
-        # calculate R^2:
-        exp_average = np.nanmean(exp_y)
-        residual_ss = np.nansum(error)
-        total_ss = np.nansum([(data - exp_average) ** 2 for data in exp_y])
-        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
-        if (residual_ss == 0) | (total_ss == 0):
-            r_squared = 0
-        else:
-            r_squared = 1 - residual_ss / total_ss
-
-        return r_squared
-
-    def _interpolate_datapoint(self, x_values, y_values, x_target):
-        """
-        Interpolate a data point between two different x coordinates.
-
-        Args:
-        - x_values (array-like): Array of x-coordinates of the data points.
-        - y_values (array-like): Array of y-coordinates of the data points.
-        - x_target (float): Target x-coordinate to interpolate the data point.
-
-        Returns:
-        - interpolated_datapoint (float): Interpolated y-coordinate corresponding to the target x-coordinate.
-        """
-        # Find the indices of the two nearest x-coordinates
-        idx_left = self._find_closest_datapoint(x_values, abs(x_target))
-        if x_target < 0 and idx_left > 0:
-            idx_right = idx_left - 1
-        else:
-            idx_right = idx_left + 1
-        if idx_right >= len(x_values): idx_right = idx_left - 1
-
-        # Correct datatypes
-        if isinstance(x_values, pd.Series): x_values = x_values.values
-        if isinstance(y_values, pd.Series): y_values = y_values.values
-
-        # Perform linear interpolation
-        x_left, x_right = x_values[idx_left], x_values[idx_right]
-        y_left, y_right = y_values[idx_left], y_values[idx_right]
-        interpolated_datapoint = y_left + (y_right - y_left) * (abs(x_target) - x_left) / (x_right - x_left)
-
-        return interpolated_datapoint
-
-    def _find_closest_datapoint(self, x_values, target_x):
-        """
-        Find the data point closest to a specific x value.
-
-        Parameters:
-        - x_values (array-like): Array of x-coordinates.
-        - target_x (float): Target x value.
-
-        Returns:
-        - closest_index (int): Index of the data point closest to the target x value.
-        """
-        # Calculate absolute differences between target x value and each x-coordinate
-        absolute_differences = np.abs(x_values - target_x)
-        # Find index of the minimum absolute difference
-        closest_index = np.argmin(absolute_differences)
-        return closest_index
 
     def _parse_enzymes_to_evaluate(self, esc_topn_df: pd.DataFrame) -> dict:
         """
@@ -831,14 +692,11 @@ class PAMParametrizer():
         for index, row in esc_topn_df.iterrows():
             enzyme_id = row['enzyme_id']
             rxn_id = row['rxn_id']
-            rxn = self.pamodel.reactions.get_by_id(rxn_id)
-            # print(self.pamodel.constraints[f'EC_{enzyme_id}_f'].get_linear_coefficients([rxn.forward_variable]))
             enzyme_dict = {}
             enzyme_dict['sensitivity'] = row['mean']
             enzyme_dict['reaction'] = rxn_id
-            kcat = self.pamodel.constraints[f'EC_{enzyme_id}_f'].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
-            # print(self.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])['f'])
-            enzyme_dict['kcat'] = kcat # TO DO seperate fwd and rev kcat adjustment
+            kcat_dict = self.pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
+            enzyme_dict['kcats'] = kcat_dict
             enzymes_to_evaluate[enzyme_id] = enzyme_dict
         return enzymes_to_evaluate
 
@@ -954,18 +812,25 @@ class PAMParametrizer():
                         return_fluxes:bool = False,
                         save_esc = False,
                         color:int= None) -> plt.Figure:
+
         if color is None:
             #adjust color to visualize progress
             #get viridis color palette
             cmap = plt.get_cmap('viridis')
             color = to_hex(cmap(self.iteration/(self.hyperparameters.threshold_iteration-1)))
+            norm = mpltlib.colors.BoundaryNorm(list(range(self.hyperparameters.threshold_iteration)), cmap.N)
 
-        fluxes, substrate_range = self.run_simulations_to_plot(save_esc)
-
+        fluxes, substrate_range = self.run_simulations_to_plot(save_fluxes_esc=save_esc)
+        alpha = 1
         for r, ax in zip(self.validation_data._reactions_to_plot, axs.flatten()):
             # plot data
             line = ax.plot(substrate_range, [abs(f[r]) for f in fluxes], linewidth=2.5,
-                           zorder=5, color=color)
+                           zorder=5, color=color, alpha=alpha)
+
+        # Add colorbar
+        if self.iteration == 1:
+            cbar = fig.colorbar(mpltlib.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axs)
+            cbar.set_label('Iteration')
 
         fig.canvas.draw()
         fig.canvas.flush_events()

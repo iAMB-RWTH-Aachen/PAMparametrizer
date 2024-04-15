@@ -60,6 +60,7 @@ class HyperParameters:
                                 'fitness_class': 'Fitfun_params_uniform',
                                 'processes': 2,  # number of parallel workers
                                 'time_limit': 600,  # time limit in seconds
+                                'error_weights': {'EX_ac_e':5}, # reaction which should have a different impact on the error calculation than other reactions
                                 'folderpath_save': Path(r"Results"),  # path for saving results
                                 'overwrite_intermediate_results': True,  # if true, saved intermediate results are overwritten
                                 'print_progress': True # if True, progress of the genetic algorithm is printed
@@ -77,7 +78,7 @@ class ParametrizationResults:
     fluxes_df = pd.DataFrame()
     substrate_range = []
     _color = 440154
-    best_individuals = pd.DataFrame(columns = ['run_id', 'enzyme_id', 'rxn_id', 'kcat[s-1]', 'ga_error'])
+    best_individuals = pd.DataFrame(columns = ['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])
     computational_time = pd.DataFrame(columns = ['run_id', 'time_s', 'time_h'])
     final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
 

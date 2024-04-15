@@ -49,6 +49,7 @@ class GAPO():
                  objective_id = 'BIOMASS', valid_df = pd.DataFrame(),
                  sigma_denominator:int=10,
                  substrate_uptake_rates = [0.7,11.3], substrate_uptake_id = 'EX_glc__D_e',
+                 error_weights: dict = {},
                  print_progress = True):
         
         if not model:
@@ -61,13 +62,16 @@ class GAPO():
         #store information for initialization of the population
         self.rxns = list()
         self.kcat_list = list()
+        self.directions = list()
         self.sensitivity_list = list()
         self.enzymes_to_eval = list()
         for enzyme_id, values in enzymes_to_eval.items():
-            self.enzymes_to_eval += [enzyme_id]
-            self.rxns += [values['reaction']]
-            self.kcat_list += [values['kcat']]
-            self.sensitivity_list += [values['sensitivity']]
+            for direction, kcat in values['kcats'].items():
+                self.kcat_list += [kcat]
+                self.directions += [direction]
+                self.enzymes_to_eval += [enzyme_id]
+                self.rxns += [values['reaction']]
+                self.sensitivity_list += [values['sensitivity']]
 
 
         # Specify GA parameters
@@ -144,6 +148,7 @@ class GAPO():
             processes=processes,
             fixed_attr_list=fixed_attributes,
             valid_data_df = valid_df,
+            error_weights = error_weights,
             sigma_denominator = sigma_denominator,
             objective_id = objective_id,
             substrate_uptake_rates = substrate_uptake_rates,
@@ -158,8 +163,7 @@ class GAPO():
 
         # initialize timing
         start_time = time()
-    
-    
+
         # initialize DEAP toolbox
         if self.print_progress:
             print("({}) Initialize DEAP toolbox --".format(print_time()))
@@ -184,8 +188,8 @@ class GAPO():
         # start optimization with parallel gene flow events
         if self.print_progress:
             print("({}) Start optimization --".format(print_time()))
-            #TODO check how elite is handled within multiple gene_flow_events
         self.pops_final = self._parallel_gene_flow(pops, self.toolbox, start_time)
+
 
         # evaluate final population
         # results = self.FitEval.eval_population(sum(self.pops_final, []), self.filename_save)
@@ -324,7 +328,7 @@ class GAPO():
         
 
         # register individual representation
-        param_attr = self.FitEval.init_attribute(self.enzymes_to_eval, self.rxns)
+        param_attr = self.FitEval.init_attribute(self.enzymes_to_eval, self.directions, self.rxns)
 
         toolbox.register("individual",  tools.initRepeat, creator.Individual,
                          toolbox.attr_generator,  param_attr["number_attributes"])
@@ -366,7 +370,7 @@ class GAPO():
         param_ind = self.FitEval.init_individual()
         creator.create("Individual", param_ind["individual_type"],
                        fitness=creator.FitnessObj(), reactions = self.rxns, enzymes_to_eval = self.enzymes_to_eval,
-                       kcat_list = self.kcat_list)
+                       kcat_list = self.kcat_list, directions =self.directions)
         
     def _init_deap_fitness(self):
         param_fit = self.FitEval.init_fitness()
@@ -487,6 +491,7 @@ class GAPO():
          
         # determine save path
         save_path = str(self.folderpath_save.joinpath(self.filename_save+suffix))
+        print(save_path)
         
         # get attributes list from custom fitness evaluation class
         individual_attr_list = self.FitEval.individual_attr_list
@@ -524,6 +529,7 @@ class GAPO():
         # evaluate and save best individual
         best_ind_frame = pd.DataFrame({
             "id": [attr['id'] for attr in individual_attr_list],
+            "direction": [attr['direction'] for attr in individual_attr_list],
             "rxn_id": [attr['rxn_id'] for attr in individual_attr_list],
             "type": [attr['type'] for attr in individual_attr_list],
             "value": [v for v in best_ind.kcat_list]

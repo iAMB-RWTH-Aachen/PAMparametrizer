@@ -17,7 +17,6 @@ def test_if_toy_model_parameters_in_pam_parametrizer_are_set_correctly():
     # Assert
     for enzyme, rxn2kcat_dict in FINAL_ENZYMES2KCAT.items():
         kcat_to_validate = sut.pamodel.enzymes.get_by_id(enzyme).rxn2kcat
-        print(rxn2kcat_dict, kcat_to_validate)
         assert all(v == kcat_to_validate[k] for k,v in rxn2kcat_dict.items()) and len(rxn2kcat_dict)==len(kcat_to_validate)
 
 def test_if_running_toy_model_in_pam_parametrizer_gives_correct_results():
@@ -25,15 +24,15 @@ def test_if_running_toy_model_in_pam_parametrizer_gives_correct_results():
     sut = set_up_pamparametrizer(0.001, 0.1, kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
     sut.validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
     sut._init_results_objects()
-    bin_information = {1:[0.001,0.1, 1e-2]}
+    bin_id = 1
+    bin_information = [0.001,0.1, 1e-2]
     # change_kcat_to_expected_outcome(sut)
     reference_flux_data = sut.validation_data.valid_data_df.iloc[:,1:]
 
     # Act
-    sut.run_pamodel_simulations_in_bin(bin_information)
+    sut.run_pamodel_simulations_in_bin(bin_id, bin_information=bin_information)
     flux_data = sut.parametrization_results.fluxes_df.drop('bin', axis =1)
     flux_data = flux_data.rename(columns = {'substrate': 'R1_ub'})
-    print(reference_flux_data, flux_data)
 
     # Assert
     assert pd.testing.assert_frame_equal(reference_flux_data, flux_data,

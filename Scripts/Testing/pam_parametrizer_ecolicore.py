@@ -21,6 +21,16 @@ config = Config()
 config.reset()
 RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, config.OXYGEN_UPTAKE_RXNID, 'BIOMASS_Ecoli_core_w_GAM']
 
+def close_byproduct_reactions(pam, physiological_exchange_reactions:list = [config.ACETATE_EXCRETION_RXNID, config.GLUCOSE_EXCHANGE_RXNID,
+    config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, config.OXYGEN_UPTAKE_RXNID,'EX_h_e', 'EX_h2o_e', 'EX_nh4_e', 'EX_pi_e']):
+    for rxn in pam.exchanges:
+        if rxn.id not in physiological_exchange_reactions:
+            print(rxn.id)
+        # if rxn.id in ['EX_pyr_e', 'EX_for_e', 'EX_gly_e']:
+            rxn.upper_bound = 0.001
+            rxn.lower_bound = -0.001
+    return pam
+
 def set_up_validation_data():
     DATA_DIR = os.path.join(os.getcwd(), 'Data')
     VALID_DATA_PATH = os.path.join(DATA_DIR, 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls')
@@ -61,6 +71,11 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float):
     ecolicore_pam = setup_ecolicore_pam()
+
+    # ecolicore_pam.test(10)
+    # print(ecolicore_pam.summary())
+    #
+    # ecolicore_pam = close_byproduct_reactions(ecolicore_pam)
     validation_data = set_up_validation_data()
     hyperparameters = set_up_hyperparameter()
 
@@ -74,6 +89,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
 
-    pam_parametrizer.run(remove_subruns=True, binned = 'false')
+    pam_parametrizer.run(remove_subruns=True, binned = 'before')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_toy_model

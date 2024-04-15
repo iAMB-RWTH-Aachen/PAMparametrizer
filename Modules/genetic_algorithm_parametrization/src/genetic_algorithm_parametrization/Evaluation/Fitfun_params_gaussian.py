@@ -17,6 +17,7 @@ from scipy.stats import linregress
 from typing import Union
 from ..core_parametrization_gaussian import MyFitness
 
+from Modules.utils.error_calculation import calculate_r_squared_for_reaction
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
 DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
@@ -30,10 +31,8 @@ class FitnessEvaluation():
     KCAT_SIGMA = 1e2
     NUM_KCATS = 5
 
-
-
     def __init__(self, model=None, fixed_attr_list=[], processes=2, objective_id=str(),
-                 valid_data_df = pd.DataFrame(), sigma_denominator:int = 10,
+                 valid_data_df = pd.DataFrame(), sigma_denominator:int = 10, error_weights: dict = {},
                  substrate_uptake_rates = [0.7, 11.3], substrate_uptake_id = 'EX_glc__D_e'):
         """Initialize fitness evaluation class for a genetic algorithm
         
@@ -67,6 +66,7 @@ class FitnessEvaluation():
         self.valid_data_df = valid_data_df
         self.reactions_with_data = [data for data in valid_data_df.columns if model.reactions.has_id(data)]
 
+        self.weights = error_weights
         # set the proper identifiers
         self.substrate_uptake_id = substrate_uptake_id
         self.substrate_uptake_rates = [round(rate, 6) for rate in substrate_uptake_rates]
@@ -118,8 +118,8 @@ class FitnessEvaluation():
 
     def _determine_changed_kcats(self, individual):
         changed = []
-        for kcat, enzyme, reaction in zip(individual.kcat_list, individual.enzymes_to_eval, individual.reactions):
-            kcat_init = self.model.enzymes.get_by_id(enzyme).rxn2kcat[reaction]['f']
+        for kcat, enzyme, direction, reaction in zip(individual.kcat_list, individual.enzymes_to_eval, individual.directions,individual.reactions):
+            kcat_init = self.model.enzymes.get_by_id(enzyme).rxn2kcat[reaction][direction]
             if kcat != kcat_init:
                 changed.append(kcat)
         return changed
@@ -173,7 +173,7 @@ class FitnessEvaluation():
         return param_fit
         
     
-    def init_attribute(self, enzymes_to_eval:list, rxns_to_eval:list) -> dict:
+    def init_attribute(self, enzymes_to_eval:list, direction:list, rxns_to_eval:list) -> dict:
         """Specifies parameters to describe attributes of individuals in DEAP
         - number of attributes (returned)
         - type of an attribute (metabolic gene, regulator etc.)
@@ -203,8 +203,8 @@ class FitnessEvaluation():
         # save attribute details for matching attributes to its model identity
         # here each model reaction is an attribute (solution variable)
         self.individual_attr_list = [
-            {'id': enzyme, 'type': 'mutation', 'rxn_id': rxn}
-            for enzyme, rxn in zip(enzymes_to_eval, rxns_to_eval)
+            {'id': enzyme, 'type': 'mutation', 'rxn_id': rxn, 'direction': dir}
+            for enzyme, dir, rxn in zip(enzymes_to_eval, direction, rxns_to_eval)
             ]
 
         # number of attribute per individual
@@ -284,7 +284,7 @@ class FitnessEvaluation():
         # print('after changing kcat the model is ', self.model.solver.status)
 
         # perform simulations and save results
-        fluxes_df = pd.DataFrame(columns = ['substrate_uptake'] + self.reactions_with_data)
+        fluxes_df = pd.DataFrame(columns = ['substrate'] + self.reactions_with_data)
 
         for rate in self.substrate_uptake_rates:
             new_row = [rate] + [0] * len(fluxes_df.columns[1:])
@@ -300,6 +300,8 @@ class FitnessEvaluation():
                 #     print([(rxn, 1/coeff) for rxn, coeff in zip(individual.reactions, individual.kcat_list)], constr.expression)
             self.model.optimize()
             if self.model.solver.status != 'optimal':
+                # revert kcat_changes
+                self._change_kcat_values_for_individual(individual, kcat_old)
                 # print('The used set of parameters is infeasible', individual.kcat_list)
                 continue
             # calculate fitness (sum of simulation error to reactions with data)
@@ -376,13 +378,15 @@ class FitnessEvaluation():
             kcat_values = individual.kcat_list
         for i, enz_id in enumerate(individual.enzymes_to_eval):
             rxn = self.model.reactions.get_by_id(individual.reactions[i])
+            dir = individual.directions[i]
             # self.model.change_kcat_value(enz_id,
             #                         {individual.reactions[i]:
             #                              {'f': individual.kcat_list[i],
             #                               'b': individual.kcat_list[i]}})
-
-            self.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({
-                rxn.forward_variable:(kcat_values[i])})
+            if dir == 'b': var = rxn.reverse_variable
+            else: var = rxn.forward_variable
+            self.model.constraints[f'EC_{enz_id}_{dir}'].set_linear_coefficients({
+                var:(kcat_values[i])})
             # self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
             #      {rxn.reverse_variable: (kcat_values[i])}) TODO how to handle reverse kcat
             # print(self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([rxn.forward_variable]), individual.kcat_list[i])
@@ -394,132 +398,23 @@ class FitnessEvaluation():
 
     def _calculate_simulation_error(self,flux_df: pd.DataFrame):
         error = []
+        weights = []
+        #if all rates were infeasible: error should be really bad
+        if len(flux_df)==0:
+            return -100
         for rxn in self.reactions_with_data:
             #only select the rows which are filled with data
-
             ref_data_rxn = self.valid_data_df.dropna(axis = 0, subset = rxn)
+
             #if there are no reference data points, continue to the next reaction
             if len(ref_data_rxn) == 0: continue
-
-            r_squared = self._calculate_r_squared_for_reaction(rxn, ref_data_rxn,
+            r_squared = calculate_r_squared_for_reaction(rxn, ref_data_rxn, self.substrate_uptake_id,
                                                                flux_df)
-            error += [r_squared]
+            if not np.isnan(r_squared):
+                error += [r_squared]
+                if rxn in self.weights.keys(): weights.append(self.weights[rxn])
+                else: weights.append(1)
+
         if len(error) == 0: return np.NaN
 
-        return sum(error)/len(error)
-
-
-    # def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
-    #                                       fluxes: pd.DataFrame) -> float:
-    #     # calculate difference between simulations and validation data
-    #     # get the linear relation of simulation (using the first and the last datapoint)
-    #     line = linregress(x=[abs(self.substrate_uptake_rates[0]), abs(self.substrate_uptake_rates[-1])], y=[fluxes[reaction_id].iloc[0], fluxes[reaction_id].iloc[-1]])
-    #     ref_data_rxn = validation_data.assign(
-    #             simulation=lambda x: line.intercept + line.slope * x[self.substrate_uptake_id+'_ub'])
-    #     # simulation mean
-    #     data_average = ref_data_rxn[reaction_id].mean()
-    #     # error: squared difference
-    #     ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
-    #
-    #     # calculate R^2:
-    #     residual_ss = sum(ref_data_rxn.error)
-    #     total_ss = sum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
-    #     # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
-    #     if (residual_ss == 0) | (total_ss == 0):
-    #         r_squared = 0
-    #     else:
-    #         r_squared = 1 - residual_ss / total_ss
-    #     return r_squared
-
-    def _calculate_r_squared_for_reaction(self, reaction_id: str, validation_data: pd.DataFrame,
-                                          fluxes: pd.DataFrame) -> float:
-        # calculate difference between simulations and validation data
-        # get the linear relation of simulation (using the first and the last datapoint)
-        exp_x = validation_data[self.substrate_uptake_id + '_ub']
-        exp_y = validation_data[reaction_id]
-        # Get simulated data points
-        sim_x = self.substrate_uptake_rates
-        sim_y = fluxes[reaction_id].iloc[0:len(self.substrate_uptake_rates)]
-        # Calculate R^2 values using sliding window approach
-        r_squared = self._interpolated_r_squared(exp_x, exp_y, sim_x, sim_y)
-        return r_squared
-
-
-    def _interpolated_r_squared(self, exp_x: list, exp_y: list, sim_x: list, sim_y: list) -> np.array:
-        """
-        Calculate the R^2 value between experimental and simulated data points by interpolating the simulated
-        data for a given experimental x coordinate.
-
-        Args:
-        - exp_x (array-like): X-coordinates of experimental data points.
-        - exp_y (array-like): Y-coordinates of experimental data points.
-        - sim_x (array-like): X-coordinates of simulated data points.
-        - sim_y (array-like): Y-coordinates of simulated data points.
-        - window_size (int): Size of the sliding window.
-
-        Returns:
-        - r_squared_values (array): squared error values computed for each sliding window.
-        """
-        error = []
-        for x_exp, y_exp in zip(exp_x, exp_y):
-            # Find the indices of experimental data points within the sliding window
-            simulation = self._interpolate_datapoint(sim_x, sim_y, x_exp)
-            error += [(simulation - abs(y_exp)) ** 2]
-        # calculate R^2:
-        exp_average = np.nanmean(exp_y)
-        residual_ss = np.nansum(error)
-        total_ss = np.nansum([(data - exp_average) ** 2 for data in exp_y])
-        # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
-        if (residual_ss == 0) | (total_ss == 0):
-            r_squared = 0
-        else:
-            r_squared = 1 - residual_ss / total_ss
-
-        return r_squared
-
-    def _interpolate_datapoint(self, x_values, y_values, x_target):
-        """
-        Interpolate a data point between two different x coordinates.
-
-        Args:
-        - x_values (array-like): Array of x-coordinates of the data points.
-        - y_values (array-like): Array of y-coordinates of the data points.
-        - x_target (float): Target x-coordinate to interpolate the data point.
-
-        Returns:
-        - interpolated_datapoint (float): Interpolated y-coordinate corresponding to the target x-coordinate.
-        """
-        # Find the indices of the two nearest x-coordinates
-        idx_left = self._find_closest_datapoint(x_values, x_target)
-        if x_target< 0 and idx_left >0:
-            idx_right = idx_left - 1
-        else:
-            idx_right = idx_left + 1
-        if idx_right >= len(x_values): idx_right = idx_left - 1
-
-        # Correct datatypes
-        if isinstance(x_values, pd.Series): x_values = x_values.values
-        if isinstance(y_values, pd.Series): y_values = y_values.values
-        # Perform linear interpolation
-        x_left, x_right = x_values[idx_left], x_values[idx_right]
-        y_left, y_right = y_values[idx_left], y_values[idx_right]
-        interpolated_datapoint = y_left + (y_right - y_left) * abs(x_target - x_left) / abs(x_right - x_left)
-
-        return interpolated_datapoint
-
-    def _find_closest_datapoint(self, x_values, target_x):
-        """
-        Find the data point closest to a specific x value.
-
-        Parameters:
-        - x_values (array-like): Array of x-coordinates.
-        - target_x (float): Target x value.
-
-        Returns:
-        - closest_index (int): Index of the data point closest to the target x value.
-        """
-        # Calculate absolute differences between target x value and each x-coordinate
-        absolute_differences = [np.abs(x - target_x) for x in x_values]
-        # Find index of the minimum absolute difference
-        closest_index = np.argmin(absolute_differences)
-        return closest_index
+        return np.average(error, weights = weights)

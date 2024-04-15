@@ -6,7 +6,7 @@ warnings.filterwarnings("ignore")
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation import setup_toy_pam, setup_toy_pam2
+from Scripts.pam_generation import setup_toy_pam
 
 MAX_SUBSTRATE_UPTAKE_RATE = 0.1
 MIN_SUBSTRATE_UPTAKE_RATE = 0.001

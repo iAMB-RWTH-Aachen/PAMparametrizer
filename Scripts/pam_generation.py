@@ -37,26 +37,6 @@ def setup_toy_pam(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 
     return pamodel
 
 
-def setup_toy_pam2(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 1.5]) -> PAModel:
-    config = Config()
-    #setting the configuration for the toy model
-    config.BIOMASS_REACTION = 'R7'
-    config.GLUCOSE_EXCHANGE_RXNID = 'R1'
-    config.CO2_EXHANGE_RXNID = 'R8'
-    config.ACETATE_EXCRETION_RXNID = 'R9'
-
-    Etot = 0.6*1e-3
-    model = build_toy_gem2()
-    active_enzyme = build_active_enzyme_sector2(config, kcat_fwd)
-    unused_enzyme = build_unused_protein_sector(config)
-    translation_enzyme = build_translational_protein_sector(config)
-    pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
-                      translational_sector=translation_enzyme,
-                      unused_sector=unused_enzyme, p_tot=Etot, sensitivity=sensitivity)
-    pamodel.objective = 'R7'
-    config.reset()
-    return pamodel
-
 def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
                         translational_enzymes:bool = True, unused_enzymes:bool = True, sensitivity =True,
                         pam_data_file_path:str = ''):

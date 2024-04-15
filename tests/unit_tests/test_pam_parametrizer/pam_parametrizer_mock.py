@@ -35,11 +35,12 @@ class PAMParametrizerMock(PAMParametrizer):
 
 
     def set_up_validation_data_mock(self):
-        DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'Testing', 'Data')
+        DATA_DIR = os.path.join('Scripts', 'Testing', 'Data')
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
-        valid_data_df = pd.read_csv(RESULT_DF_FILE)
+        valid_data_df = pd.read_csv(RESULT_DF_FILE).round({'R1_ub': 3})
 
         validation_data = ValidationData(valid_data_df)
+        validation_data.sampled_valid_data_df = valid_data_df
         validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
         validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
         return validation_data
