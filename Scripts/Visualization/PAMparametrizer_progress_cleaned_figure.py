@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
+import matplotlib.ticker as ticker
 
 from Scripts.pam_generation import setup_ecolicore_pam
 from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer, run_simulations
@@ -38,7 +39,7 @@ def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reacti
 
     for r, ax in zip(reactions_to_plot, axs.flatten()):
         # plot data
-        line = ax.plot(substrate_rates, [abs(f[r]) for f in fluxes], linewidth=3.5,
+        line = ax.plot(substrate_rates, [abs(f[r]) for f in fluxes], linewidth=10,
                        zorder=5, color=color, label = label)
 
     fig.canvas.draw()
@@ -55,12 +56,13 @@ def plot_valid_data(parametrizer, fontsize:int = 12):
         y = [abs(data) for data in parametrizer.validation_data.valid_data_df[r]]
         ax.set_ylabel(RXN_NAME_MAPPER[r], fontsize= fontsize)
         ax.scatter(x, y,
-                       color='black', marker='o', s=30, linewidths=1.3,
+                       color='black', marker='o', s=200,
                        facecolors=None, zorder=0,
                        label='Literature')
         ax.set_xlabel(RXN_NAME_MAPPER[parametrizer.substrate_uptake_id], fontsize= fontsize)
+        ax.tick_params(axis='both',labelsize = fontsize)
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
 
-    plt.tick_params(labelsize = fontsize)
     plt.ion()   # set interactive mode
     fig.tight_layout()
     fig.show()
@@ -71,7 +73,7 @@ def plot_valid_data(parametrizer, fontsize:int = 12):
 if __name__ == '__main__':
     FIGWIDTH = 12
     FIGHEIGHT = 12
-    FONTSIZE = 15
+    FONTSIZE = 20
 
     result_file = os.path.join('Results', 'pam_parametrizer_diagnostics_ecolicore_before.xlsx')
     parametrizer = set_up_pamparametrizer(-11, -0.1)
@@ -102,8 +104,8 @@ if __name__ == '__main__':
 
     fig.set_figwidth(FIGWIDTH)
     fig.set_figheight(FIGHEIGHT)
-    fig.legend(lines, labels, loc='upper left', bbox_to_anchor = (0.07,0.99), frameon =False,
-               fontsize = FONTSIZE)
+    fig.legend(lines, labels, loc='upper left', bbox_to_anchor = (0.1,0.99), frameon =False,
+               fontsize = FONTSIZE-5)
     fig.tight_layout()
     plt.savefig(os.path.join('Scripts', 'Results', 'pam_parametrizer_progess_cleaned_before.png'))
 
