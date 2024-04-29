@@ -177,13 +177,18 @@ def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
                        active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector, unused_sector=unused_enzyme_sector)
     return pa_model
 
-def set_up_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bool = True,
-                   translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+def setup_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bool = True,
+                     translational_enzymes: bool = True, unused_enzymes:bool = True, sensitivity = True,
+                     pam_data_file_path: str = ''):
+    config = Config()
+    config.reset()
     # Setting the relative paths
-    BASE_DIR = os.path.split(os.getcwd())[0]
-    MODEL_DIR = os.path.join(BASE_DIR, 'Models')
-    DATA_DIR = os.path.join(BASE_DIR, 'Data')
-    pam_info_file = os.path.join(DATA_DIR, 'proteinAllocationModel_iML1515_EnzymaticData_py.xls')
+    DATA_DIR = os.path.join(os.getcwd(), 'Data')
+    MODEL_DIR = os.path.join(os.getcwd(), 'Models')
+    if len(pam_data_file_path) < 1:
+        PAM_DATA_FILE_PATH = os.path.join(DATA_DIR, 'proteinAllocationModel_iML1515_EnzymaticData_230503.xls')
+    else:
+        PAM_DATA_FILE_PATH = pam_data_file_path
 
     # some other constants
     TOTAL_PROTEIN_CONCENTRATION = 0.258  # [g_prot/g_cdw]
@@ -198,7 +203,7 @@ def set_up_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: b
     # load example data for the E.coli iML1515 model
     if active_enzymes:
         # load active enzyme sector information
-        active_enzyme_info_old = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+        active_enzyme_info_old = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes')
 
         # replace NaN values with unique identifiers
         # select the NaN values
@@ -259,7 +264,7 @@ def set_up_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: b
         active_enzyme_sector = None
 
     if translational_enzymes:
-        translational_info = pd.read_excel(pam_info_file, sheet_name='Translational')
+        translational_info = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='Translational')
         translation_enzyme_sector = TransEnzymeSector(
             id_list=[translational_info[translational_info.Parameter == 'id_list'].loc[0, 'Value']],
             tps_0=[translational_info[translational_info.Parameter == 'tps_0'].loc[1, 'Value']],
@@ -269,14 +274,18 @@ def set_up_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: b
         translation_enzyme_sector = None
 
     if unused_enzymes:
-        unused_protein_info = pd.read_excel(pam_info_file, sheet_name='ExcessEnzymes')
-
+        unused_protein_info = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ExcessEnzymes')
         ups_0 = unused_protein_info[unused_protein_info.Parameter == 'ups_0'].loc[2, 'Value']
-        smax = unused_protein_info[unused_protein_info.Parameter == 's_max_uptake'].loc[1, 'Value']
+
+        if len(pam_data_file_path) < 1:
+            ups_mu = [unused_protein_info[unused_protein_info.Parameter == 'ups_mu'].loc[1, 'Value']]
+        else:
+            smax = unused_protein_info[unused_protein_info.Parameter == 's_max_uptake'].loc[1, 'Value']
+            ups_mu =[ups_0 / smax]
 
         unused_protein_sector = UnusedEnzymeSector(
             id_list=[unused_protein_info[unused_protein_info.Parameter == 'id_list'].loc[0, 'Value']],
-            ups_mu=[ups_0 / smax],
+            ups_mu=ups_mu,
             ups_0=[ups_0],
             mol_mass=[unused_protein_info[unused_protein_info.Parameter == 'mol_mass'].loc[3, 'Value']])
     else:

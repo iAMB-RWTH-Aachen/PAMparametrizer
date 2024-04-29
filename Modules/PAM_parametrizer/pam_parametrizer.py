@@ -656,6 +656,7 @@ class PAMParametrizer():
             validation_data = validation_df.dropna(axis=0, subset=rxn)
             # if there are no reference data points, continue to the next reaction
             if len(validation_data) == 0:
+                error += [np.NaN]
                 continue
 
             flux_df = self.parametrization_results.fluxes_df
