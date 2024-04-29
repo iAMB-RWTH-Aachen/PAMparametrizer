@@ -5,4 +5,11 @@ The [DEAP toolbox](https://github.com/DEAP/deap) ([DEAP documentation](https://d
 This framework in based on the Genetic-algorithm-suite for optimization problems in metabolic models, with as initial 
 usecase the computation of a minimal set of metabolic genes preserving certain core metabolic functionalities.
 
-## Installation 
+## Software Structure
+The genetic algorithm in this module is build up out of 3 main parts:
+
+1. `core_parametrizer`: the object which connects all other parts of the genetic algorithm.
+2. `ga_params`: the actual genetic algorithm functionality
+3. `Evaluation/Fitfun_params`: all the functions to handle a specific use cases of the genetic algorithm. It allows for a tailored fitness function, mutation function, individual format and storage of results
+
+

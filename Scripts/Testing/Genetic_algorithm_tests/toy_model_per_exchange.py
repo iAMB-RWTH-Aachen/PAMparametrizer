@@ -1,8 +1,5 @@
 from toy_model import init_toy_parametrization_ga
-from PAM_Parametrization.Scripts.genetic_algorithm_analysis import get_kcat_error_from_ga
-
-from genetic_algorithm_parametrization.core_parametrization_gaussian import GAPO as GAPOGauss
-
+from PAM_Parametrization.Modules.utils.genetic_algorithm_analysis import get_kcat_error_from_ga
 
 import os
 import pandas as pd
