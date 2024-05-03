@@ -32,11 +32,15 @@ def set_up_validation_data():
     validation_data._reactions_to_validate = RXNS_TO_VALIDATE
     return validation_data
 
-def set_up_hyperparameter():
+def set_up_hyperparameter(processes: int,
+                          gene_flow_events:int,
+                          filename_extension:str):
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 10
     hyperparams.number_of_kcats_to_mutate = 4
-    hyperparams.filename_extension = 'iML1515_before'
+    hyperparams.filename_extension = filename_extension
+    hyperparams.genetic_algorithm_hyperparams['processes'] = processes
+    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecoli_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
@@ -58,7 +62,10 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
-def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float):
+def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
+                           processes: int =2,
+                           gene_flow_events: int = 2,
+                           filename_extension:str = 'iML1515'):
     ecoli_pam = setup_ecoli_pam()
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
@@ -67,7 +74,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     #
     # ecolicore_pam = close_byproduct_reactions(ecolicore_pam)
     validation_data = set_up_validation_data()
-    hyperparameters = set_up_hyperparameter()
+    hyperparameters = set_up_hyperparameter(processes, gene_flow_events, filename_extension)
 
     return PAMParametrizer(pamodel=ecoli_pam,
                      validation_data=validation_data,

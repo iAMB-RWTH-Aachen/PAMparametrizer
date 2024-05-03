@@ -23,13 +23,13 @@ def set_up_validation_data():
 
 def set_up_hyperparameter():
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10
+    hyperparams.threshold_iteration = 5
     hyperparams.threshold_error = 0.95
     hyperparams.number_of_kcats_to_mutate = 3
     hyperparams.filename_extension = 'toy_senz'
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
-    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 4
-    hyperparams.genetic_algorithm_hyperparams['processes'] = 4
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 3
+    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 2
+    hyperparams.genetic_algorithm_hyperparams['processes'] = 2
 
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_toy_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
@@ -38,6 +38,7 @@ def set_up_hyperparameter():
 def set_up_toy_model(kcat_fwd:list = [1, 0.5, 1, 0.5, 0.45, 1.5]):
     # kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5] #the 'final' dataset
     toy_pam = setup_toy_pam(kcat_fwd=kcat_fwd)
+    toy_pam.name = 'toy_model'
     return toy_pam
 
 def run_simulations(pamodel, substrate_rates):

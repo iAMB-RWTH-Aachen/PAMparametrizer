@@ -135,8 +135,7 @@ class GAPO():
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
             # load preinstalled module
-            self.fitness_class = importlib.import_module("Modules.genetic_algorithm_parametrization."
-                                                         "src.genetic_algorithm_parametrization.Evaluation."+fitness_class)
+            self.fitness_class = importlib.import_module("Modules.genetic_algorithm_parametrization.Evaluation."+fitness_class)
         else:
             self.fitness_class = fitness_class
 
@@ -391,8 +390,6 @@ class GAPO():
         fitness_dict = {}
     
         drift = previous_drifts
-        best_ind = None
-        worst_ind = None
         if self.print_progress:
             print('\nTime left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
         
@@ -404,7 +401,6 @@ class GAPO():
                 print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
                 print("Create populations --")
             # shuffle individuals among populations
-            # print(pops)
             unq_pop = sum(pops, []) # unique set of all individuals
             shuffled_idx = random.sample([i for i in range(len(unq_pop))], len(unq_pop))
             unq_ind_idx = 0
@@ -413,13 +409,7 @@ class GAPO():
                     # randomly pick an individual from the total set of individuals
                     pops[pop_idx][ind_idx] = unq_pop[shuffled_idx[unq_ind_idx]]
                     unq_ind_idx += 1
-            # identical_pops = 0
-            # for i, pop in enumerate(pops):
-            #     for j, indiv in enumerate(pop):
-            #         if indiv == pop[j-1]:
-            #             identical_pops += 1
-            #
-            # print('number of identical individuals: ', identical_pops)
+
             # multiprocessing
             if self.print_progress:
                 print("Start genetic algorithm --")
@@ -428,36 +418,12 @@ class GAPO():
                 # distribute populations to separate workers
 
                 gen_results = pool.starmap(self.ga.main, [(pops[i], toolbox, start_time, self.FitEval, self.sensitivity_list,
-                                                           fitness_dict, str(i+1), self.print_progress) for i in range(len(pops))])#TODO something is happening in the starmap fnctin when returning the populations
+                                                           fitness_dict, str(i+1), self.print_progress) for i in range(len(pops))])
                 # Extract populations to prevent copying of individual within a population
                 pops = [pop_fitness_ga[0] for pop_fitness_ga in gen_results]
                 # extract populations
                 if self.print_progress:
                     print("Postprocess evolved population --")
-
-                # #make sure the elite is saved and retained
-                # if best_ind is None:
-                #     best_ind = gen_results[0][0][0]
-                #     best_fitness = best_ind.fitness._wsum()
-                # if worst_ind is None:
-                #     worst_ind = gen_results[0][0][1]
-                #     worst_ind_index = [0,1]
-                #     worst_fitness = worst_ind.fitness._wsum()
-                #
-                # for i in range(len(gen_results)):
-                #     pops[i] = gen_results[i][0] # individuals of the returned population
-                #     for j, ind in enumerate(pops[i]):
-                #         if best_fitness < ind.fitness._wsum():
-                #             best_ind = ind
-                #             best_fitness = ind.fitness._wsum()
-                #         elif worst_fitness > ind.fitness._wsum():
-                #             worst_ind_index = [i, j]
-                #             worst_ind = ind
-                #             worst_fitness = ind.fitness._wsum()
-                #
-                # # replace the worst individual with best individual
-                # pops[worst_ind_index[0]][worst_ind_index[1]] = best_ind
-
                 
             # evaluate and save all populations
             self.ga_parameters['current_gene_flow_number'] = drift # update current number of gene flow event
@@ -491,8 +457,7 @@ class GAPO():
          
         # determine save path
         save_path = str(self.folderpath_save.joinpath(self.filename_save+suffix))
-        print(save_path)
-        
+
         # get attributes list from custom fitness evaluation class
         individual_attr_list = self.FitEval.individual_attr_list
         # gte fixed attributes list from custom fitness evaluation class

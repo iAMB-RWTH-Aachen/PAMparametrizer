@@ -37,7 +37,6 @@ class ValidationData:
         self._reactions_to_validate = reactions_to_validate
 
 
-
 @dataclass
 class HyperParameters:
     threshold_error = 0.9

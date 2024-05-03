@@ -238,50 +238,27 @@ class FitnessEvaluation():
     # FITNESS FUNCTION
     ##########################################################################
     def eval_fitness(self, individual) -> int:
-        """Evaluate the fitness of an individual. It returns a tuple of 
-        objective values.
-        
-        minimize the error to experimental measurements
-        
-        Minimize the computational workload in this function, since it will be
-        frequently evaluated
+        """Evaluate the fitness of an individual. It returns newly calculated fitnesses
+
+        The fitness is defined as the R^2 value when comparing to experimental data
+
         
         Inputs:
             :param list individual: a list of variables representing an individual (solution)
-            :param PAModelpy.PAModel: model: copy of the model used in this iteration
-
         Outputs:
             :param int fitness: fitness of the current individual evaluated
         
         """
 
-        # Here, the objective is to minimize the error to experimental measurements
-        # (one low substrate uptake rate and a high substrate uptake rate are recommended)
-
         # apply kcat changes and compute metabolic functionalities
-        # self.model.optimize()
-        # print('before changing kcat the model is ', self.model.solver.status)
         reactions = [self.model.reactions.get_by_id(rxn) for rxn in individual.reactions]
+        # save old kcats to revert after error calculation
         kcat_old = [self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients(
             [reactions[i].forward_variable])[reactions[i].forward_variable]
                     for i, enz_id in enumerate(individual.enzymes_to_eval)]
+
         # change the kcat value of the enzymes with the highest sensitivity
-        # model = self._copy_pamodel(self.model, individual)
-        # self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0
-        # self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub = 0.0001
-        # print(self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID])
         self._change_kcat_values_for_individual(individual)
-        # for i, enz_id in enumerate(individual.enzymes_to_eval):
-        #     rxn = self.model.reactions.get_by_id(individual.reactions[i])
-        #     # self.model.change_kcat_value(enz_id,
-        #     #                         {individual.reactions[i]:
-        #     #                              {'f': individual.kcat_list[i],
-        #     #                               'b': individual.kcat_list[i]}})
-        #     print('changed kcat',self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([
-        #         rxn.forward_variable]),self.model.constraints[f'EC_{enz_id}_b'].get_linear_coefficients([
-        #         rxn.reverse_variable]))
-        # self.model.optimize()
-        # print('after changing kcat the model is ', self.model.solver.status)
 
         # perform simulations and save results
         fluxes_df = pd.DataFrame(columns = ['substrate'] + self.reactions_with_data)
@@ -295,46 +272,30 @@ class FitnessEvaluation():
             else:
                 self.model.change_reaction_bounds(self.substrate_uptake_id,
                                                       lower_bound=rate, upper_bound=0)
-            # for constr in model.constraints.values():
-                # if any(enz in constr.name for enz in individual.enzymes_to_eval):
-                #     print([(rxn, 1/coeff) for rxn, coeff in zip(individual.reactions, individual.kcat_list)], constr.expression)
             self.model.optimize()
+
+            #if the model is not optimal revert changes and continue
             if self.model.solver.status != 'optimal':
                 # revert kcat_changes
                 self._change_kcat_values_for_individual(individual, kcat_old)
-                # print('The used set of parameters is infeasible', individual.kcat_list)
                 continue
             # calculate fitness (sum of simulation error to reactions with data)
             else:
                 for rxn_id in fluxes_df.columns[1:]:
                     if rxn_id in self.model.reactions:
                         rxn = self.model.reactions.get_by_id(rxn_id)
-                        # print(rate ,rxn_id, rxn.flux)
                         fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
         error = self._calculate_simulation_error(fluxes_df)
 
-        # actual_coeff_list = []
-        # for i, enz_id in enumerate(individual.enzymes_to_eval):
-        #     rxn = self.model.reactions.get_by_id(individual.reactions[i])
-        #     actual_coeff_list.append(self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([rxn.forward_variable]))
-
-
         #average fitness:
         fitness = float(error)
-        # print('reactions', individual.reactions)
-        # print(actual_coeff_list)
-        # print('kcat', individual.kcat_list,'fitness', fitness)
-        # print(self.model.capacity_sensitivity_coefficients)
-        # print(fluxes_df)
         individual.r_squared = fitness
         individual.fitness.values = [fitness]
 
 
         #revert kcat_changes
         self._change_kcat_values_for_individual(individual, kcat_old)
-        # print(model.capacity_sensitivity_coefficients.to_markdown())
-        # print(individual.fitness.values)
-        # return a tuple of one element
+
         param_fit = self.init_fitness()
         new_fitness = MyFitness()#weights = param_fit["weights"])
         new_fitness.weights = param_fit["weights"]
@@ -379,22 +340,10 @@ class FitnessEvaluation():
         for i, enz_id in enumerate(individual.enzymes_to_eval):
             rxn = self.model.reactions.get_by_id(individual.reactions[i])
             dir = individual.directions[i]
-            # self.model.change_kcat_value(enz_id,
-            #                         {individual.reactions[i]:
-            #                              {'f': individual.kcat_list[i],
-            #                               'b': individual.kcat_list[i]}})
             if dir == 'b': var = rxn.reverse_variable
             else: var = rxn.forward_variable
             self.model.constraints[f'EC_{enz_id}_{dir}'].set_linear_coefficients({
                 var:(kcat_values[i])})
-            # self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
-            #      {rxn.reverse_variable: (kcat_values[i])}) TODO how to handle reverse kcat
-            # print(self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients([rxn.forward_variable]), individual.kcat_list[i])
-
-            # self.model.constraints[f'EC_{enz_id}_f'].set_linear_coefficients({
-            #     rxn.forward_variable: 1 / (individual.kcat_list[i] * (3600 * 1e-6))})
-            # self.model.constraints[f'EC_{enz_id}_b'].set_linear_coefficients(
-            #     {rxn.reverse_variable: 1 / (individual.kcat_list[i] * (3600 * 1e-6))})
 
     def _calculate_simulation_error(self,flux_df: pd.DataFrame):
         error = []

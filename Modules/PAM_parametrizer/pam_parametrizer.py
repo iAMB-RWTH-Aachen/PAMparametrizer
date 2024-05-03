@@ -62,13 +62,13 @@ class PAMParametrizer():
 
         For each iteration of parametrization the following steps are taken:
         0. Initiate objects which are needed to store the results
-        1. Split the range of substrate uptake rates to evaluate in a number of bins
-        2. For each bin:
+        1. Optional: Split the range of substrate uptake rates to evaluate in a number of bins
+        2. Optional: For each bin:
             i. Run simulations and calculate error to experimental measurements
             ii. Select the parameters to optimize
             iii. Run a genetic algorithm to optimize the selected parameters
         3. Select the enzymes to evaluate for the entire range of substrate uptake rates
-        4. Use the results of the previous genetic algorithm runs to initialize a new genetic algorithm
+        4. Initialize a genetic algorithm (Optional: use the results of the previous genetic algorithm runs)
         5. Run the genetic algorithm and use the best parameter set to reparametrize the model
 
         This is repeated until a max number of iterations is reached or until the simulation error is below a threshold
@@ -76,6 +76,13 @@ class PAMParametrizer():
         Args:
             remove_subruns: If True, the results from the genetic algorithm runs within the bins are removed.
             The results of the final run won't be removed.
+            binned: str: configuration of the binning process. There are 3 configurations possible:
+                1. 'before': Only perform binning starting the first iteration of the workflow
+                2. 'all': Perform binning for each iteration
+                3. 'False'/other: No binning
+
+        Returns:
+            A png image of the parametrization progress and an excel file with the resulting parameters
         """
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
@@ -208,7 +215,6 @@ class PAMParametrizer():
         top_enzyme_sensitivities = self.determine_most_sensitive_enzymes(bin_id,
                                                                          self.hyperparameters.number_of_kcats_to_mutate)
         self.determine_bin_to_split(top_enzyme_sensitivities, bin_id)
-
         self.run_genetic_algorithm(bin_info=bin_information,
                                    esc_topn_df=top_enzyme_sensitivities,
                                    filename_extension=f'iteration_{self.iteration}_bin_{bin_id}')
@@ -412,13 +418,12 @@ class PAMParametrizer():
             # current value is coefficient calculated as follows:
             # coeff = 1 / (kcat * 3600 * 1e-6) #3600 to convert to /h to /s *1e-6 to make calculations more accurate
             # need to convert the coefficient to the actual kcat
-            new_kcat = 1/(row['value']*3600*1e-6)
+            new_kcat = 1 / (row['value'] * 3600 * 1e-6)
+            print(new_kcat, row['value'])
             direction = row['direction']
             self._change_kcat_value_for_enzyme(enzyme_id= row['id'], kcat_dict = {row['rxn_id']:
                                                                            {direction: new_kcat}
                                                                        })
-            # print(self.pamodel.constraints[f'EC_{row["id"]}_f'].get_linear_coefficients([rxn.forward_variable]),
-            #       new_kcat, row['value'])
 
         print('after reparametrization the model is feasible', self._pamodel_is_feasible())
 

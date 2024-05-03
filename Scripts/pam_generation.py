@@ -10,7 +10,6 @@ from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, Tran
 from PAModelpy.configuration import Config
 
 from .toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
-from .toy_ec_pam2 import build_toy_gem2, build_active_enzyme_sector2
 
 'Function library for making Protein Allocation Models as described in the publication'
 

@@ -12,6 +12,7 @@ from time import time, strftime
 import deap.base
 import numpy as np
 from copy import deepcopy
+# from Modules.genetic_algorithm_parametrization.Evaluation.Fitfun_params_gaussian import FitnessEvaluation
 
 # anonymus function for Fing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
@@ -57,15 +58,15 @@ class Genetic_Algorithm():
         return pop
     
     
-    def evaluate_pop(self, pop, toolbox) -> list:
+    def evaluate_pop(self, pop:list, toolbox: deap.base.Toolbox) -> list:
         """Evaluate fitness of all individuals within a population
         
-        Inputs:
-            :param list pop: Individuals of a population
-            :param deap.base.Toolbox toolbox: DEAP's toolbox class
+        Args:
+            pop: Individuals of a population
+            toolbox: DEAP's toolbox class
             
-        Outputs:
-            :param list pop: Individuals of a population
+        Returns:
+            pop: Individuals of a population
         """
         # Evaluate the entire population
         fitnesses = list(map(toolbox.evaluate, pop)) #[model for i in range(len(pop))]))
@@ -78,27 +79,30 @@ class Genetic_Algorithm():
 
 
     # main genetic algorithm iterations
-    def main(self, pop, toolbox, start_time, fitfun, sensitivities, fitness_dict={}, pop_id="", print_progress = True) -> (list, dict):
+    def main(self, pop: list, toolbox: deap.base.Toolbox, start_time: float, fitfun,
+             sensitivities:list, fitness_dict: dict={}, pop_id:str ="", print_progress:bool = True) -> (list, dict):
         """Main genetic algorithm framework
         - supports elitism
         - mutation operator
         - selection and crossover operator
         - computing of fitness function values
         
-        Inputs:
-            :param list pop: Individuals of a population
-            :param deap.base.Toolbox toolbox: DEAP's toolbox class
-            :param time.time.time start_time: Start time of the genetic algorithm run
-            :param FitnessEvaluation fitfun: fitness object to determine mutation distribution
-            :param list sensitivities: list with the importance of each kcat towards changes in
+        Args:
+            pop:list: Individuals of a population
+            toolbox:deap.base.Toolbox: DEAP's toolbox class
+            start_time:time.time.time: Start time of the genetic algorithm run
+            fitfun:FitnessEvaluation: fitness object to determine mutation distribution
+            sensitivities:list: list with the importance of each kcat towards changes in
                                         the growth rate in the upperlevel Protein Allocation Model
-            :param dict fitness_dict: Fitness function values of individuals. Keys
+            fitness_dict:dict: Fitness function values of individuals. Keys
                                         are hashable identifier of an individual
-            :param str pop_id: Identifier of a population
+            pop_id:str: Identifier of a population
+            print_progress:bool: boolean value determining wether or not progress should be printed
+
             
-        Outputs:
-            :param list pop: Individuals of a population
-            :param dict fitness_dict: Fitness function values of individuals. Keys
+        Returns:
+            pop: list: Individuals of a population
+            fitness_dict:dict: Fitness function values of individuals. Keys
                                         are hashable identifier of an individual
         """
         
@@ -113,8 +117,7 @@ class Genetic_Algorithm():
         
         # lambda function to create a hashable representation of an individual
         ind_str = lambda ind: "".join([str(a) for a in ind])
-        elite_fitness_prev = 0
-        elite_kcat_prev =[0,0,0]
+
         # Begin the evolution
         while (g < self.number_generations) and ((time()-start_time) < self.time_limit):
             # A new generation
@@ -122,35 +125,15 @@ class Genetic_Algorithm():
 
             if print_progress:
                 print("({3}) Population {0}: Generation {1}/{2} --".format(pop_id, g, self.number_generations, print_time()))
-            #
-            # kcat_old = elite_kcat_prev.copy()
-            # if g>1:
-            #     print('elite in pop', elite[0] in pop, elite[0].fitness._wsum())
-            #     for ind in pop:
-            #         print(ind.fitness._wsum(), ind.kcat_list)
+
             # get best individual of population for elitism
             elite = self._get_best_individual_from_population(pop)
-            # print('new elite fitness', elite.fitness._wsum())
             #make clones of the elite individuals
             elite = self._clone_elite([elite], toolbox)
 
-            # import pytest
-            # if elite[0].kcat_list == elite_kcat_prev:
-            #     print('it is the same indiv!')
-            #     if elite[0].fitness._wsum() == pytest.approx(elite_fitness_prev, abs = 1e-3):
-            #         print('and the fitness is also the same!')
-            # elif elite[0].fitness._wsum() < elite_fitness_prev:# & g>1:
-            #     print('something fishy is happening here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            #
-            #     print(elite[0].kcat_list == elite_kcat_prev, elite[0].kcat_list, elite_kcat_prev)
             elite_kcat = elite[0].kcat_list
-            # print('elite fitness', elite[0].fitness._wsum())
 
-
-            # Select the next generation individuals for breeding
-            # offspring = toolbox.select(pop, int(population_size * selection_rate))
-            # pop_elite = self._clone_elite(elite, toolbox)
-            # if elite[0] in pop: pop = [item for item in pop if item!= elite[0]]#[item if item != elite[0] else pop_elite for item in pop]
+            #select the better individuals
             offspring = toolbox.select(pop, population_size-1)
             # Clone the selected individuals
             offspring = list(map(toolbox.clone, offspring))
@@ -161,7 +144,6 @@ class Genetic_Algorithm():
     
                 # cross the kcat_lists of two individuals with probability CXPB
                 if random.random() < self.crossover_probability:
-                    # child1.kcat_list, child2.kcat_list =toolbox.mate(child1.kcat_list, child2.kcat_list)
                     child1.kcat_list, child2.kcat_list =toolbox.mate(child1.kcat_list, child2.kcat_list)
 
                     # fitness values of the children
@@ -169,7 +151,6 @@ class Genetic_Algorithm():
                     del child1.fitness.values
                     del child2.fitness.values
 
-            # print('after crossover', elite[0].fitness._wsum() == elite_fitness_prev,elite_fitness_prev, elite[0].fitness._wsum())
             # mutation operator
             for mutant in offspring:
                 # if infeasible solutions are likely, mutate an individual only by chance
@@ -186,7 +167,7 @@ class Genetic_Algorithm():
                     for i in range(len(new_kcats)):
                         mutant[i] = mutant.kcat_list[i]
                     del mutant.fitness.values
-            # print('after mutation', elite[0].fitness._wsum() == elite_fitness_prev)
+
             invalid_ind = []
             for ind in offspring:
                 if not ind.fitness.valid:
@@ -196,7 +177,6 @@ class Genetic_Algorithm():
                         # load stored individual fitness
                         ind.fitness = fitness_dict[ind_hashable]
 
-                        # ind.fitness.values = fitness_dict[ind_hashable]
                     else:
                         # mark individual as invalid
                         invalid_ind.append(ind)
@@ -210,7 +190,6 @@ class Genetic_Algorithm():
                 else:
                     ind.fitness = fit
 
-                # ind.fitness.values = fit
                 # store fitness
                 fitness_dict[ind_str(ind.kcat_list)] = fit
 
@@ -231,12 +210,13 @@ class Genetic_Algorithm():
                     pop_id, g, self.number_generations, len(invalid_ind), print_time())
                     )
                 print("\tMin %s" % min(fits), "\tMax %s" % max(fits), "\tAvg %s" % mean, "\tStd %s" % std)
-
+        # max_index = max( (v, i) for i, v in enumerate(fits) )[1]
+        # print(pop[max_index])
         if print_progress:
             print("({1}) Population {0}: End of (successful) evolution --".format(pop_id, print_time()))
         return (pop, fitness_dict)
 
-    def _get_best_individual_from_population(self, population):
+    def _get_best_individual_from_population(self, population:list):
         elite = population[0]
         for ind in population:
             if ind.fitness._wsum() > elite.fitness._wsum():
@@ -252,7 +232,6 @@ class Genetic_Algorithm():
             new_indiv.kcat_list = kcat_list
             new_indiv.fitness = toolbox.evaluate(new_indiv)
 
-            # new_indiv.fitness.values = toolbox.evaluate(new_indiv)
             new_population.append(new_indiv)
 
         return new_population
