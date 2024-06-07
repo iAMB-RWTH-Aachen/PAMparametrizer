@@ -451,6 +451,7 @@ def get_kcat_values_from_model(model:PAModelpy.PAModel, enzyme_ids:list, reactio
 
 def assert_run_diagnostics_are_saved(parametrization_results_object: Callable,
                                      number_of_best_individuals: int) -> None:
+
     assert len(parametrization_results_object.best_individuals) == number_of_best_individuals*2 #times 2 because of f and b for each enzyme
     assert len(parametrization_results_object.computational_time) == 1
     assert len(parametrization_results_object.final_errors) == 1

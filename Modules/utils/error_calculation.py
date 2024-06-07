@@ -18,6 +18,7 @@ def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataF
     data_average = np.nanmean(validation_data[reaction_id])
     residual_ss = np.nansum(ref_data_rxn.error)
     total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+
     # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
     if (residual_ss == 0) | (total_ss == 0):
         r_squared = 0

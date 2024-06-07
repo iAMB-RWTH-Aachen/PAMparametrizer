@@ -6,7 +6,9 @@ from matplotlib.colors import to_hex
 import matplotlib.ticker as ticker
 
 from Scripts.pam_generation import setup_ecolicore_pam
-from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer, run_simulations
+from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer as set_up_pamparametrizer_ecolicore
+from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
+
 
 RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
                    'EX_glc__D_e': 'Glucose uptake [$mmol_{glc}/g_{CDW}/h$]',
@@ -22,7 +24,7 @@ def run_simulations(pamodel, substrate_rates) -> list:
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         sol_pam =pamodel.optimize()
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
-            fluxes.append(sol_pam)
+            fluxes.append(sol_pam.fluxes)
     return fluxes
 
 def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reactions_to_plot:list,
@@ -46,7 +48,10 @@ def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reacti
     fig.canvas.flush_events()
     return fig, axs
 
-def plot_valid_data(parametrizer, fontsize:int = 12):
+def plot_valid_data(parametrizer, fontsize:int = 12, core = True):
+    if not core:
+        RXN_NAME_MAPPER['BIOMASS_Ec_iML1515_core_75p37M'] = 'Growth rate [$h^{-1}$]'
+
     # plot flux changes with glucose uptake
     fig, axs = plt.subplots(2,2, dpi=100)
 
@@ -69,43 +74,65 @@ def plot_valid_data(parametrizer, fontsize:int = 12):
 
     return fig, axs
 
-
-if __name__ == '__main__':
+def recreate_progress_plot(best_individual_df, fig_file_path, core = True, return_error_df = False):
     FIGWIDTH = 12
     FIGHEIGHT = 12
     FONTSIZE = 20
 
-    result_file = os.path.join('Results', 'pam_parametrizer_diagnostics_ecolicore_before.xlsx')
+    if core:
+        set_up_pamparametrizer = set_up_pamparametrizer_ecolicore
+    else:
+        set_up_pamparametrizer = set_up_pamparametrizer_ecoli
+
+    error_df = pd.DataFrame(columns=['run_id', 'error'])
     parametrizer = set_up_pamparametrizer(-11, -0.1)
+    parametrizer._init_results_objects()
     pamodel = parametrizer.pamodel
-    step = (parametrizer.max_substrate_uptake_rate-parametrizer.min_substrate_uptake_rate)/10
-    substrate_rates = list(np.arange(parametrizer.min_substrate_uptake_rate, parametrizer.max_substrate_uptake_rate, step))+[-1]
+    substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,parametrizer.max_substrate_uptake_rate])
 
-    mutated_kcats = pd.read_excel(result_file, sheet_name='Best_Individuals')
+    # step = (parametrizer.max_substrate_uptake_rate - parametrizer.min_substrate_uptake_rate) / 10
+    # substrate_rates = list(
+    #     np.arange(parametrizer.min_substrate_uptake_rate, parametrizer.max_substrate_uptake_rate, step)) + [-1]
 
-    fig, axs = plot_valid_data(parametrizer, fontsize = FONTSIZE)
+    fig, axs = plot_valid_data(parametrizer, fontsize=FONTSIZE, core = core)
     print('Run reference simulations')
     fluxes = run_simulations(pamodel, substrate_rates)
-    fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates], parametrizer.validation_data._reactions_to_plot,
-                        iteration = 0,color = 'black')
+    fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
+                               parametrizer.validation_data._reactions_to_plot,
+                               iteration=0, color='black')
 
-    groups = mutated_kcats.groupby('run_id')
+    groups = best_individual_df.groupby('run_id')
     for j, group in groups:
-        print('\nRun number ', j+1)
+        print('\nRun number ', j + 1)
         for i, row in group.iterrows():
-            kcat_dict = {row['rxn_id']:{row['direction']:row['kcat[s-1]']}}
-            pamodel.change_kcat_value(enzyme_id=row['enzyme_id'], kcats = kcat_dict)
+            kcat_dict = {row['rxn_id']: {row['direction']: row['kcat[s-1]']}}
+            pamodel.change_kcat_value(enzyme_id=row['enzyme_id'], kcats=kcat_dict)
         fluxes = run_simulations(pamodel, substrate_rates)
         fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                    parametrizer.validation_data._reactions_to_plot,
-                                   iteration = j+1, max_iteration = len(groups))
+                                   iteration=j + 1, max_iteration=len(groups))
+        error = parametrizer.calculate_final_error(fluxes = fluxes,
+                                                   substrate_rates=substrate_rates)
+        error_df.loc[len(error_df)] = [j, error]
+
 
     lines, labels = fig.axes[1].get_legend_handles_labels()
 
     fig.set_figwidth(FIGWIDTH)
     fig.set_figheight(FIGHEIGHT)
-    fig.legend(lines, labels, loc='upper left', bbox_to_anchor = (0.1,0.99), frameon =False,
-               fontsize = FONTSIZE-5)
+    fig.legend(lines, labels, loc='upper left', bbox_to_anchor=(0.1, 0.99), frameon=False,
+               fontsize=FONTSIZE - 5)
     fig.tight_layout()
-    plt.savefig(os.path.join('Scripts', 'Results', 'pam_parametrizer_progess_cleaned_before.png'))
+    plt.savefig(fig_file_path)
+    plt.close(fig)
+    if return_error_df: return error_df
+
+if __name__ == '__main__':
+
+
+    result_file = os.path.join('Results', 'pam_parametrizer_diagnostics_ecolicore_before.xlsx')
+    best_indiv_df = pd.read_excel(result_file, sheet_name='Best_Individuals')
+
+    fig_file_path = os.path.join('Scripts', 'Results', 'pam_parametrizer_progess_cleaned_before.png')
+    recreate_progress_plot(best_indiv_df, fig_file_path)
 
