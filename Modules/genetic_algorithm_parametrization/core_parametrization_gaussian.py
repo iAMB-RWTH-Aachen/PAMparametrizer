@@ -46,9 +46,9 @@ class GAPO():
                  fixed_attributes=[],
                  folderpath_save=Path("Results"), filename_save="ga_results",
                  overwrite_intermediate_results=True,
-                 objective_id = 'BIOMASS', valid_df = pd.DataFrame(),
+                 objective_id = 'BIOMASS', valid_data = dict(),
                  sigma_denominator:int=10,
-                 substrate_uptake_rates = [0.7,11.3], substrate_uptake_id = 'EX_glc__D_e',
+                 substrate_uptake_rates = {'EX_glc__D_e':[0.7,11.3]}, substrate_uptake_id = 'EX_glc__D_e',
                  error_weights: dict = {},
                  print_progress = True):
         
@@ -146,7 +146,7 @@ class GAPO():
             model=self.model,
             processes=processes,
             fixed_attr_list=fixed_attributes,
-            valid_data_df = valid_df,
+            valid_data = valid_data,
             error_weights = error_weights,
             sigma_denominator = sigma_denominator,
             objective_id = objective_id,

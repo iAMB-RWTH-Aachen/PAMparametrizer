@@ -10,6 +10,8 @@ from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, Tran
 from PAModelpy.PAModel import PAModel
 from PAModelpy.configuration import Config
 
+from Scripts.pam_generation import setup_toy_pam
+
 """
 Script to create a dataset for testing the genetic algorithm: a toy model which predicts a respiratory phenotype 
 with the initial kcat parameterset, and respiro-fermentative metabolism with the final kcat parameterset for enzymes:
@@ -161,6 +163,8 @@ if __name__ == "__main__":
                       translational_sector = translation_enzyme,
                       unused_sector = unused_enzyme, p_tot=Etot, configuration=Config)
 
+    pamodel = setup_toy_pam(kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
+
     #optimize biomass formation
     pamodel.objective={pamodel.reactions.get_by_id('R7') :1}
     print(pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID])
@@ -169,5 +173,5 @@ if __name__ == "__main__":
     substrate_rates = np.arange(1e-3, 1e-1, 1e-2)
 
     simulation_results = run_simulations(pamodel, substrate_rates)
-    # simulation_results.to_csv(RESULT_DF_FILE)
+    simulation_results.to_csv(RESULT_DF_FILE)
     print(simulation_results.to_markdown())

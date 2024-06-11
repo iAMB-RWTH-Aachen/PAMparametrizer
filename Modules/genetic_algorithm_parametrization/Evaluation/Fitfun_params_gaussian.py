@@ -32,21 +32,22 @@ class FitnessEvaluation():
     NUM_KCATS = 5
 
     def __init__(self, model=None, fixed_attr_list=[], processes=2, objective_id=str(),
-                 valid_data_df = pd.DataFrame(), sigma_denominator:int = 10, error_weights: dict = {},
-                 substrate_uptake_rates = [0.7, 11.3], substrate_uptake_id = 'EX_glc__D_e'):
+                 valid_data = dict(), sigma_denominator:int = 10, error_weights: dict = {},
+                 substrate_uptake_rates = {'EX_glc__D_e':[0.7, 11.3]}, substrate_uptake_id = 'EX_glc__D_e'):
         """Initialize fitness evaluation class for a genetic algorithm
         
-        Inputs:
-            :param cobra.core.Model model: Metabolic model in COBRA format
-            :param list fixed_attr_list: Identifiers of attributes not to be used as solution variables
-            :param int processes: Number of workers available (unused here)
-            :param str objective_id: identifier of the objective function
-            :param pd.DataFrame valid_data_df: Dataframe which contains the data to validate the results to
-            :param int sigma_denominator: the factor determining the spread of the normal distribution from which
+        Args:
+            cobra.core.Model model: Metabolic model in COBRA format
+            fixed_attr_list: Identifiers of attributes not to be used as solution variables
+            processes: Number of workers available (unused here)
+            objective_id: identifier of the objective function
+            valid_data: dictionary of substrate uptake reaction and Dataframe which contains
+                the data to validate the results to for that specific substrate
+            sigma_denominator: the factor determining the spread of the normal distribution from which
                     new kcat values will be sampled (kcat/sigma_denominator)
-            :param list(float) substrate_uptake_rates: list with the substrate uptake rates to consider for
+            substrate_uptake_rates: dict with substrate id, list with the substrate uptake rates to consider for
                     calculating the fitness (R^2 relative to the measurements at these substrate uptake rates)
-            :param str substrate_uptake_id: identifier of the substrate uptake rate as defined in the model
+            substrate_uptake_id: identifier of the substrate uptake rate as defined in the model
 
         
         """
@@ -54,22 +55,20 @@ class FitnessEvaluation():
         # save list of fixed attributes
         self.fixed_attr_list = fixed_attr_list
 
-        #initiate reference values
-        # valid_data_df = valid_data_df.round({substrate_uptake_id: 5}) #round the substrate uptake ids for easy matching
-        # values_to_select = [round(rate, 5) for rate in substrate_uptake_rates]
-        # self.ref_data = valid_data_df[
-        #     valid_data_df[substrate_uptake_id + '_ub'].apply(lambda x: any(np.isclose(x, v) for v in values_to_select))
-        # ]
+        self.valid_data = valid_data
+        self.growth_rate = {}
+        self.reactions_with_data = {}
+        self.substrate_uptake_rates = {}
 
         # only get exchanges and growth rate
-        self.growth_rate = [data for data in valid_data_df.columns if data.split('_')[0] == objective_id]
-        self.valid_data_df = valid_data_df
-        self.reactions_with_data = [data for data in valid_data_df.columns if model.reactions.has_id(data)]
+        for substr_uptake, valid_data_df in valid_data.items():
+            self.growth_rate[substr_uptake] = [data for data in valid_data_df.columns if data.split('_')[0] == objective_id]
+            self.reactions_with_data[substr_uptake] = [data for data in valid_data_df.columns if model.reactions.has_id(data)]
+            self.substrate_uptake_rates[substr_uptake] = [round(rate, 6) for rate in substrate_uptake_rates[substr_uptake]]
 
         self.weights = error_weights
         # set the proper identifiers
         self.substrate_uptake_id = substrate_uptake_id
-        self.substrate_uptake_rates = [round(rate, 6) for rate in substrate_uptake_rates]
 
         # set the factor determining the spread of the normal distribution from which new kcat values will be sampled
         self.sigma_denominator = sigma_denominator
@@ -261,34 +260,42 @@ class FitnessEvaluation():
         self._change_kcat_values_for_individual(individual)
 
         # perform simulations and save results
-        fluxes_df = pd.DataFrame(columns = ['substrate'] + self.reactions_with_data)
+        fluxes = {substr_uptake: pd.DataFrame(
+            columns = ['substrate'] + self.reactions_with_data[substr_uptake]
+        ) for substr_uptake in self.reactions_with_data.keys()}
+        error = []
 
-        for rate in self.substrate_uptake_rates:
-            new_row = [rate] + [0] * len(fluxes_df.columns[1:])
-            fluxes_df.loc[len(fluxes_df)] = new_row
-            if rate >= 0:
-                self.model.change_reaction_bounds(self.substrate_uptake_id,
-                                              lower_bound = 0, upper_bound = rate)
-            else:
-                self.model.change_reaction_bounds(self.substrate_uptake_id,
-                                                      lower_bound=rate, upper_bound=0)
-            self.model.optimize()
 
-            #if the model is not optimal revert changes and continue
-            if self.model.solver.status != 'optimal':
-                # revert kcat_changes
-                self._change_kcat_values_for_individual(individual, kcat_old)
-                continue
-            # calculate fitness (sum of simulation error to reactions with data)
-            else:
-                for rxn_id in fluxes_df.columns[1:]:
-                    if rxn_id in self.model.reactions:
-                        rxn = self.model.reactions.get_by_id(rxn_id)
-                        fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
-        error = self._calculate_simulation_error(fluxes_df)
+        for substrate_uptake_id, fluxes_df in fluxes.items():
+            for rate in self.substrate_uptake_rates[substrate_uptake_id]:
+                new_row = [rate] + [0] * len(fluxes_df.columns[1:])
+                fluxes_df.loc[len(fluxes_df)] = new_row
+                if rate >= 0:
+                    self.model.change_reaction_bounds(substrate_uptake_id,
+                                                  lower_bound = 0, upper_bound = rate)
+                else:
+                    self.model.change_reaction_bounds(substrate_uptake_id,
+                                                          lower_bound=rate, upper_bound=0)
+                self.model.optimize()
+
+                #if the model is not optimal revert changes and continue
+                if self.model.solver.status != 'optimal':
+                    # revert kcat_changes
+                    self._change_kcat_values_for_individual(individual, kcat_old)
+                    continue
+                # calculate fitness (sum of simulation error to reactions with data)
+                else:
+                    for rxn_id in fluxes_df.columns[1:]:
+                        if rxn_id in self.model.reactions:
+                            fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
+            error += [self._calculate_simulation_error(fluxes_df, substrate_uptake_id)]
+
+            # reset substrate_uptake_rate
+            self.model.change_reaction_bounds(substrate_uptake_id,
+                                              lower_bound=0, upper_bound=0)
 
         #average fitness:
-        fitness = float(error)
+        fitness = float(np.mean(error))
         individual.r_squared = fitness
         individual.fitness.values = [fitness]
 
@@ -345,20 +352,22 @@ class FitnessEvaluation():
             self.model.constraints[f'EC_{enz_id}_{dir}'].set_linear_coefficients({
                 var:(kcat_values[i])})
 
-    def _calculate_simulation_error(self,flux_df: pd.DataFrame):
+    def _calculate_simulation_error(self, flux_df: pd.DataFrame, substrate_reaction:str):
         error = []
         weights = []
-        #if all rates were infeasible: error should be really bad
+        #if all rates were infeasible: r_squared should be really bad
         if len(flux_df)==0:
             return -100
-        for rxn in self.reactions_with_data:
+        for rxn in self.reactions_with_data[substrate_reaction]:
             #only select the rows which are filled with data
-            ref_data_rxn = self.valid_data_df.dropna(axis = 0, subset = rxn)
+            ref_data_rxn = self.valid_data[substrate_reaction].dropna(axis = 0, subset = rxn)
 
             #if there are no reference data points, continue to the next reaction
             if len(ref_data_rxn) == 0: continue
-            r_squared = calculate_r_squared_for_reaction(rxn, ref_data_rxn, self.substrate_uptake_id,
-                                                               flux_df)
+            r_squared = calculate_r_squared_for_reaction(reaction_id = rxn,
+                                                         validation_data = ref_data_rxn,
+                                                         substrate_uptake_id = substrate_reaction,
+                                                         fluxes = flux_df)
             if not np.isnan(r_squared):
                 error += [r_squared]
                 if rxn in self.weights.keys(): weights.append(self.weights[rxn])

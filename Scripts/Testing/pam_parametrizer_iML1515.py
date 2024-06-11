@@ -27,7 +27,7 @@ def set_up_validation_data():
 
     valid_data_df = pd.read_excel(VALID_DATA_PATH,sheet_name='Yields')
     valid_data_df = valid_data_df.rename(columns = {config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID+'_ub'})
-    valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (valid_data_df.Reference != 'Fischer 2003')]#valid_data_df.Reference != 'Folsom 2015') &
+    valid_data_df = {config.GLUCOSE_EXCHANGE_RXNID: valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (valid_data_df.Reference != 'Fischer 2003')]}#valid_data_df.Reference != 'Folsom 2015') &
     validation_data = ValidationData(valid_data_df)
     validation_data._reactions_to_plot = RXNS_TO_VALIDATE
     validation_data._reactions_to_validate = RXNS_TO_VALIDATE[:3]

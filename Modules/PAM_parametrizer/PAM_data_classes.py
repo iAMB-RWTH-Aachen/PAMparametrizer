@@ -3,37 +3,42 @@ import pandas as pd
 from PAModelpy.configuration import Config
 from typing import Union, Callable
 from pathlib import Path
+import random
 
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from Modules.genetic_algorithm_parametrization import GAPOUniform
 
 @dataclass
 class ValidationData:
-    valid_data_df: pd.DataFrame
-    sampled_valid_data_df: pd.DataFrame = None
-    _reactions_to_validate : [str] = field(default_factory=list)
+    valid_data:dict
+    sampled_valid_data: dict = None
+    _reactions_to_validate : {str:str} = field(default_factory=dict)
     biomass_reaction_extension : str = 'BIOMASS'
     exchange_reaction_extension: str = 'EX'
     _reactions_to_plot = [Config.ACETATE_EXCRETION_RXNID, Config.CO2_EXHANGE_RXNID, Config.OXYGEN_UPTAKE_RXNID, Config.BIOMASS_REACTION]
 
 
     def _get_biomass_reactions(self) -> list:
-        return [data for data in self.valid_data_df.columns
+        valid_data_df = random.choice(list(self.valid_data.values()))
+        return [data for data in valid_data_df.columns
                         if data.split('_')[0] == self.biomass_reaction_extension]
     @property
     def biomass_reactions(self) -> list:
         return self._get_biomass_reactions()
 
-    def _get_reactions_to_validate(self) -> list:
-        return [data for data in self.valid_data_df.columns
+    def _get_reactions_to_validate(self) -> dict:
+        reactions_to_validate_dict = {}
+        for substr_upt_rxn, valid_data_df in self.valid_data.items():
+            reactions_to_validate_dict[substr_upt_rxn] = [data for data in self.valid_data_df.columns
                                  if data.split('_')[0] == self.exchange_reaction_extension]
+        return reactions_to_validate_dict
 
     @property
-    def reactions_to_validate(self) -> list:
+    def reactions_to_validate(self) -> dict:
         return self._get_reactions_to_validate()
 
     @reactions_to_validate.setter
-    def reactions_to_validate(self, reactions_to_validate:list):
+    def reactions_to_validate(self, reactions_to_validate:dict):
         self._reactions_to_validate = reactions_to_validate
 
 
@@ -70,45 +75,49 @@ class HyperParameters:
 
 @dataclass
 class ParametrizationResults:
-    error_df: pd.DataFrame = None
+    substrate_uptake_reactions: list
+    error: dict[str:pd.DataFrame] = field(default_factory=dict)
     esc_df: pd.DataFrame = None
     bins_to_change: pd.DataFrame = pd.DataFrame(columns=['bin', 'split', 'merge'])
     sensitive_enzymes: pd.DataFrame = pd.DataFrame(columns=['bin', 'mean_sensitivity', 'enzyme_id'])
-    fluxes_df = pd.DataFrame()
-    substrate_range = []
+    fluxes: dict[str:pd.DataFrame] = field(default_factory=dict)
+    substrate_range: dict[str:list] = field(default_factory=dict)
     _color = 440154
     best_individuals = pd.DataFrame(columns = ['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])
     computational_time = pd.DataFrame(columns = ['run_id', 'time_s', 'time_h'])
     final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
 
     def initiate_result_dfs(self, reactions_to_validate, biomass_reaction) -> None:
-        self.error_df = pd.DataFrame(columns=['bin']+ reactions_to_validate)
         self.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
-        self.fluxes_df = pd.DataFrame(columns= ['bin','substrate'] + reactions_to_validate)
+        for rxn in self.substrate_uptake_reactions:
+            self.error[rxn] = pd.DataFrame(columns=['bin'] + reactions_to_validate[rxn])
+            self.fluxes[rxn] = pd.DataFrame(columns= ['bin','substrate'] + reactions_to_validate[rxn])
         self.initiate_bins_to_change()
 
     def initiate_bins_to_change(self) -> None:
         self.bins_to_change = pd.DataFrame(columns=['bin', 'split', 'merge'])
 
-    def add_fluxes(self, pamodel, bin_id: Union[float, int, str], substrate_uptake_rate: Union[float, int],
+    def add_fluxes(self, pamodel, bin_id: Union[float, int, str],
+                   substrate_uptake_rate: Union[float, int], substrate_uptake_reaction:str,
                    fluxes_abs:bool = True):
-        new_row = [bin_id, substrate_uptake_rate]+[0]*len(self.fluxes_df.columns[2:])
-        self.fluxes_df.loc[len(self.fluxes_df)] = new_row
+        new_row = [bin_id, substrate_uptake_rate]+[0]*len(self.fluxes[substrate_uptake_reaction].columns[2:])
+        self.fluxes[substrate_uptake_reaction].loc[len(self.fluxes[substrate_uptake_reaction])] = new_row
         for rxn in pamodel.reactions:
-            if rxn.id in self.fluxes_df.columns:
+            if rxn.id in self.fluxes[substrate_uptake_reaction].columns:
                 if fluxes_abs: flux = abs(rxn.flux)
                 else: flux = rxn.flux
-                self.fluxes_df.iloc[-1, self.fluxes_df.columns.get_loc(rxn.id)] = flux
+                self.fluxes[substrate_uptake_reaction].iloc[-1, self.fluxes[substrate_uptake_reaction].columns.get_loc(rxn.id)] = flux
 
-    def add_fluxes_from_fluxdict(self, flux_dict:dict, bin_id: Union[float, int, str], substrate_uptake_rate: Union[float, int],
-                   fluxes_abs:bool = True):
-        new_row = [bin_id, substrate_uptake_rate]+[0]*len(self.fluxes_df.columns[2:])
-        self.fluxes_df.loc[len(self.fluxes_df)] = new_row
+    def add_fluxes_from_fluxdict(self, flux_dict:dict, bin_id: Union[float, int, str],
+                                 substrate_uptake_rate: Union[float, int], substrate_uptake_reaction:str,
+                                 fluxes_abs:bool = True):
+        new_row = [bin_id, substrate_uptake_rate]+[0]*len(self.fluxes[substrate_uptake_reaction].columns[2:])
+        self.fluxes[substrate_uptake_reaction].loc[len(self.fluxes[substrate_uptake_reaction])] = new_row
         for rxn_id, flux in flux_dict.items():
-            if rxn_id in self.fluxes_df.columns:
+            if rxn_id in self.fluxes[substrate_uptake_reaction].columns:
                 if fluxes_abs: flux = abs(flux)
                 else: flux = flux
-                self.fluxes_df.iloc[-1, self.fluxes_df.columns.get_loc(rxn_id)] = flux
+                self.fluxes[substrate_uptake_reaction].iloc[-1, self.fluxes[substrate_uptake_reaction].columns.get_loc(rxn_id)] = flux
 
     def add_enzyme_sensitivity_coefficients(self, enzyme_sensitivity_coeff: pd.DataFrame,
                                             bin_id:Union[float, int, str], substrate_uptake_rate: Union[float, int]):

@@ -39,10 +39,10 @@ class GeneticAlgorithmMock(GAPOUniform):
         filename_save=f"test_ga_parametrization", # filename for saving results after every gene flow event
         folderpath_save=Path(r"Results"), # path for saving results
         overwrite_intermediate_results=True, # if true, saved intermediate results are overwritten
-        valid_df = valid_data_df,
+        valid_data ={'R1':valid_data_df},
         sigma_denominator= 10,
         objective_id = 'R7',
-        substrate_uptake_rates = substrate_uptake_rates,
+        substrate_uptake_rates = {'R1':substrate_uptake_rates},
         substrate_uptake_id = 'R1')
 
     def get_initial_population(self):
@@ -202,6 +202,34 @@ def test_genetic_algorithm_applies_weighing_scheme_correctly_when_r_squared_is_c
     # Assert
     assert fitness_no_weights != fitness_with_weights
 
+def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources():
+    # Arrange
+    sut = GeneticAlgorithmMock()
+    # Get the simulations with the byproduct as carbon source
+    other_substrate_reaction = 'R9'
+    substrate_uptake_rates = [-1e-3, -1e-2]
+    new_kcats = [5, 0.1, 0.25]
+    toy_pam = setup_toy_pam(kcat_fwd=[1, 0.5] + new_kcats + [1.5])
+    expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
+                                                                                           other_substrate_reaction,
+                                                                                           substrate_uptake_rates)
+    # Change the validation data object in the genetic algorithm
+    sut.FitEval.valid_data = {**sut.FitEval.valid_data, **{other_substrate_reaction:expected_flux_results}}
+    sut.FitEval.substrate_uptake_rates[other_substrate_reaction] = substrate_uptake_rates
+    sut.FitEval.reactions_with_data[other_substrate_reaction] = reactions_to_validate
+
+    # Set up a population for comparison
+    toolbox = sut._init_deap_toolbox()
+    population = toolbox.population(n=3)
+    population[0].kcat_list = [1 / kcat for kcat in new_kcats]
+
+    # Act
+    fitnesses_from_ga = [fit._wsum() for fit in map(toolbox.evaluate, population)]
+    # Expect a perfect fit, as the same model was used to generate the validation data
+    assert fitnesses_from_ga[0] == 1
+
+
+
 ##########################################################################################################################
 # HELPER FUNCTIONS
 ##########################################################################################################################
@@ -256,3 +284,17 @@ def evaluate_toy_model_fitness(toy_model, substrate_rates = [0.001, 0.091],
 
         error += [r_squared]
     return sum(error)/len(error)
+
+def get_toy_model_simulations_other_csource(toy_model,
+                                            reaction_id='R9', substrate_uptake_rates=[-1e-3, -1e-2]):
+    reactions_to_save = [reaction_id, 'R7', 'R8', 'R1']
+    fluxes_df = pd.DataFrame(columns = [f'{reaction_id}_ub']+reactions_to_save)
+
+    toy_model.change_reaction_bounds('R1', -1e6, 0)
+    for rate in substrate_uptake_rates:
+        toy_model.change_reaction_bounds(reaction_id, rate, 0)
+        toy_model.optimize()
+        flux_results = [rate] + [toy_model.reactions.get_by_id(rxn_id).flux for rxn_id in reactions_to_save]
+        fluxes_df.loc[len(fluxes_df)] = flux_results
+    toy_model.change_reaction_bounds('R9', 0, 1e6)
+    return fluxes_df, reactions_to_save
