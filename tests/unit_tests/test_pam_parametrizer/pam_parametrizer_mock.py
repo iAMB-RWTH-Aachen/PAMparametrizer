@@ -21,7 +21,7 @@ class PAMParametrizerMock(PAMParametrizer):
         hyperparameters = self.set_up_hyperparameter_mock()
 
         super().__init__(pamodel=toy_pam,
-                         validation_data=validation_data,
+                         validation_data=[validation_data],
                          hyperparameters=hyperparameters,
                          substrate_uptake_id = 'R1',
                          max_substrate_uptake_rate=max_substrate_uptake_rate,
@@ -30,8 +30,7 @@ class PAMParametrizerMock(PAMParametrizer):
         self.result_figure_file = os.path.join('Results', 'pam_parametrizer_progress_test.png')
 
 
-        self.parametrization_results.initiate_result_dfs(reactions_to_validate={'R1':['R1', 'R7', 'R8', 'R9']},
-                                                         biomass_reaction= ['R7'])
+        self.parametrization_results.initiate_result_dfs(reactions_to_validate={'R1':['R1', 'R7', 'R8', 'R9']})
 
 
     def set_up_validation_data_mock(self):
@@ -39,10 +38,10 @@ class PAMParametrizerMock(PAMParametrizer):
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
         valid_data_df = pd.read_csv(RESULT_DF_FILE).round({'R1_ub': 3})
 
-        validation_data = ValidationData({'R1':valid_data_df})
-        validation_data.sampled_valid_data = {'R1':valid_data_df}
+        validation_data = ValidationData(valid_data_df, 'R1')
+        validation_data.sampled_valid_data = valid_data_df
         validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
-        validation_data._reactions_to_validate = {'R1':['R1', 'R7', 'R8', 'R9']}
+        validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
         return validation_data
 
     def set_up_hyperparameter_mock(self):

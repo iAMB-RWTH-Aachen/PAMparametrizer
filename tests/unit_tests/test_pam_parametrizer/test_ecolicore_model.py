@@ -47,11 +47,11 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params()
 
     final_error_new_params, parametrizer_new, substrate_range = calculate_simulation_error_with_parametrizer_for_model(
         new_params_pam)
-
+    sampled_data = sut.validation_data.get_by_id('EX_glc__D_e').sampled_valid_data
 
     final_error_validation = evaluate_model_fitness(model=sut.pamodel,
-                                                    substrate_rates=sut.validation_data.sampled_valid_data_df['EX_glc__D_e_ub'],#substrate_range,
-                                                    validation_results = sut.validation_data.sampled_valid_data_df,
+                                                    substrate_rates=sampled_data['EX_glc__D_e_ub'],#substrate_range,
+                                                    validation_results = sampled_data,
                                                     substrate_rxn = config.GLUCOSE_EXCHANGE_RXNID)
 
     # assert
@@ -151,10 +151,20 @@ def evaluate_model_fitness(model, validation_results:pd.DataFrame,
 def calculate_simulation_error_with_parametrizer_for_model(pamodel):
     parametrizer = set_up_pamparametrizer(-10, -0.1)
     parametrizer.pamodel = pamodel
-    parametrizer.validation_data._reactions_to_validate = RXNS_TO_VALIDATE
+    parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_validate = RXNS_TO_VALIDATE
     parametrizer._init_results_objects()
     parametrizer._init_validation_df(bin_information=[-10, -0.1])
-    substrate_rates = parametrizer.validation_data.sampled_valid_data_df['EX_glc__D_e_ub']
-    fluxes, substrate_range = parametrizer.run_simulations_to_plot(substrate_rates=substrate_rates)
+    substrate_rates = parametrizer.validation_data.get_by_id('EX_glc__D_e').sampled_valid_data['EX_glc__D_e_ub']
+    fluxes, substrate_range = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
+                                                                   substrate_rates=substrate_rates)
 
-    return parametrizer.calculate_final_error(fluxes, substrate_range), parametrizer, substrate_range
+    #save flux data
+    # check if there is input data (only used in unit testing)
+    for simulation_result, substrate_rate in zip(fluxes, substrate_rates):
+        parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
+                                                                      bin_id='final',
+                                                                      substrate_reaction_id='EX_glc__D_e',
+                                                                      substrate_uptake_rate=substrate_rate,
+                                                                      fluxes_abs=False)
+
+    return parametrizer.calculate_final_error(), parametrizer, substrate_range

@@ -24,7 +24,7 @@ def run_simulations(pamodel, substrate_rates) -> list:
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         sol_pam =pamodel.optimize()
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
-            fluxes.append(sol_pam.fluxes)
+            fluxes.append(sol_pam.fluxes_df)
     return fluxes
 
 def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reactions_to_plot:list,
@@ -57,14 +57,14 @@ def plot_valid_data(parametrizer, fontsize:int = 12, core = True):
 
     for r, ax in zip(parametrizer.validation_data._reactions_to_plot, axs.flatten()):
         # plot data
-        x = [abs(glc) for glc in parametrizer.validation_data.valid_data_df[parametrizer.substrate_uptake_id +'_ub']]
+        x = [abs(glc) for glc in parametrizer.validation_data.valid_data_df[parametrizer.id + '_ub']]
         y = [abs(data) for data in parametrizer.validation_data.valid_data_df[r]]
         ax.set_ylabel(RXN_NAME_MAPPER[r], fontsize= fontsize)
         ax.scatter(x, y,
                        color='black', marker='o', s=200,
                        facecolors=None, zorder=0,
                        label='Literature')
-        ax.set_xlabel(RXN_NAME_MAPPER[parametrizer.substrate_uptake_id], fontsize= fontsize)
+        ax.set_xlabel(RXN_NAME_MAPPER[parametrizer.id], fontsize= fontsize)
         ax.tick_params(axis='both',labelsize = fontsize)
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
 

@@ -121,7 +121,7 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     validation_data_mock['R1_ub'] = validation_data_mock['R1']
     sut.run_pamodel_simulations_in_bin('R1', bin_id, bin_information)
 
-    flux_df = sut.parametrization_results.fluxes['R1']
+    flux_df = sut.parametrization_results.flux_results.get_by_id('R1').fluxes_df
     # check if we want to calculate the error for a single bin
     flux_df = flux_df[flux_df['bin'] == bin_id]
 
@@ -337,7 +337,7 @@ def test_pam_parametrizer_calculates_final_error_correctly():
     fluxes, substrate_range = sut.run_simulations_to_plot(substrate_uptake_id='R1')
 
     # Act
-    final_error_sut = sut.calculate_final_error({'R1':fluxes}, {'R1': substrate_range})
+    final_error_sut = sut.calculate_final_error()
 
     #assert
     #R^2 should be 1, because the same model has been used to generate the validation dataset
@@ -387,20 +387,16 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     sut.add_new_substrate_source(new_substrate_uptake_id = other_substrate_reaction,
                                  validation_data = expected_flux_results,
                                  reactions_to_validate = reactions_to_validate)
-    sut.validation_data.sampled_valid_data = {**sut.validation_data.valid_data, **{other_substrate_reaction: expected_flux_results}}
+    sut.validation_data.get_by_id(other_substrate_reaction).sampled_valid_data = expected_flux_results
 
     #get flux data for different carbon sources
-    simulation_results = {}
-    substrate_rates_simulations = {}
-    for substr_uptake_id, flux_df in sut.validation_data.sampled_valid_data.items():
-        substr_uptake_rates = flux_df[substr_uptake_id + '_ub']
+    for substr_uptake_id in sut.substrate_uptake_ids:
+        substr_uptake_rates = sut.parametrization_results.flux_results.get_by_id(substr_uptake_id).substrate_range
         fluxes, substrate_range = sut.run_simulations_to_plot(substrate_uptake_id=substr_uptake_id,
                                                               substrate_rates=substr_uptake_rates)
-        simulation_results[substr_uptake_id] = fluxes
-        substrate_rates_simulations[substr_uptake_id] = substrate_range
 
     # Act
-    error = sut.calculate_final_error(simulation_results, substrate_rates_simulations)
+    error = sut.calculate_final_error()
 
     # Assert
     # Expect a perfect fit, as the same model was used to generate the validation data

@@ -22,16 +22,16 @@ def test_if_toy_model_parameters_in_pam_parametrizer_are_set_correctly():
 def test_if_running_toy_model_in_pam_parametrizer_gives_correct_results():
     # Arrange
     sut = set_up_pamparametrizer(0.001, 0.1, kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
-    sut.validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
+    sut.validation_data.get_by_id('R1')._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
     sut._init_results_objects()
     bin_id = 1
     bin_information = [0.001,0.1, 1e-2]
     # change_kcat_to_expected_outcome(sut)
-    reference_flux_data = sut.validation_data.valid_data_df.iloc[:,1:]
+    reference_flux_data = sut.validation_data.get_by_id('R1').valid_data.iloc[:,1:]
 
     # Act
-    sut.run_pamodel_simulations_in_bin(bin_id, bin_information=bin_information)
-    flux_data = sut.parametrization_results.fluxes_df.drop('bin', axis =1)
+    sut.run_pamodel_simulations_in_bin(bin_id = bin_id, bin_information=bin_information, substrate_uptake_reaction='R1')
+    flux_data = sut.parametrization_results.flux_results.get_by_id('R1').fluxes_df.drop('bin', axis =1)
     flux_data = flux_data.rename(columns = {'substrate': 'R1_ub'})
 
     # Assert

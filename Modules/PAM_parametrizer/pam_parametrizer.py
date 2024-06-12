@@ -11,6 +11,7 @@ from scipy.stats import linregress
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 import re
+from cobra import DictList
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
@@ -20,8 +21,8 @@ from Modules.utils.sampling_functions import adaptive_sampling
 
 class PAMParametrizer():
     def __init__(self, pamodel:PAModel,
-                 validation_data: ValidationData = ValidationData,
-                 hyperparameters: HyperParameters = HyperParameters,
+                 validation_data: Union[DictList[ValidationData], list, ValidationData],
+                 hyperparameters: HyperParameters = HyperParameters(),
                  substrate_uptake_id: str = 'EX_glc__D_e',
                  max_substrate_uptake_rate: Union[float, int] = 11,
                  min_substrate_uptake_rate: Union[float, int] = 0,
@@ -32,9 +33,13 @@ class PAMParametrizer():
         self.pamodel = pamodel
         #change total protein constraint to equality constraint for better fittinh
         self._set_total_protein_constraint_to_equality()
-        self.validation_data = validation_data
+        if not hasattr(validation_data, '__iter__'): validation_data = [validation_data]
+        self.validation_data = DictList(validation_data)
         self.hyperparameters = hyperparameters
-        self.parametrization_results = ParametrizationResults([rxn for rxn in validation_data.valid_data.keys()])
+
+        self.substrate_uptake_ids = [csource_data.id for csource_data in validation_data]
+
+        self.parametrization_results = ParametrizationResults(self.substrate_uptake_ids)
         self.enzyme_ids = [enzyme.id for enzyme in pamodel.enzymes]
 
         self.substrate_uptake_id = substrate_uptake_id
@@ -145,7 +150,7 @@ class PAMParametrizer():
         if self.iteration == 1:
             self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
             self._init_results_objects()
-            for substrate_uptake_rate in self.validation_data.valid_data.keys():
+            for substrate_uptake_rate in self.substrate_uptake_ids:
                 self.run_simulations_to_plot(substrate_uptake_rate,
                                              save_fluxes_esc=True)
 
@@ -158,7 +163,9 @@ class PAMParametrizer():
 
         # 3. run genetic algorithm for a range of substrate uptake rates
         # substrate_rates = self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
-        substrate_rates = {substr_rxn: valid_data[substr_rxn+'_ub'] for substr_rxn, valid_data in self.validation_data.sampled_valid_data}
+        substrate_rates = {valid_data.id:
+                               valid_data.sampled_valid_data[valid_data.id + '_ub'] for valid_data in self.validation_data}
+
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
                                           enzymes_to_evaluate=enzymes_to_evaluate,
                                           filename_extension=f'final_run_{self.iteration}')
@@ -176,17 +183,23 @@ class PAMParametrizer():
             self._init_results_objects()
             # visualize results
             fig = self.plot_simulation(fig, axs, save_esc=True)
-            #calculate error to samples dataset #TODO
-            simulation_results = {}
-            substrate_rates_simulations = {}
-            for substrate_uptake_id, sampled_data in self.validation_data.sampled_valid_data.items():
+
+            for valid_data in self.validation_data:
+                sampled_data = valid_data.sampled_valid_data
+                substrate_uptake_id = valid_data.id
                 substrate_rates_for_error = sampled_data[substrate_uptake_id+'_ub'].to_list()
                 fluxes, substrate_rates = self.run_simulations_to_plot(substrate_uptake_id,
                                                                        substrate_rates=substrate_rates_for_error)
-                simulation_results[substrate_uptake_id] = fluxes
-                substrate_rates_simulations[substrate_uptake_id] = substrate_rates
 
-            self.final_error = self.calculate_final_error(simulation_results, substrate_rates_simulations)
+
+                for simulation_result, substrate_rate in zip(fluxes,substrate_rates):
+                    self.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
+                                                                          bin_id='final',
+                                                                          substrate_reaction_id= substrate_uptake_id,
+                                                                          substrate_uptake_rate=substrate_rate,
+                                                                          fluxes_abs=False)
+
+            self.final_error = self.calculate_final_error()
             self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
             if remove_subruns: self._remove_result_files(files_to_remove)
         else:
@@ -250,7 +263,6 @@ class PAMParametrizer():
             start = min(substrate_range)
             stop = max(substrate_range)
         print(f'The following range of substrate uptake rates will be analyzed: {start} - {stop}')
-        print(substrate_range)
         for substrate_uptake_rate in substrate_range:
                 self.run_pamodel_simulation(substrate_uptake_rate, bin_id, substrate_uptake_reaction)
 
@@ -291,12 +303,11 @@ class PAMParametrizer():
                 substrate_uptake_rate: used to constrain the PAModel
                 bin_id: identifier of the bin in which this simulation is run (for saving purposes)
         """
-        if substrate_uptake_reaction in self.parametrization_results.substrate_range.keys():
-            self.parametrization_results.substrate_range[substrate_uptake_reaction] += [substrate_uptake_rate]
-        else:
-            self.parametrization_results.substrate_range[substrate_uptake_reaction] = [substrate_uptake_rate]
 
-        self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_rate, substrate_uptake_reaction)
+        flux_results = self.parametrization_results.flux_results.get_by_id(substrate_uptake_reaction)
+        flux_results.substrate_range += [substrate_uptake_rate]
+
+        self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_reaction, substrate_uptake_rate)
         self.parametrization_results.add_enzyme_sensitivity_coefficients(self.pamodel.enzyme_sensitivity_coefficients,
                                                                           bin_id, substrate_uptake_rate)
 
@@ -316,8 +327,9 @@ class PAMParametrizer():
             bin_information: List containing upper and lower bounds of the substrate uptake range for the bin.
             bin_id: Identifier for the bin under consideration.
         """
-        reactions_to_validate = self.validation_data._reactions_to_validate[substrate_uptake_reaction]
-        validation_df = self.validation_data.sampled_valid_data[substrate_uptake_reaction]
+        valid_data = self.validation_data.get_by_id(substrate_uptake_reaction)
+        reactions_to_validate = valid_data._reactions_to_validate
+        validation_df = valid_data.sampled_valid_data
         # calculate error for different exchange rates
         error = self._calculate_error_for_reactions(substrate_uptake_id=substrate_uptake_reaction,
                                                     validation_df = validation_df,
@@ -325,10 +337,9 @@ class PAMParametrizer():
                                                     # substrate_range = self.validation_data.sampled_valid_data_df[self.substrate_uptake_id+'_ub'],
                                                     bin_id = bin_id)
 
-        error_df = self.parametrization_results.error[substrate_uptake_reaction]
-        self.parametrization_results.error[substrate_uptake_reaction].loc[len(error_df)] = [bin_id] + error
+        self.parametrization_results.add_error_to_error_df(substrate_uptake_reaction, bin_id, error)
 
-    def calculate_final_error(self, fluxes: dict, substrate_rates:dict) -> float:
+    def calculate_final_error(self) -> float:
         """ Calculate the simulation error of the reparametrized model
 
         Args:
@@ -339,16 +350,12 @@ class PAMParametrizer():
         Returns:
             final_error: mean of the r-squared value of the simulations for the different validation reactions
         """
+
         error = []
-        for substrate_uptake_id, simulated_fluxes in fluxes.items():
-            reactions_to_validate = self.validation_data._reactions_to_validate[substrate_uptake_id]
-            validation_df = self.validation_data.sampled_valid_data[substrate_uptake_id]#.apply(lambda x: x.abs() if x.dtype!='object' else x)
-            for simulation_result, substrate_rate in zip(simulated_fluxes, substrate_rates[substrate_uptake_id]):
-                self.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
-                                                                      bin_id='final',
-                                                                      substrate_uptake_rate= substrate_rate,
-                                                                      substrate_uptake_reaction=substrate_uptake_id,
-                                                                      fluxes_abs=False)
+        for valid_data in self.validation_data:
+            substrate_uptake_id = valid_data.id
+            reactions_to_validate = valid_data._reactions_to_validate
+            validation_df = valid_data.sampled_valid_data#.apply(lambda x: x.abs() if x.dtype!='object' else x)
 
             # self._init_validation_df(bin_information=[self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
             error += self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
@@ -356,8 +363,7 @@ class PAMParametrizer():
                                                          reactions_to_validate= reactions_to_validate,
                                                          bin_id='final')
             #remove the simulations from the result dataframe
-            self.parametrization_results.fluxes[substrate_uptake_id] = self.parametrization_results.fluxes[substrate_uptake_id][
-                self.parametrization_results.fluxes[substrate_uptake_id]['bin']!='final']
+            self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,'final')
 
         final_error = np.nanmean(error)
         print('The final error is ', final_error)
@@ -422,7 +428,7 @@ class PAMParametrizer():
             filename_extension: extension of base filename to save the result of the genetic algorithm
         """
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
-        substrate_rates = {rxn:sampled_data[rxn+'_ub'] for rxn, sampled_data in self.validation_data.sampled_valid_data.items()}
+        substrate_rates = {valid_data.id:valid_data.sampled_valid_data[valid_data.id+'_ub'] for valid_data in self.validation_data}
         ga = self._init_genetic_algorithm(substrate_rates, enzymes_to_evaluate, filename_extension)
         ga.start()
 
@@ -433,7 +439,7 @@ class PAMParametrizer():
 
         # step = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate) / self.hyperparameters.number_of_bins
         # substrate_rates = list(np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step))
-        substrate_rates = self.parametrization_results.substrate_range
+        substrate_rates = {fr.id:fr.substrate_range for fr in self.parametrization_results.flux_results}
 
         ga = self._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
                                           enzymes_to_evaluate = enzymes_to_evaluate,
@@ -485,12 +491,12 @@ class PAMParametrizer():
     def add_new_substrate_source(self, new_substrate_uptake_id:str,
                                  validation_data: pd.DataFrame,
                                  reactions_to_validate: list):
-        self.validation_data.valid_data = {**self.validation_data.valid_data,
-                                                  **{new_substrate_uptake_id: validation_data}}
-        self.validation_data._reactions_to_validate[new_substrate_uptake_id] = reactions_to_validate
-        self.parametrization_results.substrate_uptake_reactions.append(new_substrate_uptake_id)
-        self.parametrization_results.fluxes[new_substrate_uptake_id] = pd.DataFrame(
-            columns= ['bin','substrate'] + reactions_to_validate)
+        valid_data = ValidationData(validation_data,
+                                    new_substrate_uptake_id)
+        valid_data._reactions_to_validate = reactions_to_validate
+        self.validation_data.append(valid_data)
+        self.parametrization_results.add_new_substrate_source(new_substrate_uptake_id,
+                                                              reactions_to_validate)
 
     ###########################################################################################################
     #WORKER FUNCTIONS
@@ -586,17 +592,16 @@ class PAMParametrizer():
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel,
             enzymes_to_eval= enzymes_to_evaluate,
-            valid_data = self.validation_data.sampled_valid_data,
+            valid_data = {valid_data.id: valid_data.sampled_valid_data for valid_data in self.validation_data},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,
             substrate_uptake_rates = substrate_uptake_rates, # bin_info: [start, stop, step]
-            objective_id = self.validation_data._get_biomass_reactions(),
+            objective_id = self.validation_data[0]._get_biomass_reactions(),
             **self.hyperparameters.genetic_algorithm_hyperparams
         )
         return ga
 
     def _init_validation_df(self, bin_information):
-        validation_results = self.validation_data.valid_data
         # Only sample those points which are lower than upper bound and higher than lower bound
         # Also correct for reaction direction
         substrate_rates = {}
@@ -608,35 +613,40 @@ class PAMParametrizer():
             upper = bin_information[1]
             lower = bin_information[0]
 
-        for substrate_uptake_id, validation_df in validation_results.items():
-            validation_df = validation_df[
-                 (abs(validation_df[substrate_uptake_id + '_ub']) >= lower) &
-                 (abs(validation_df[substrate_uptake_id + '_ub']) <= upper)
+        for validation_data in self.validation_data:
+            substrate_uptake_id = validation_data.id
+            validation_df = validation_data.valid_data[
+                 (abs(validation_data.valid_data[substrate_uptake_id + '_ub']) >= lower) &
+                 (abs(validation_data.valid_data[substrate_uptake_id + '_ub']) <= upper)
              ]
 
             #no data to validate within this range available
             if len(validation_df) == 0: continue
-            self.validation_data.sampled_valid_data[substrate_uptake_id] = adaptive_sampling(exp_data = validation_df,
+            validation_data.sampled_valid_data = adaptive_sampling(exp_data = validation_df,
                                                             num_samples=self.hyperparameters.bin_resolution)
-            self.validation_data.sampled_valid_data[substrate_uptake_id].reset_index()
+            validation_data.sampled_valid_data.reset_index()
             substrate_rates[substrate_uptake_id] = validation_df[substrate_uptake_id + '_ub']
 
         #no substrate uptake rates in the requested range
-        if len([rate[0] for rate in substrate_rates.values()]) == 0:return None
+        if len([rate for rate in substrate_rates.values()]) == 0:return None
 
         return substrate_rates
         # get reference datapoints
 
 
-
     def _init_results_objects(self):
-        self.parametrization_results.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
+        # self.parametrization_results.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
+        # self.parametrization_results.initiate_bins_to_change()
 
-        reactions_to_validate = self.validation_data._reactions_to_validate
+        reactions_to_validate_dict = {}
         for rxn in self.parametrization_results.substrate_uptake_reactions:
-            self.parametrization_results.error[rxn] = pd.DataFrame(columns=['bin'] + reactions_to_validate[rxn])
-            self.parametrization_results.fluxes[rxn] = pd.DataFrame(columns=['bin', 'substrate'] + reactions_to_validate[rxn])
-            self.parametrization_results.initiate_bins_to_change()
+            reactions_to_validate_dict[rxn] = self.validation_data.get_by_id(rxn)._reactions_to_validate
+
+            self.parametrization_results.initiate_result_dfs(reactions_to_validate=reactions_to_validate_dict)
+
+            # flux_results = self.parametrization_results.flux_results.get_by_id(rxn)
+            # flux_results.error_df = pd.DataFrame(columns=['bin'] + reactions_to_validate)
+            # flux_results.fluxes_df = pd.DataFrame(columns=['bin', 'substrate'] + reactions_to_validate)
         # self.parametrization_results.initiate_result_dfs(reactions_to_validate=reactions_to_validate,
         #                                                   biomass_reaction=self.validation_data._get_biomass_reactions())
 
@@ -717,7 +727,7 @@ class PAMParametrizer():
                 error += [np.NaN]
                 continue
 
-            flux_df = self.parametrization_results.fluxes[substrate_uptake_id]
+            flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
             #check if we want to calculate the error for a single bin
             if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
 
@@ -849,18 +859,32 @@ class PAMParametrizer():
 
     def plot_valid_data(self):
         # plot flux changes with glucose uptake
-        fig, axs = plt.subplots(2,2, dpi=100)
+        reactions_to_plot = self.validation_data.get_by_id(self.substrate_uptake_id)._reactions_to_plot
 
-        for r, ax in zip(self.validation_data._reactions_to_plot, axs.flatten()):
+        num_reactions = len(reactions_to_plot) + 1
+        num_cols = int(np.ceil(np.sqrt(num_reactions)))
+        num_rows = int(np.ceil(num_reactions / num_cols))
+
+        fig, axs = plt.subplots(num_rows,num_cols, dpi=100)
+
+        for r, ax in zip(reactions_to_plot, axs[:-1].flatten()):
+            valid_data = self.validation_data.get_by_id(self.substrate_uptake_id)
             # plot data
-            x = [abs(glc) for glc in self.validation_data.valid_data_df[self.substrate_uptake_id +'_ub']]
-            y = [abs(data) for data in self.validation_data.valid_data_df[r]]
+            x = [abs(glc) for glc in valid_data.valid_data[self.substrate_uptake_id +'_ub']]
+            y = [abs(data) for data in valid_data.valid_data[r]]
             ax.set_ylabel(r)
             ax.scatter(x, y,
                            color='black', marker='o', s=30, linewidths=1.3,
                            facecolors=None, zorder=0,
                            label='Data')
             ax.set_xlabel(self.substrate_uptake_id + ' $mmol/g_{CDW}/h$')
+        #TODO: set bounds dynamically
+        axs.flatten()[-1].plot([-10, 10], [-10,10], linestyle = 'dotted')
+        #make the plots square to easily see the relation
+        axs.flatten()[-1].set_aspect('equal')
+        axs.flatten()[-1].set_ylabel('Experimental measured fluxes')
+        axs.flatten()[-1].set_xlabel('simulated fluxes')
+
         plt.ion()   # set interactive mode
         fig.tight_layout()
         fig.show()
@@ -879,12 +903,32 @@ class PAMParametrizer():
             color = to_hex(cmap(self.iteration/(self.hyperparameters.threshold_iteration-1)))
             norm = mpltlib.colors.BoundaryNorm(list(range(self.hyperparameters.threshold_iteration)), cmap.N)
 
-        fluxes, substrate_range = self.run_simulations_to_plot(save_fluxes_esc=save_esc)
+        fluxes_dict = {}
+        substrate_range_dict = {}
+
+        for substrate_id in self.substrate_uptake_ids:
+            if substrate_id == self.substrate_uptake_id: substrate_range = None
+            else: substrate_range = self.parametrization_results.flux_results.get_by_id(substrate_id).substrate_range
+            fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
+                                                                   substrate_rates=substrate_range,
+                                                                    save_fluxes_esc=save_esc)
+            fluxes_dict[substrate_id] = fluxes
+            substrate_range_dict[substrate_id] = substrate_range
+
         alpha = 1
-        for r, ax in zip(self.validation_data._reactions_to_plot, axs.flatten()):
+        #only plot detailed info for the 'main' substrate
+        for r, ax in zip(self.validation_data.get_by_id(self.substrate_uptake_id)._reactions_to_plot, axs[:-1].flatten()):
             # plot data
-            line = ax.plot(substrate_range, [abs(f[r]) for f in fluxes], linewidth=2.5,
+            line = ax.plot(substrate_range_dict[self.substrate_uptake_id], [abs(f[r]) for f in fluxes_dict[self.substrate_uptake_id]], linewidth=2.5,
                            zorder=5, color=color, alpha=alpha)
+        # Plot a flux comparison to experimental data for the other fluxes
+        for valid_data in self.validation_data:
+            if valid_data.id != self.substrate_uptake_id:
+                for reaction in valid_data._reactions_to_validate:
+                    exp_measurements = valid_data.sampled_valid_data[reaction]
+                    simulations = [f[reaction] for f in fluxes_dict[valid_data.id]]
+                    print(exp_measurements, simulations)
+                    axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
 
         # Add colorbar
         if self.iteration == 1:
@@ -893,7 +937,7 @@ class PAMParametrizer():
 
         fig.canvas.draw()
         fig.canvas.flush_events()
-        if return_fluxes: return fig, fluxes, substrate_range
+        if return_fluxes: return fig, fluxes_dict, substrate_range_dict
         return fig
 
     def run_simulations_to_plot(self, substrate_uptake_id:str,
