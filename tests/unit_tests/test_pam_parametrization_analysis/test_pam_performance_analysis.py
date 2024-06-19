@@ -21,7 +21,7 @@ def test_pam_performance_analysis_runs_from_terminal_command():
     subprocess.run(command, shell=True)
     # Assert
     assert os.path.exists(RESULT_FILE_PATH)
-    [os.remove(path) for path in [RESULT_FILE_PATH, RESULT_PARAM_FILE_PATH_PNG, RESULT_PARAM_FILE_PATH_XLS]]
+    [os.remove(path) for path in [RESULT_FILE_PATH, RESULT_PARAM_FILE_PATH_PNG]]#, RESULT_PARAM_FILE_PATH_XLS]]
 
 def test_pam_performance_analysis_saves_results_correctly():
     # Arrange
@@ -34,8 +34,8 @@ def test_pam_performance_analysis_saves_results_correctly():
     processes = 1
     gene_flow_events = 1
     num_kcats_to_mutate= 3
-    files_to_remove = [os.path.join('Results',f'pam_parametrizer_diagnostics_{config}.xlsx') for config in configurations]
-    files_to_remove += [os.path.join('Results',f'pam_parametrizer_progress_{config}.png') for config in configurations]
+    # files_to_remove = [os.path.join('Results',f'pam_parametrizer_diagnostics_{config}.xlsx') for config in configurations]
+    files_to_remove = [os.path.join('Results',f'pam_parametrizer_progress_{config}.png') for config in configurations]
 
     # Apply
     for iteration in range(iterations):

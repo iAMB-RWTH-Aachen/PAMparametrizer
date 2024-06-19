@@ -7,15 +7,16 @@ def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataF
                                       fluxes: pd.DataFrame) -> float:
     substr_rxn = substrate_uptake_id + '_ub'
     # Take the absolute value of substrate uptake to avoid issues with reaction directionality
-    validation_data[substr_rxn] = [round(abs(flux),4) for flux in validation_data[substr_rxn]]
+    validation_df = validation_data.copy()
+    validation_df[substr_rxn] = [round(abs(flux),4) for flux in validation_df[substr_rxn]]
     simulated_data = pd.DataFrame({substr_rxn: [round(abs(flux),4) for flux in fluxes['substrate']],
                                    'simulation': fluxes[reaction_id]})
-    ref_data_rxn = pd.merge(validation_data,simulated_data,on=substr_rxn, how='inner')
+    ref_data_rxn = pd.merge(validation_df,simulated_data,on=substr_rxn, how='inner')
     # error: squared difference
     ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
 
     # calculate R^2:
-    data_average = np.nanmean(validation_data[reaction_id])
+    data_average = np.nanmean(validation_df[reaction_id])
     residual_ss = np.nansum(ref_data_rxn.error)
     total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
     # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero

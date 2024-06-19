@@ -24,7 +24,7 @@ def run_simulations(pamodel, substrate_rates) -> list:
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         sol_pam =pamodel.optimize()
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
-            fluxes.append(sol_pam.fluxes_df)
+            fluxes.append(sol_pam.fluxes)
     return fluxes
 
 def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reactions_to_plot:list,
@@ -41,7 +41,7 @@ def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reacti
 
     for r, ax in zip(reactions_to_plot, axs.flatten()):
         # plot data
-        line = ax.plot(substrate_rates, [abs(f[r]) for f in fluxes], linewidth=10,
+        line = ax.plot(substrate_rates[:-1], [abs(f[r]) for f in fluxes], linewidth=10,
                        zorder=5, color=color, label = label)
 
     fig.canvas.draw()
@@ -54,17 +54,17 @@ def plot_valid_data(parametrizer, fontsize:int = 12, core = True):
 
     # plot flux changes with glucose uptake
     fig, axs = plt.subplots(2,2, dpi=100)
-
-    for r, ax in zip(parametrizer.validation_data._reactions_to_plot, axs.flatten()):
+    valid_data = parametrizer.validation_data.get_by_id(parametrizer.substrate_uptake_id)
+    for r, ax in zip(valid_data._reactions_to_plot, axs.flatten()):
         # plot data
-        x = [abs(glc) for glc in parametrizer.validation_data.valid_data_df[parametrizer.id + '_ub']]
-        y = [abs(data) for data in parametrizer.validation_data.valid_data_df[r]]
+        x = [abs(glc) for glc in valid_data.valid_data[parametrizer.substrate_uptake_id + '_ub']]
+        y = [abs(data) for data in valid_data.valid_data[r]]
         ax.set_ylabel(RXN_NAME_MAPPER[r], fontsize= fontsize)
         ax.scatter(x, y,
                        color='black', marker='o', s=200,
                        facecolors=None, zorder=0,
                        label='Literature')
-        ax.set_xlabel(RXN_NAME_MAPPER[parametrizer.id], fontsize= fontsize)
+        ax.set_xlabel(RXN_NAME_MAPPER[parametrizer.substrate_uptake_id], fontsize= fontsize)
         ax.tick_params(axis='both',labelsize = fontsize)
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
 
@@ -88,7 +88,7 @@ def recreate_progress_plot(best_individual_df, fig_file_path, core = True, retur
     parametrizer = set_up_pamparametrizer(-11, -0.1)
     parametrizer._init_results_objects()
     pamodel = parametrizer.pamodel
-    substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,parametrizer.max_substrate_uptake_rate])
+    substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,parametrizer.max_substrate_uptake_rate])['EX_glc__D_e']
 
     # step = (parametrizer.max_substrate_uptake_rate - parametrizer.min_substrate_uptake_rate) / 10
     # substrate_rates = list(
@@ -98,7 +98,7 @@ def recreate_progress_plot(best_individual_df, fig_file_path, core = True, retur
     print('Run reference simulations')
     fluxes = run_simulations(pamodel, substrate_rates)
     fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
-                               parametrizer.validation_data._reactions_to_plot,
+                               parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                iteration=0, color='black')
 
     groups = best_individual_df.groupby('run_id')
@@ -109,10 +109,15 @@ def recreate_progress_plot(best_individual_df, fig_file_path, core = True, retur
             pamodel.change_kcat_value(enzyme_id=row['enzyme_id'], kcats=kcat_dict)
         fluxes = run_simulations(pamodel, substrate_rates)
         fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
-                                   parametrizer.validation_data._reactions_to_plot,
+                                   parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                    iteration=j + 1, max_iteration=len(groups))
-        error = parametrizer.calculate_final_error(fluxes = fluxes,
-                                                   substrate_rates=substrate_rates)
+        for flux, rate in zip(fluxes, substrate_rates):
+            parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=flux,
+                                                                          bin_id='final',
+                                                                          substrate_reaction_id= parametrizer.substrate_uptake_id,
+                                                                          substrate_uptake_rate=rate,
+                                                                          fluxes_abs=False)
+        error = parametrizer.calculate_final_error()
         error_df.loc[len(error_df)] = [j, error]
 
 

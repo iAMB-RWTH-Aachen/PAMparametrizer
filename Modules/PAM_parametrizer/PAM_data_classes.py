@@ -82,6 +82,9 @@ class ParametrizationResults:
     computational_time = pd.DataFrame(columns = ['run_id', 'time_s', 'time_h'])
     final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
 
+    def initiate_flux_results(self):
+        self.flux_results = DictList([FluxResults(substr_rxn) for substr_rxn in self.substrate_uptake_reactions])
+
     def initiate_result_dfs(self, reactions_to_validate: dict) -> None:
         self.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
         self.flux_results = DictList([FluxResults(substr_rxn) for substr_rxn in self.substrate_uptake_reactions])

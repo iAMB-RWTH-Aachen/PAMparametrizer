@@ -40,15 +40,16 @@ def set_up_validation_data():
                                                     config.BIOMASS_REACTION: 'BIOMASS_Ecoli_core_w_GAM'})
     validation_data = ValidationData(valid_data_df,config.GLUCOSE_EXCHANGE_RXNID)
     validation_data._reactions_to_plot = RXNS_TO_VALIDATE
-    validation_data._reactions_to_validate = [RXNS_TO_VALIDATE[0], RXNS_TO_VALIDATE[-1]]
+    validation_data._reactions_to_validate = RXNS_TO_VALIDATE#[RXNS_TO_VALIDATE[0], RXNS_TO_VALIDATE[-1]]
     return validation_data
 
 def set_up_hyperparameter():
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10
+    hyperparams.threshold_iteration = 4
     hyperparams.number_of_kcats_to_mutate = 4
-    hyperparams.filename_extension = 'ecolicore_before'
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
+    hyperparams.filename_extension = 'ecolicore_all'
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 3
+    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] =1
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecolicore_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
@@ -89,6 +90,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
 
-    pam_parametrizer.run(remove_subruns=True, binned = 'before')
+    pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_toy_model

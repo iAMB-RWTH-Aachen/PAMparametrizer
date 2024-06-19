@@ -352,6 +352,8 @@ class FitnessEvaluation():
             self.model.constraints[f'EC_{enz_id}_{dir}'].set_linear_coefficients({
                 var:(kcat_values[i])})
 
+
+
     def _calculate_simulation_error(self, flux_df: pd.DataFrame, substrate_reaction:str):
         error = []
         weights = []

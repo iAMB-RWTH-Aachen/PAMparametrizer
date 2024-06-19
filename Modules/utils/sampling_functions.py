@@ -50,5 +50,4 @@ def adaptive_sampling(exp_data: pd.DataFrame, num_samples=10):
     if 0 not in sampled_indices: sampled_indices += [0]
     if len(exp_data)-1 not in sampled_indices: sampled_indices += [len(exp_data)-1]
     sampled_df = exp_data.loc[sampled_indices]
-
     return sampled_df

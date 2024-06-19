@@ -36,11 +36,12 @@ def save_pam_parametrizer_results_to_df(iter: int, bin_config: str,
     best_indiv = best_indiv.assign(binned=bin_config, iteration=iter)
     best_indiv = pd.merge(best_indiv, final_errors, on='run_id', how='left')
 
-    best_individual_df = pd.concat([best_individual_df, best_indiv], axis=0)
+    best_individual_df = pd.concat([best_individual_df, best_indiv], axis=0).drop_duplicates(subset=['enzyme_id', 'rxn_id', 'r_squared', 'direction'], keep = 'first')
 
     comp_time = comp_time.assign(binned=bin_config, iteration=iter)
     computational_time_df = pd.concat([computational_time_df, comp_time], axis=0)
 
+    os.remove(result_file_path)
     return best_individual_df, computational_time_df
 
 def get_statistics_from_df(df: pd.DataFrame, group_by:Union[list, str],
