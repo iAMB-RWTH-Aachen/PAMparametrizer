@@ -280,6 +280,8 @@ class FitnessEvaluation():
 
                 #if the model is not optimal revert changes and continue
                 if self.model.solver.status != 'optimal':
+                    # make sure infeasibility decreases the error
+                    error += [-1]
                     # revert kcat_changes
                     self._change_kcat_values_for_individual(individual, kcat_old)
                     continue

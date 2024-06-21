@@ -38,7 +38,7 @@ class PAMParametrizerMock(PAMParametrizer):
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
         valid_data_df = pd.read_csv(RESULT_DF_FILE).round({'R1_ub': 3})
 
-        validation_data = ValidationData(valid_data_df, 'R1')
+        validation_data = ValidationData(valid_data_df, 'R1', [min_substrate_uptake_rate, max_substrate_uptake_rate])
         validation_data.sampled_valid_data = valid_data_df
         validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
         validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']

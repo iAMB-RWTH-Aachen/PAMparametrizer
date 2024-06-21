@@ -116,6 +116,8 @@ class PAMParametrizer():
                 files_to_remove = self.perform_iteration_without_bins()
 
             # 5. Reparametrize the model with best results and save/visualize results
+            if files_to_remove is None:
+                continue
             self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
 
             # 6. Display progress and repeat
@@ -130,18 +132,19 @@ class PAMParametrizer():
     def perform_iteration_in_bins(self, start_time:float) -> list:
         self._init_results_objects()
         # 1. Get the binned substrate values and adjust binsize if required
-        binned_substrate = self._bin_substrate_uptake_rates()
+        binned_substrates = self._bin_substrate_uptake_rates()
 
 
         # 2. Run model in bins, get sensitivities and calculate errors
-        for bin_id, bin_info in binned_substrate.items():
-            self.process_bin(bin_id, bin_information=bin_info)
-            # print running time to check on progress
-            print('time elapsed: ', time.perf_counter() - start_time, 'sec, ', (time.perf_counter() - start_time) / 60, 'min',
-                  (time.perf_counter() - start_time) / 3600, 'hour\n')
+        for subst_uptake_id, binned_substrate in binned_substrates.items():
+            for bin_id, bin_info in binned_substrate.items():
+                self.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id = subst_uptake_id)
+                # print running time to check on progress
+                print('time elapsed: ', time.perf_counter() - start_time, 'sec, ', (time.perf_counter() - start_time) / 60, 'min',
+                      (time.perf_counter() - start_time) / 3600, 'hour\n')
 
         #reset the validation dataframe for the entire range of substrate uptake rates
-        self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
+        self._init_validation_df()
         # 3. Restart genetic algorithm using populations from bins
 
 
@@ -152,7 +155,7 @@ class PAMParametrizer():
     def perform_iteration_without_bins(self) -> list:
         # 1. If there are no results yet, perform simulations for a range of glc_uptake_rates
         if self.iteration == 1:
-            self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
+            self._init_validation_df()
             self._init_results_objects()
             for substrate_uptake_rate in self.substrate_uptake_ids:
                 self.run_simulations_to_plot(substrate_uptake_rate,
@@ -176,7 +179,6 @@ class PAMParametrizer():
                                           enzymes_to_evaluate=enzymes_to_evaluate,
                                           filename_extension=f'final_run_{self.iteration}')
         ga.start()
-        print(substrate_rates)
 
         # 3. Restart genetic algorithm using populations from bins
         files_to_remove = self._get_genetic_algorithm_json_files()
@@ -217,7 +219,7 @@ class PAMParametrizer():
             print('Newly parametrized model is not feasible')
             return
 
-    def process_bin(self,  bin_id: str, bin_information:list) -> None:
+    def process_bin(self,  bin_id: str, bin_information:list, substrate_uptake_id: str) -> None:
         """ Process a bin with specified substrate uptake rate information.
 
          Performs the following the following steps:
@@ -235,9 +237,8 @@ class PAMParametrizer():
            """
 
         print(
-            f'The following range of substrate uptake rates will be analyzed: {bin_information[0]} - {bin_information[1]}')
-        substrate_uptake_rates = self._init_validation_df(bin_information)
-        print(substrate_uptake_rates)
+            f'The following range of substrate uptake rates will be analyzed: {bin_information[0]} - {bin_information[1]} for the {substrate_uptake_id} reaction')
+        substrate_uptake_rates = self._init_validation_df(bin_information, [substrate_uptake_id])
         if substrate_uptake_rates is None: return
         for substrate_uptake_id, substrate_rates in substrate_uptake_rates.items():
             self.run_pamodel_simulations_in_bin(substrate_uptake_reaction=substrate_uptake_id,
@@ -456,28 +457,63 @@ class PAMParametrizer():
 
     def restart_genetic_algorithm(self) -> None:
         json_files = self._get_genetic_algorithm_json_files()
+        indiv_kcat_values_all_bins = pd.DataFrame()
+        #Get the best individuals from the populations
+        best_individuals = []
+        for json in json_files:
+            indiv_kcat_values_bin, _ = self._get_mutated_kcat_values_from_genetic_algorithm(json[:-4]+'xlsx')
+            for i, row in indiv_kcat_values_bin.iterrows():
+                best_individuals += {row.id:
+                                         {'reaction': row.rxn_id, 'direction': row.direction,
+                                          'kcat': row.value, 'sensitivity': 0.7}
+                                     }
+            if len(indiv_kcat_values_all_bins) == 0:
+                indiv_kcat_values_all_bins = indiv_kcat_values_bin
+            else:
+                indiv_kcat_values_all_bins = pd.concat([indiv_kcat_values_all_bins, indiv_kcat_values_bin])
+        #
+        # duplicate_enzymes = indiv_kcat_values_all_bins[
+        #     indiv_kcat_values_all_bins.duplicated(subset = ['id','direction','rxn_id'],keep=False)]
+        # indiv_kcat_values_all_bins = indiv_kcat_values_all_bins[
+        #     ~indiv_kcat_values_all_bins.index.isin(duplicate_enzymes.index)]
+
+
         enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
                                 nmbr_kcats_to_pick= self.hyperparameters.number_of_kcats_to_mutate)
+        #add the enzymes resulting from the enzymes to evaluate list
+        # for i,row in indiv_kcat_values_all_bins.drop_duplicates(['id', 'direction', 'rxn_id']).iterows():
+        #     #current best solution
+        #     kcat_not_parsed = self.pamodel.enzymes.get_by_id(row.id).rxn2kcat[row.rxn_id][row.direction]
+        #     kcat = 1/(kcat_not_parsed* 3600 * 1e-6)
+        #     #append solution to enzymes to evaluate
+        #     enzymes_to_evaluate[row['id']] = {'reaction': row.rxn_id, 'direction': row.direction,
+        #                                       'kcat':kcat,'sensitivity':0.7}#TODO parse sensitivity
+
+        if enzymes_to_evaluate is None: return None
+
 
         substrate_rates = {fr.id:fr.substrate_range for fr in self.parametrization_results.flux_results}
 
         ga = self._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
                                           enzymes_to_evaluate = enzymes_to_evaluate,
                                           filename_extension= f'final_run_{self.iteration}')
+        # TODO make a population with the current solution and the solution from the different ga's for the duplicate enzymes
+
         ga.restart(json_files)
         return json_files
 
-    def reparametrize_pam(self)-> None:
+    def reparametrize_pam(self, best_individual_kcat_df:pd.DataFrame=None)-> None:
         """ Change the selected kcat values to the optimized values
 
         Use the result of the genetic algorithm to change the parameters in the model if the error from the genetic
         algorithm is better than the error of the previous workflow iteration
 
         """
-        best_individual_kcat_df, best_indiv_error = self._get_mutated_kcat_values_from_genetic_algorithm()
-        error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
-        if best_indiv_error < error_threshold and best_indiv_error>0:
-            return
+        if best_individual_kcat_df is None:
+            best_individual_kcat_df, best_indiv_error = self._get_mutated_kcat_values_from_genetic_algorithm()
+        # error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
+        # if best_indiv_error < error_threshold and best_indiv_error>0:
+        #     return
         for i, row in best_individual_kcat_df.iterrows():
             # current value is coefficient calculated as follows:
             # coeff = 1 / (kcat * 3600 * 1e-6) #3600 to convert to /h to /s *1e-6 to make calculations more accurate
@@ -510,6 +546,9 @@ class PAMParametrizer():
                                                               ga_error= best_indiv_error)
         self.parametrization_results.add_computational_time(run_id=self.iteration,
                                                             time_in_sec= computational_time)
+        print(self.iteration)
+        print(self.final_error)
+        print(self.parametrization_results.final_errors)
         self.parametrization_results.add_final_error(run_id= self.iteration,
                                                      final_error= self.final_error)
 
@@ -529,9 +568,11 @@ class PAMParametrizer():
 
     def add_new_substrate_source(self, new_substrate_uptake_id:str,
                                  validation_data: pd.DataFrame,
+                                 substrate_range: list[Union[int, float]],
                                  reactions_to_validate: list):
         valid_data = ValidationData(validation_data,
-                                    new_substrate_uptake_id)
+                                    new_substrate_uptake_id,
+                                    substrate_range)
         valid_data._reactions_to_validate = reactions_to_validate
         self.validation_data.append(valid_data)
         self.parametrization_results.add_new_substrate_source(new_substrate_uptake_id,
@@ -553,15 +594,18 @@ class PAMParametrizer():
         Returns:
             dict: dictionary with bin_id: [start, end, stepsize] key value pairs
         """
-        substrate_start = self.min_substrate_uptake_rate
-        binned_substrate = {}
-        bin_range = (self.max_substrate_uptake_rate - self.min_substrate_uptake_rate)/len(self.bins)
-        for i in self.bins:
-            new_bin = self._make_new_bin(bin_id = i, bin_range = bin_range, substrate_start = substrate_start)
-            binned_substrate = {**binned_substrate, **new_bin}
-            #update starting concentration for new bin
-            substrate_start += bin_range
-        return binned_substrate
+        binned_substrates = {}
+        for valid_data in self.validation_data:
+            substrate_start = valid_data.validation_range[0]
+            binned_substrate = {}
+            bin_range = abs((abs(valid_data.validation_range[0]) - abs(valid_data.validation_range[1])))/self.hyperparameters.number_of_bins
+            for i in self.bins:
+                new_bin = self._make_new_bin(bin_id = i, bin_range = bin_range, substrate_start = substrate_start)
+                binned_substrate = {**binned_substrate, **new_bin}
+                #update starting concentration for new bin
+                substrate_start += bin_range
+            binned_substrates[valid_data.id]= binned_substrate
+        return binned_substrates
 
     def _make_new_bin(self, bin_id:Union[float, int], bin_range: Union[float, int],
                       substrate_start:Union[float, int]):
@@ -627,7 +671,6 @@ class PAMParametrizer():
         """
 
         results_filename = self.hyperparameters.genetic_algorithm_filename_base + filename_extension
-        print('substrate rates', substrate_uptake_rates)
 
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel,
@@ -641,25 +684,28 @@ class PAMParametrizer():
         )
         return ga
 
-    def _init_validation_df(self, bin_information):
+    def _init_validation_df(self, bin_information:list = None, substrate_uptake_ids: list = None) -> dict:
         # Only sample those points which are lower than upper bound and higher than lower bound
         # Also correct for reaction direction
         substrate_rates = {}
+        if bin_information is not None:
+            # if the range is provided, make sure to get the right directionality based on whether the sign is positive or negative
+            lower, upper = self._correct_upper_and_lower_ranges_validation_data_for_sign(bin_information)
 
-        if bin_information[0] < 0:
-            upper = abs(bin_information[0])
-            lower = abs(bin_information[1])
-        else:
-            upper = bin_information[1]
-            lower = bin_information[0]
+        validation_data_objects = self.validation_data
+        if substrate_uptake_ids is not None:
+            validation_data_objects = [validation_data_objects.get_by_id(sub_id) for sub_id in substrate_uptake_ids]
 
-        for validation_data in self.validation_data:
+        for validation_data in validation_data_objects:
+            # get the ranges to validate for the individual carbon sources if the range is not provided
+            if bin_information is None:
+                lower, upper = self._correct_upper_and_lower_ranges_validation_data_for_sign(
+                    validation_data.validation_range)
             substrate_uptake_id = validation_data.id
             validation_df = validation_data.valid_data[
                  (abs(validation_data.valid_data[substrate_uptake_id + '_ub']) >= lower) &
                  (abs(validation_data.valid_data[substrate_uptake_id + '_ub']) <= upper)
              ]
-
             #no data to validate within this range available
             if len(validation_df) == 0: continue
             validation_data.sampled_valid_data = adaptive_sampling(exp_data = validation_df,
@@ -672,6 +718,15 @@ class PAMParametrizer():
 
         return substrate_rates
         # get reference datapoints
+
+    def _correct_upper_and_lower_ranges_validation_data_for_sign(self, validation_range:list):
+        if validation_range[0] < 0:
+            upper = abs(validation_range[0])
+            lower = abs(validation_range[1])
+        else:
+            upper = validation_range[1]
+            lower = validation_range[0]
+        return lower, upper
 
 
     def _init_results_objects(self):
@@ -769,6 +824,9 @@ class PAMParametrizer():
                 error += [np.NaN]
                 continue
             flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
+            if len(flux_df) == 0: #means model is infeasible
+                error += [-1]
+                continue
             #check if we want to calculate the error for a single bin
             if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
 
@@ -839,6 +897,7 @@ class PAMParametrizer():
                 }
         """
         esc_results_df = self.parametrization_results.esc_df
+        if len(esc_results_df) == 0: return None
         esc_topn_df = self._select_topn_enzymes(esc_results_df,
                                                 nmbr_kcats_to_pick)
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
@@ -920,6 +979,11 @@ class PAMParametrizer():
                            facecolors=None, zorder=0,
                            label='Data')
             ax.set_xlabel(self.substrate_uptake_id + ' $mmol/g_{CDW}/h$')
+
+        # Remove any unused subplots
+        for j in range(len(reactions_to_plot) + 1, len(axs) - 1):
+            fig.delaxes(axs[j])
+
         #TODO: set bounds dynamically
         axs.flatten()[-1].plot([-10, 10], [-10,10], linestyle = 'dotted')
         #make the plots square to easily see the relation
@@ -954,8 +1018,10 @@ class PAMParametrizer():
             fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
                                                                    substrate_rates=substrate_range,
                                                                     save_fluxes_esc=save_esc)
-            fluxes_dict[substrate_id] = fluxes
-            substrate_range_dict[substrate_id] = substrate_range
+            if len(fluxes) > 0: # only plot feasible model results
+                fluxes_dict[substrate_id] = fluxes
+                substrate_range_dict[substrate_id] = substrate_range
+
 
         alpha = 1
         #only plot detailed info for the 'main' substrate
@@ -964,11 +1030,14 @@ class PAMParametrizer():
             line = ax.plot(substrate_range_dict[self.substrate_uptake_id], [abs(f[r]) for f in fluxes_dict[self.substrate_uptake_id]], linewidth=2.5,
                            zorder=5, color=color, alpha=alpha)
         # Plot a flux comparison to experimental data for the other fluxes
-        for valid_data in self.validation_data:
-            if valid_data.id != self.substrate_uptake_id and valid_data.sampled_valid_data is not None:
+        for substr_id, fluxes in fluxes_dict.items():
+            valid_data = self.validation_data.get_by_id(substr_id)
+            if substr_id != self.substrate_uptake_id and valid_data.sampled_valid_data is not None:
                 for reaction in valid_data._reactions_to_validate:
                     exp_measurements = valid_data.sampled_valid_data[reaction]
-                    simulations = [f[reaction] for f in fluxes_dict[valid_data.id]]
+                    simulations = [f[reaction] for f in fluxes]
+                    print('measured',exp_measurements)
+                    print('simulated', simulations)
                     axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
 
         # Add colorbar
@@ -992,6 +1061,7 @@ class PAMParametrizer():
             step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
             substrate_rates = np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step)
         for substrate in substrate_rates:
+            print(substrate_uptake_id, substrate)
             if substrate>=0:
                 self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
                                                 lower_bound=0, upper_bound=substrate)

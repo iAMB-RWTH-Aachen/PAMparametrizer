@@ -166,5 +166,6 @@ def calculate_simulation_error_with_parametrizer_for_model(pamodel):
                                                                       substrate_reaction_id='EX_glc__D_e',
                                                                       substrate_uptake_rate=substrate_rate,
                                                                       fluxes_abs=False)
+    print(parametrizer.validation_data)
 
     return parametrizer.calculate_final_error(), parametrizer, substrate_range

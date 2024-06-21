@@ -311,6 +311,111 @@ class GAPO():
         if self.print_progress:
             print("({}) Evaluate final population --".format(print_time()))
         self._save_population(sum(self.pops_final, []))
+
+    def restart_with_different_individuals(self, previous_enzyme_values: list[dict]) -> None:
+        """Restart genetic algorithm with the best individual of previous runs modifying (partially) different enzymes
+
+        Args:
+            previous_enzyme_values: list of dictionaries with the results of the previous populations. The dictionaries
+                are in the format:
+                {
+                    'enzyme_id': {
+                        'reaction': 'reaction_id',
+                        'kcats': (kcat_value_forward, kcat_value_reverse),
+                        'sensitivity': esc_value
+                    }
+                }
+
+        """
+
+        # helper functions
+        def get_fitness(ind):
+            return ind["fitness_weighted_sum"]
+
+        def add_enzyme_to_evaluate(enz_id, enz_info_row):
+            self.enzymes_to_eval.append(enz_id)
+            self.rxns.append(enz_info_row['reaction'])
+            self.directions.append(enz_info_row['direction'])
+
+            #get original kcat
+            kcat = self.FitEval.model.enzymes.get_by_id(enz_id).rxn2kcat[enz_info_row['reaction']][enz_info_row['direction']]
+            self.kcat_list.append(1/(kcat* 3600 * 1e-6))
+
+        # initialize timing
+        start_time = time()
+
+        if self.print_progress:
+            print("({}) Load previous population data --".format(print_time()))
+
+        for indiv in previous_enzyme_values:
+            for enz, enz_info in indiv.items():
+                if enz in self.enzymes_to_eval:
+                    index = self.enzymes_to_eval.index(enz)
+                    #specific gpr is not in the enzymes to eval
+                    if not ((enz_info['reaction'] == self.rxns[index]) | (enz_info['direction'] == self.directions[index])):
+                        add_enzyme_to_evaluate(enz, enz_info)
+                else:
+                    add_enzyme_to_evaluate(enz, enz_info)
+
+        #make sure all the kcat values are in the population
+        new_kcat_population = [self.kcat_list.copy()]
+
+        for indiv in previous_enzyme_values:
+            for enz, enz_info in indiv.items():
+                if enz in self.enzymes_to_eval:
+                    index = self.enzymes_to_eval.index(enz)
+                    #specific gpr is not in the enzymes to eval
+                    kcat_variation = self.kcat_list.copy()
+                    kcat_variation[index] = enz_info['kcat']
+                    new_kcat_population += kcat_variation
+
+        # initialize DEAP toolbox
+        if self.print_progress:
+            print("({}) Initialize DEAP toolbox --".format(print_time()))
+        self.toolbox = self._init_deap_toolbox()
+
+        # save evaluation class
+        with open(self.folderpath_save.joinpath(self.filename_save + ".pickle"), "wb") as f:
+            pickle.dump(self.FitEval, f)
+
+        # initialize population
+        if self.print_progress:
+            print("({}) Initialize population and populate with previous individuals --".format(print_time()))
+        # if population size is smaller than numeric combinations of kcat values,
+        # ensure all kcat combi's are present by increasing the size of the population
+        if self.population_size < len(new_kcat_population):
+            self.population_size = len(new_kcat_population)
+        pops = [self.ga.init_pop(self.toolbox, self.population_size, evaluate_fitness=False) for p in
+                range(self.processes)]
+
+        # map the kcat lists to the populations and get the fitness
+        for pop in pops:
+            for i,indiv in enumerate(pop):
+                indiv.kcat_list = new_kcat_population[i]
+                indiv.fitness = self.FitEval.eval_fitness(indiv)
+
+        # merge previous population into current population
+        random.shuffle(pops)  # shuffle previous population
+
+        # evaluate fitness of population
+        if self.print_progress:
+            print("({}) Evaluate fitness of population --".format(print_time()))
+        with Pool(processes=self.processes) as pool:
+            pops = pool.starmap(self.ga.evaluate_pop, [(pops[i], self.toolbox) for i in range(self.processes)])
+
+        # re-start optimization
+
+        if self.print_progress:
+            print("({}) Start optimization --".format(print_time()))
+        self.pops_final = self._parallel_gene_flow(
+            pops,
+            self.toolbox,
+            start_time)
+
+        # evaluate and save final population
+        if self.print_progress:
+            print("({}) Evaluate final population --".format(print_time()))
+        self._save_population(sum(self.pops_final, []))
         
 
 

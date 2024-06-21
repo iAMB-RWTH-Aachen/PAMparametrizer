@@ -13,6 +13,7 @@ from Modules.genetic_algorithm_parametrization import GAPOUniform
 class ValidationData:
     valid_data:pd.DataFrame
     id: str
+    validation_range: list
     sampled_valid_data: pd.DataFrame = None
     _reactions_to_validate : list = field(default_factory=list)
     biomass_reaction_extension : str = 'BIOMASS'
