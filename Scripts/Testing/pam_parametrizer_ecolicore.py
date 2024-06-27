@@ -86,9 +86,9 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
 
 def set_up_hyperparameter() -> HyperParameters:
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 4
-    hyperparams.number_of_kcats_to_mutate = 4
-    hyperparams.filename_extension = 'ecolicore_all'
+    hyperparams.threshold_iteration = 10
+    hyperparams.number_of_kcats_to_mutate = 5
+    hyperparams.filename_extension = 'ecolicore_false_multiple_csources'
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 3
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] =1
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecolicore_'
@@ -135,6 +135,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
 
-    pam_parametrizer.run(remove_subruns=True, binned = 'all')
+    pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_toy_model

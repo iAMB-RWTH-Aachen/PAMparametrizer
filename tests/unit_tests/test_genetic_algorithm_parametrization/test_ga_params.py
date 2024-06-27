@@ -297,4 +297,5 @@ def get_toy_model_simulations_other_csource(toy_model,
         flux_results = [rate] + [toy_model.reactions.get_by_id(rxn_id).flux for rxn_id in reactions_to_save]
         fluxes_df.loc[len(fluxes_df)] = flux_results
     toy_model.change_reaction_bounds('R9', 0, 1e6)
+    toy_model.change_reaction_bounds('R1', -1e6, 1e6)
     return fluxes_df, reactions_to_save

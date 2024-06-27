@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Tuple
 import numpy as np
 import os
 import time
@@ -382,6 +382,7 @@ class PAMParametrizer():
                                                          validation_df=validation_df,
                                                          reactions_to_validate= reactions_to_validate,
                                                          bin_id='final')
+
             #remove the simulations from the result dataframe
             self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,'final')
 
@@ -546,9 +547,7 @@ class PAMParametrizer():
                                                               ga_error= best_indiv_error)
         self.parametrization_results.add_computational_time(run_id=self.iteration,
                                                             time_in_sec= computational_time)
-        print(self.iteration)
-        print(self.final_error)
-        print(self.parametrization_results.final_errors)
+
         self.parametrization_results.add_final_error(run_id= self.iteration,
                                                      final_error= self.final_error)
 
@@ -824,6 +823,7 @@ class PAMParametrizer():
                 error += [np.NaN]
                 continue
             flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
+
             if len(flux_df) == 0: #means model is infeasible
                 error += [-1]
                 continue
@@ -1052,16 +1052,17 @@ class PAMParametrizer():
 
     def run_simulations_to_plot(self, substrate_uptake_id:str,
                                 substrate_rates: Union[np.array, list, pd.Series] = None,
-                                save_fluxes_esc:bool = False):
+                                save_fluxes_esc:bool = False) -> Tuple[list, list]:
         print('starting simulations to evaluate')
         fluxes = list()
         substrate_range = list()
-        lb, ub =self.pamodel.reactions.get_by_id(substrate_uptake_id).bounds
+        #get the old bounds for resetting
+
+        lb, ub = -self.pamodel.constraints[substrate_uptake_id+ '_lb'].ub, self.pamodel.constraints[substrate_uptake_id+ '_ub'].ub
         if substrate_rates is None:
             step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
             substrate_rates = np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step)
         for substrate in substrate_rates:
-            print(substrate_uptake_id, substrate)
             if substrate>=0:
                 self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
                                                 lower_bound=0, upper_bound=substrate)

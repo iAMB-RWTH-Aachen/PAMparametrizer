@@ -32,8 +32,6 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_without_splitting():
     # act
     sut_binned_substrate = sut._bin_substrate_uptake_rates()
 
-    print(valid_binned_substrate)
-    print(sut_binned_substrate)
     # assert
     assert valid_binned_substrate == sut_binned_substrate['R1']
 
@@ -49,7 +47,7 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_with_splitting():
     sut.parametrization_results.bins_to_change['bin'] = [bin_nmbr_to_split]
 
     #act
-    sut_binned_substrate = sut._bin_substrate_uptake_rates()
+    sut_binned_substrate = sut._bin_substrate_uptake_rates()['R1']
 
     del valid_binned_substrate[bin_nmbr_to_split]
     splitted_bins = {bin_nmbr_to_split: [start, start+bin_range * 0.5, step*0.5],
@@ -394,6 +392,7 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
                                                                                            other_substrate_reaction,
                                                                                            substrate_uptake_rates)
+
     # Change the validation data object in the parametrization object
     sut.add_new_substrate_source(new_substrate_uptake_id = other_substrate_reaction,
                                  validation_data = expected_flux_results,
@@ -403,9 +402,14 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
 
     #get flux data for different carbon sources
     for substr_uptake_id in sut.substrate_uptake_ids:
-        substr_uptake_rates = sut.parametrization_results.flux_results.get_by_id(substr_uptake_id).substrate_range
+        substr_uptake_rates = sut.validation_data.get_by_id(substr_uptake_id).validation_range
         fluxes, substrate_range = sut.run_simulations_to_plot(substrate_uptake_id=substr_uptake_id,
                                                               substrate_rates=substr_uptake_rates)
+        print(substr_uptake_id, substrate_range)
+        print(fluxes)
+        sut = save_simulation_results(sut, substrate_range, fluxes, substr_uptake_id)
+
+
 
     # Act
     error = sut.calculate_final_error()
@@ -496,5 +500,14 @@ def assert_run_diagnostics_are_saved(parametrization_results_object: Callable,
 
     assert len(parametrization_results_object.best_individuals) == number_of_best_individuals*2 #times 2 because of f and b for each enzyme
     assert len(parametrization_results_object.computational_time) == 1
-    print(parametrization_results_object.final_errors)
     assert len(parametrization_results_object.final_errors) == 1
+
+def save_simulation_results(parametrizer:PAMParametrizerMock,
+                            substrate_rates:list, fluxes:list, substrate_uptake_id: str) -> None:
+    for simulation_result, substrate_rate in zip(fluxes, substrate_rates):
+        parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
+                                                              bin_id='final',
+                                                              substrate_reaction_id=substrate_uptake_id,
+                                                              substrate_uptake_rate=substrate_rate,
+                                                              fluxes_abs=False)
+    return parametrizer
