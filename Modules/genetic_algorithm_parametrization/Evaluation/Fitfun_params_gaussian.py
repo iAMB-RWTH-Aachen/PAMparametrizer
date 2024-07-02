@@ -256,7 +256,6 @@ class FitnessEvaluation():
             [reactions[i].forward_variable])[reactions[i].forward_variable]
                     for i, enz_id in enumerate(individual.enzymes_to_eval)]
 
-        # change the kcat value of the enzymes with the highest sensitivity
         self._change_kcat_values_for_individual(individual)
 
         # perform simulations and save results
@@ -264,8 +263,7 @@ class FitnessEvaluation():
             columns = ['substrate'] + self.reactions_with_data[substr_uptake]
         ) for substr_uptake in self.reactions_with_data.keys()}
         error = []
-
-
+        weigths = []
         for substrate_uptake_id, fluxes_df in fluxes.items():
             for rate in self.substrate_uptake_rates[substrate_uptake_id]:
                 new_row = [rate] + [0] * len(fluxes_df.columns[1:])
@@ -280,8 +278,9 @@ class FitnessEvaluation():
 
                 #if the model is not optimal revert changes and continue
                 if self.model.solver.status != 'optimal':
+                    print('infeasible for substrate id', substrate_uptake_id)
                     # make sure infeasibility decreases the error
-                    error += [-1]
+                    fluxes_df = pd.DataFrame()
                     # revert kcat_changes
                     self._change_kcat_values_for_individual(individual, kcat_old)
                     continue
@@ -290,6 +289,7 @@ class FitnessEvaluation():
                     for rxn_id in fluxes_df.columns[1:]:
                         if rxn_id in self.model.reactions:
                             fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
+
             error += [self._calculate_simulation_error(fluxes_df, substrate_uptake_id)]
 
             # reset substrate_uptake_rate
@@ -297,7 +297,7 @@ class FitnessEvaluation():
                                               lower_bound=0, upper_bound=0)
 
         #average fitness:
-        fitness = float(np.mean(error))
+        fitness = float(np.nanmean(error)) #TODO have to implement the weigths again, but this gives errors for now
         individual.r_squared = fitness
         individual.fitness.values = [fitness]
 
@@ -361,7 +361,7 @@ class FitnessEvaluation():
         weights = []
         #if all rates were infeasible: r_squared should be really bad
         if len(flux_df)==0:
-            return -100
+            return -1
         for rxn in self.reactions_with_data[substrate_reaction]:
             #only select the rows which are filled with data
             ref_data_rxn = self.valid_data[substrate_reaction].dropna(axis = 0, subset = rxn)
@@ -376,7 +376,6 @@ class FitnessEvaluation():
                 error += [r_squared]
                 if rxn in self.weights.keys(): weights.append(self.weights[rxn])
                 else: weights.append(1)
-
         if len(error) == 0: return np.NaN
 
         return np.average(error, weights = weights)

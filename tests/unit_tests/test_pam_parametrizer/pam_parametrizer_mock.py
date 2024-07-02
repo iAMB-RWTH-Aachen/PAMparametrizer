@@ -6,7 +6,7 @@ from Modules.PAM_parametrizer import PAMParametrizer
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 
 
-max_substrate_uptake_rate = 0.01
+max_substrate_uptake_rate = 0.1
 min_substrate_uptake_rate = 0.001
 
 ###########################################################################################################################

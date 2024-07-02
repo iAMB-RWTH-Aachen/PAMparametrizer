@@ -16,6 +16,7 @@ from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params impo
 from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
 
 
+
 max_substrate_uptake_rate = 0.01
 min_substrate_uptake_rate = 0.001
 
@@ -401,15 +402,7 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     sut.validation_data.get_by_id(other_substrate_reaction).sampled_valid_data = expected_flux_results
 
     #get flux data for different carbon sources
-    for substr_uptake_id in sut.substrate_uptake_ids:
-        substr_uptake_rates = sut.validation_data.get_by_id(substr_uptake_id).validation_range
-        fluxes, substrate_range = sut.run_simulations_to_plot(substrate_uptake_id=substr_uptake_id,
-                                                              substrate_rates=substr_uptake_rates)
-        print(substr_uptake_id, substrate_range)
-        print(fluxes)
-        sut = save_simulation_results(sut, substrate_range, fluxes, substr_uptake_id)
-
-
+    sut = save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources(sut)
 
     # Act
     error = sut.calculate_final_error()
@@ -510,4 +503,13 @@ def save_simulation_results(parametrizer:PAMParametrizerMock,
                                                               substrate_reaction_id=substrate_uptake_id,
                                                               substrate_uptake_rate=substrate_rate,
                                                               fluxes_abs=False)
+    return parametrizer
+
+def save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources(parametrizer):
+    for substr_uptake_id in parametrizer.substrate_uptake_ids:
+        substr_uptake_rates = parametrizer.validation_data.get_by_id(
+            substr_uptake_id).sampled_valid_data[substr_uptake_id+'_ub'].to_list()
+        fluxes, substrate_range = parametrizer.run_simulations_to_plot(substrate_uptake_id=substr_uptake_id,
+                                                              substrate_rates=substr_uptake_rates)
+        parametrizer = save_simulation_results(parametrizer, substrate_range, fluxes, substr_uptake_id)
     return parametrizer

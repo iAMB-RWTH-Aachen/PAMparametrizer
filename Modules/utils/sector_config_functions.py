@@ -20,15 +20,31 @@ def reset_translational_sector(pamodel, slope, intercept, new_id = None):
     pamodel.add_sectors([transl_sector])
     return pamodel
 
-def get_model_simulations(pamodel, glc_rxn, biomass_rxn, substrate_range, intercept,slope, sector_name = 'translational_protein'):
+def get_model_simulations_vs_sector(pamodel, sub_uptake_rxn, biomass_rxn, substrate_range, intercept, slope, sector_name ='translational_protein'):
     # run the model
-    simulations_transl_vs_subst = run_simulations(pamodel, substrate_range)
-    simulation_results = pd.DataFrame(columns=[glc_rxn, biomass_rxn, sector_name])
+    simulations_transl_vs_subst = run_simulations(pamodel, substrate_range, sub_uptake_rxn)
+    simulation_results = pd.DataFrame(columns=[sub_uptake_rxn, biomass_rxn, sector_name])
     for i, sim in enumerate(simulations_transl_vs_subst):
         sim[sector_name] = intercept + slope * sim[biomass_rxn]
-        simulation_results.loc[i] = [sim[glc_rxn], sim[biomass_rxn], sim[sector_name]]
+        simulation_results.loc[i] = [sim[sub_uptake_rxn], sim[biomass_rxn], sim[sector_name]]
 
     return simulation_results
+
+def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> list:
+    fluxes = []
+    for substrate in substrate_rates:
+        if substrate<0:
+            pamodel.change_reaction_bounds(rxn_id=sub_uptake_id,
+                                       lower_bound=substrate, upper_bound=0)
+        else:
+            pamodel.change_reaction_bounds(rxn_id=sub_uptake_id,
+                                       lower_bound=0, upper_bound=substrate)
+
+        print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
+        sol_pam =pamodel.optimize()
+        if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
+            fluxes.append(sol_pam.fluxes)
+    return fluxes
 
 def plot_translational_protein_vs_mu(literature, results, interc, slope,
                                      protein_fraction, measured_protein_fraction, oxygen_results=None, oxygen_rxn_id=None):

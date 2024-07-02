@@ -17,9 +17,16 @@ from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationRe
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction
 from Modules.utils.sampling_functions import adaptive_sampling
+from Modules.utils.sector_config_functions import get_model_simulations_vs_sector, perform_linear_regression
 
 
 class PAMParametrizer():
+
+    #from Schmidt et al(2016):
+    TRANSL_SECTOR_INTERCEPT = 0.04738115630907698#g / g_cdw
+    TRANSL_SECTOR_SLOPE = 0.04806975534478209 #g / g_cdw / h
+    MEASURED_PROTEIN_FRACTION = 0.55*0.55
+
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
                  hyperparameters: HyperParameters = HyperParameters(),
@@ -93,6 +100,7 @@ class PAMParametrizer():
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
         fig = self.plot_simulation(fig=fig, axs=axs, color='#010328')
+        self.calculate_translational_sector_for_multiple_csources()
 
         #keep track of time for computational performance
         start = time.perf_counter()
@@ -128,6 +136,34 @@ class PAMParametrizer():
 
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
+
+    def calculate_translational_sector_for_multiple_csources(self):
+        #generate a pam with only the translational sector
+        pamtransl = self.pamodel.copy()
+        pamtransl.remove_sectors(['UnusedEnzymeSector', 'ActiveEnzymeSector'])
+
+        #change the translational sector to per growth rate
+        pamtransl.change_sector_parameters(pamtransl.sectors.get_by_id('TranslationalProteinSector'),
+                                           self.TRANSL_SECTOR_SLOPE, self.TRANSL_SECTOR_INTERCEPT,
+                                           self.pamodel.BIOMASS_REACTION)
+        for vd in self.validation_data:
+            sub_upt_id = vd.id
+            step = (vd.substrate_range[0]- vd.substrate_range[1])/5
+            substrate_range = np.arange(vd.substrate_range[0], vd.substrate_range[1], step)
+            #get the simulations for relatively low substrate uptake rates
+            simulation_results = get_model_simulations_vs_sector(pamodel = pamtransl,
+                                                                 sub_uptake_rxn = sub_upt_id,
+                                                                 biomass_rxn = self.pamodel.BIOMASS_REACTION,
+                                                                 substrate_range = substrate_range,
+                                                                 intercept = self.TRANSL_SECTOR_INTERCEPT,
+                                                                 slope = self.TRANSL_SECTOR_SLOPE)
+            slope, intercept = perform_linear_regression(
+                x=simulation_results[sub_upt_id], y=simulation_results['translational_protein'])
+            vd.translation_sector_config = {'slope':slope*self.MEASURED_PROTEIN_FRACTION,
+                                                          'intercept':intercept*self.MEASURED_PROTEIN_FRACTION
+                                                          }
+
+        #TODO: unit test this thing!
 
     def perform_iteration_in_bins(self, start_time:float) -> list:
         self._init_results_objects()
@@ -371,21 +407,22 @@ class PAMParametrizer():
         """
 
         error = []
-
         for valid_data in self.validation_data:
             substrate_uptake_id = valid_data.id
+            print(substrate_uptake_id)
             reactions_to_validate = valid_data._reactions_to_validate
             validation_df = valid_data.sampled_valid_data#.apply(lambda x: x.abs() if x.dtype!='object' else x)
 
+
             # self._init_validation_df(bin_information=[self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
-            error += self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
+            error += [self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
                                                          validation_df=validation_df,
                                                          reactions_to_validate= reactions_to_validate,
-                                                         bin_id='final')
+                                                         bin_id='final')]
+
 
             #remove the simulations from the result dataframe
             self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,'final')
-
         final_error = np.nanmean(error)
         print('The final error is ', final_error)
 
@@ -521,9 +558,13 @@ class PAMParametrizer():
             # need to convert the coefficient to the actual kcat
             new_kcat = 1 / (row['value'] * 3600 * 1e-6)
             direction = row['direction']
+
+            # print(self.pamodel.constraints[f'EC_{row["id"]}_{direction}'].get_linear_coefficients([self.pamodel.reactions.get_by_id(row['rxn_id']).forward_variable]))
             self._change_kcat_value_for_enzyme(enzyme_id= row['id'], kcat_dict = {row['rxn_id']:
                                                                            {direction: new_kcat}
                                                                        })
+            # print(self.pamodel.constraints[f'EC_{row["id"]}_{direction}'].get_linear_coefficients([self.pamodel.reactions.get_by_id(row['rxn_id']).forward_variable]))
+
 
         print('after reparametrization the model is feasible', self._pamodel_is_feasible())
 
@@ -573,9 +614,12 @@ class PAMParametrizer():
                                     new_substrate_uptake_id,
                                     substrate_range)
         valid_data._reactions_to_validate = reactions_to_validate
+        # if new_substrate_uptake_id not in self.substrate_uptake_ids:
+        #     self.substrate_uptake_ids.append(new_substrate_uptake_id)
         self.validation_data.append(valid_data)
         self.parametrization_results.add_new_substrate_source(new_substrate_uptake_id,
                                                               reactions_to_validate)
+
 
     ###########################################################################################################
     #WORKER FUNCTIONS
@@ -659,7 +703,7 @@ class PAMParametrizer():
                 {
                     'enzyme_id': {
                         'reaction': 'reaction_id',
-                        'kcats': (kcat_value_forward, kcat_value_reverse),
+                        'kcats': {'f':kcat_value_forward, 'b':kcat_value_reverse},
                         'sensitivity': esc_value
                     }
                 }
@@ -701,11 +745,13 @@ class PAMParametrizer():
                 lower, upper = self._correct_upper_and_lower_ranges_validation_data_for_sign(
                     validation_data.validation_range)
             substrate_uptake_id = validation_data.id
+
             validation_df = validation_data.valid_data[
                  (abs(validation_data.valid_data[substrate_uptake_id + '_ub']) >= lower) &
                  (abs(validation_data.valid_data[substrate_uptake_id + '_ub']) <= upper)
              ]
             #no data to validate within this range available
+
             if len(validation_df) == 0: continue
             validation_data.sampled_valid_data = adaptive_sampling(exp_data = validation_df,
                                                             num_samples=self.hyperparameters.bin_resolution)
@@ -812,30 +858,31 @@ class PAMParametrizer():
                                        reactions_to_validate: list,
                                         bin_id: Union[float, int] = None) -> float:
         # calculate error for different exchange rates
-
         error = []
+        flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
+
+        if len(flux_df) == 0:  # means model is infeasible
+            return -1
+        # check if we want to calculate the error for a single bin
+        if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
+
+
         # if bin_id is None: bin_id = 'no bins'
         for rxn in reactions_to_validate: #+ self.validation_data._get_biomass_reactions():
             # only select the rows which are filled with data
             validation_data = validation_df.dropna(axis=0, subset=rxn)
             # if there are no reference data points, continue to the next reaction
             if len(validation_data) == 0:
-                error += [np.NaN]
                 continue
-            flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
-
-            if len(flux_df) == 0: #means model is infeasible
-                error += [-1]
-                continue
-            #check if we want to calculate the error for a single bin
-            if bin_id is not None: flux_df = flux_df[flux_df['bin'] == bin_id]
-
 
             r_squared = calculate_r_squared_for_reaction(rxn, validation_df, substrate_uptake_id,
                                                                flux_df)
 
             error += [r_squared]
-        return error
+
+        print(substrate_uptake_id, error, reactions_to_validate)
+
+        return np.average(error)
 
 
     def _parse_enzymes_to_evaluate(self, esc_topn_df: pd.DataFrame) -> dict:
@@ -981,11 +1028,11 @@ class PAMParametrizer():
             ax.set_xlabel(self.substrate_uptake_id + ' $mmol/g_{CDW}/h$')
 
         # Remove any unused subplots
-        for j in range(len(reactions_to_plot) + 1, len(axs) - 1):
+        for j in range(len(reactions_to_plot) + 1, len(axs)):
             fig.delaxes(axs[j])
 
         #TODO: set bounds dynamically
-        axs.flatten()[-1].plot([-10, 10], [-10,10], linestyle = 'dotted')
+        # axs.flatten()[-1].plot([-10, 10], [-10,10], linestyle = 'dotted')
         #make the plots square to easily see the relation
         axs.flatten()[-1].set_aspect('equal')
         axs.flatten()[-1].set_ylabel('Experimental measured fluxes')
@@ -1014,7 +1061,8 @@ class PAMParametrizer():
 
         for substrate_id in self.substrate_uptake_ids:
             if substrate_id == self.substrate_uptake_id: substrate_range = None
-            else: substrate_range = self.parametrization_results.flux_results.get_by_id(substrate_id).substrate_range
+            else: substrate_range = self.validation_data.get_by_id(substrate_id).valid_data[substrate_id]
+
             fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
                                                                    substrate_rates=substrate_range,
                                                                     save_fluxes_esc=save_esc)
@@ -1036,8 +1084,6 @@ class PAMParametrizer():
                 for reaction in valid_data._reactions_to_validate:
                     exp_measurements = valid_data.sampled_valid_data[reaction]
                     simulations = [f[reaction] for f in fluxes]
-                    print('measured',exp_measurements)
-                    print('simulated', simulations)
                     axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
 
         # Add colorbar

@@ -1,6 +1,8 @@
 from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer
 from Scripts.pam_generation import setup_ecolicore_pam
 
+from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources
+
 from scipy.stats import linregress
 import pytest
 from PAModelpy.configuration import Config
@@ -58,6 +60,46 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params()
     # r^2 for new params should be smaller than r^2 for parametrized model
     assert final_error_new_params < final_error_sut
     assert final_error_validation == pytest.approx(final_error_sut, 1e-2)
+
+def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same_as_for_genetic_algorithm():
+    #TODO
+    # Arrange
+    #setup PAMparametrizer
+    sut_param = set_up_pamparametrizer(-11, -0.1,other_csources = True)
+
+    sut_param._init_validation_df(substrate_uptake_ids = sut_param.substrate_uptake_ids)
+    sut_param._init_results_objects()
+
+    # sut_param.validation_data.get_by_id('R1').sampled_valid_data = sut_param.validation_data.get_by_id('R1').valid_data
+    sut_param = save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources(sut_param)
+    #get substrate uptake rates to calculate the error for
+    substrate_rates = {vd.id: vd.sampled_valid_data[vd.id+'_ub'].values for vd in sut_param.validation_data}
+
+    # set up genetic algorithm
+    sut_ga = sut_param._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
+                                  enzymes_to_evaluate = {'4.1.2.55': {
+                                      'reaction':'ALCD2x', 'kcats': {'b':1/(3.0033* 3600*1e-6)} , 'sensitivity':0.1},
+                                      '1.3.5.4': {
+                                          'reaction': 'ICDHyr', 'kcats': {'f':1/(3.7271* 3600*1e-6),'b':1/(10.6819* 3600*1e-6)}, 'sensitivity': 0.1},
+                                      '2.4.2.29': {
+                                      'reaction':'CS', 'kcats': {'f':1/(32.018* 3600*1e-6)} , 'sensitivity':0.1}
+                                  },
+                                  filename_extension = '')
+    toolbox = sut_ga._init_deap_toolbox()
+    toy_ga = sut_ga.ga
+    population = toolbox.population(n=3)
+    population[0].kcat_list = [1/(3.0033* 3600*1e-6),1/(3.7271* 3600*1e-6),1/(10.6819* 3600*1e-6),1/(32.018* 3600*1e-6)]
+
+    # Act
+    #pam parametrizer
+    r_squared_param = sut_param.calculate_final_error()
+    #genetic algorithm
+    population = toy_ga.evaluate_pop(population, toolbox)
+    individual_to_evaluate = population[0]
+    r_squared_ga = individual_to_evaluate.fitness._wsum()
+
+    # Assert
+    assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-3)
 
 
 ########################################################################################################################
@@ -148,8 +190,8 @@ def evaluate_model_fitness(model, validation_results:pd.DataFrame,
         error += [r_squared]
     return np.nanmean(error)
 
-def calculate_simulation_error_with_parametrizer_for_model(pamodel):
-    parametrizer = set_up_pamparametrizer(-10, -0.1)
+def calculate_simulation_error_with_parametrizer_for_model(pamodel, other_csources = False):
+    parametrizer = set_up_pamparametrizer(-11, -0.1, other_csources)
     parametrizer.pamodel = pamodel
     parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_validate = RXNS_TO_VALIDATE
     parametrizer._init_results_objects()
@@ -169,3 +211,4 @@ def calculate_simulation_error_with_parametrizer_for_model(pamodel):
     print(parametrizer.validation_data)
 
     return parametrizer.calculate_final_error(), parametrizer, substrate_range
+

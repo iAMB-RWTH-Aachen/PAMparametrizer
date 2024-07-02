@@ -16,10 +16,10 @@ RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
                    'EX_o2_e': 'Oxygen uptake [$mmol_[{O_2}/g_{CDW}/h$]',
                    'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]'}
 
-def run_simulations(pamodel, substrate_rates) -> list:
+def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> list:
     fluxes = []
     for substrate in substrate_rates:
-        pamodel.change_reaction_bounds(rxn_id='EX_glc__D_e',
+        pamodel.change_reaction_bounds(rxn_id=sub_uptake_id,
                                        lower_bound=substrate, upper_bound=0)
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         sol_pam =pamodel.optimize()

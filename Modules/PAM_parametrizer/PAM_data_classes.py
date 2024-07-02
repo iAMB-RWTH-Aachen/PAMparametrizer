@@ -15,6 +15,7 @@ class ValidationData:
     id: str
     validation_range: list
     sampled_valid_data: pd.DataFrame = None
+    translational_sector_config: dict = None
     _reactions_to_validate : list = field(default_factory=list)
     biomass_reaction_extension : str = 'BIOMASS'
     exchange_reaction_extension: str = 'EX'

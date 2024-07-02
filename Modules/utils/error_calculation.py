@@ -18,7 +18,11 @@ def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataF
     # calculate R^2:
     data_average = np.nanmean(validation_df[reaction_id])
     residual_ss = np.nansum(ref_data_rxn.error)
-    total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+
+    if len(ref_data_rxn[reaction_id])==1:
+        return custom_error(ref_data_rxn['simulation'].iloc[0],ref_data_rxn[reaction_id].iloc[0])
+    else:
+        total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
     # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
     if residual_ss == 0:
         r_squared = 1
@@ -27,3 +31,21 @@ def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataF
     else:
         r_squared = 1 - residual_ss / total_ss
     return r_squared
+
+
+def custom_error(observed, simulated, lambda_factor=1.0):
+    """
+    Calculate custom error where error is 1 if distance between observed and simulated is 0,
+    and approaches 0 as distance increases using an exponential decay function.
+
+    Args:
+    observed (float): The observed datapoint value.
+    simulated (float): The simulated value.
+    lambda_factor (float): The scaling factor for the exponential decay. Higher values lead to faster decay.
+
+    Returns:
+    float: The calculated error.
+    """
+    distance = abs(observed - simulated)
+    error = np.exp(-lambda_factor * distance)
+    return error

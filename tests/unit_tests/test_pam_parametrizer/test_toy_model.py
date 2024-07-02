@@ -1,6 +1,14 @@
 import pandas as pd
+import os
 
+import pytest
 from Scripts.Testing.pam_parametrizer_toy_model import set_up_pamparametrizer
+from Scripts.pam_generation import setup_toy_pam
+from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import (evaluate_toy_model_fitness,
+                                                                                    get_toy_model_simulations_other_csource)
+from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
+from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources
+from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import GeneticAlgorithmMock
 
 FINAL_ENZYMES2KCAT = {'E1':{'R1':{'f': 1/(3600*1e-6), 'b':1/(3600*1e-6)}},
                           'E2': {'R2': {'f': 0.5 / (3600 * 1e-6), 'b': 0.5 / (3600 * 1e-6)}},
@@ -39,9 +47,62 @@ def test_if_running_toy_model_in_pam_parametrizer_gives_correct_results():
                                          check_dtype=False,check_exact=False, atol=1e-3) is None
 
 
+def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same_as_for_genetic_algorithm():
+    # Arrange
+    #setup PAMparametrizer
+    sut_param = PAMParametrizerMock()
+    # Get the simulations with the byproduct as carbon source
+    other_substrate_reaction = 'R9'
+    substrate_uptake_rates = [-1e-2, -1e-3]
+    toy_pam = setup_toy_pam()
+    sut_param.pamodel = toy_pam
+
+    expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
+                                                                                           other_substrate_reaction,
+                                                                                           substrate_uptake_rates)
+    # Change the validation data object in the parametrization object
+    sut_param.add_new_substrate_source(new_substrate_uptake_id=other_substrate_reaction,
+                                 validation_data=expected_flux_results,
+                                 substrate_range=substrate_uptake_rates,
+                                 reactions_to_validate=reactions_to_validate)
+
+    sut_param._init_validation_df(substrate_uptake_ids = ['R1', 'R9'])
+    sut_param.validation_data.get_by_id('R1').sampled_valid_data = sut_param.validation_data.get_by_id('R1').valid_data
+    sut_param = save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources(sut_param)
+
+    # set up genetic algorithm
+    sut_ga = set_up_mockga_multiple_csources(expected_flux_results, 'R9', reactions_to_validate, substrate_uptake_rates)
+    toolbox = sut_ga._init_deap_toolbox()
+    toy_ga = sut_ga.ga
+
+    sut_ga.FitEval.substrate_uptake_rates['R1'] = sut_param.validation_data.get_by_id('R1').valid_data['R1_ub'].to_list()
+    population = toolbox.population(n=3)
+    population[0].kcat_list = [1/1, 1/0.5 ,1/0.45]
+
+    # Act
+    #pam parametrizer
+    r_squared_param = sut_param.calculate_final_error()
+    #genetic algorithm
+    population = toy_ga.evaluate_pop(population, toolbox)
+    individual_to_evaluate = population[0]
+    r_squared_ga = individual_to_evaluate.fitness._wsum()
+
+    # Assert
+    assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-3)
+
+
 ##########################################################################################################################
 # HELPER FUNCTIONS
 ##########################################################################################################################
 def change_kcat_to_expected_outcome(pam_parametrizer):
     for enz_id, kcat_dict in FINAL_ENZYMES2KCAT.items():
         pam_parametrizer.pamodel.change_kcat_value(enz_id, kcat_dict)
+
+def set_up_mockga_multiple_csources(expected_flux_results, new_substrate_id,
+                                    reactions_to_validate, substrate_uptake_rates):
+    sut_ga = GeneticAlgorithmMock()
+    fiteval = sut_ga.FitEval
+    fiteval.valid_data[new_substrate_id] = expected_flux_results
+    fiteval.reactions_with_data[new_substrate_id] = reactions_to_validate
+    fiteval.substrate_uptake_rates[new_substrate_id] = substrate_uptake_rates
+    return sut_ga

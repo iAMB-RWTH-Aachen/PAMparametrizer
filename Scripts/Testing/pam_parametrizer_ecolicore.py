@@ -86,10 +86,10 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
 
 def set_up_hyperparameter() -> HyperParameters:
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10
+    hyperparams.threshold_iteration = 2
     hyperparams.number_of_kcats_to_mutate = 5
-    hyperparams.filename_extension = 'ecolicore_false_multiple_csources'
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 3
+    hyperparams.filename_extension = 'ecolicore_false_multiple_csources2'
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] =1
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecolicore_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
@@ -111,7 +111,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
-def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float) -> PAMParametrizer:
+def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float, other_csources = False) -> PAMParametrizer:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e', 'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e', 'Fructose': 'EX_fru_e'}
 
     ecolicore_pam = setup_ecolicore_pam()
@@ -121,8 +121,12 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
             ecolicore_pam.change_reaction_bounds(uptake_rxn, lower_bound=0)
         except:
             continue
+    if other_csources:
+        csources = ['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
+    else:
+        csources = ['Glucose']
     validation_data = set_up_validation_data(
-        csources = ['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+        csources = csources)
     hyperparameters = set_up_hyperparameter()
 
     return PAMParametrizer(pamodel=ecolicore_pam,
@@ -133,7 +137,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
-    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE)
+    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE, other_csources=True)
 
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
