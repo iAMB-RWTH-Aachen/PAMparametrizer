@@ -39,6 +39,7 @@ class GAPO():
     
     def __init__(self, model=None,
                  enzymes_to_eval: dict = {},  #dict of enz.id:{reaction, kcat, sensitivity}
+                 translational_sector_config: dict = None, # dict of substrate_uptake_id: {slope, intercept} of configuration of translational sector
                  fitness_class = "Fitfun_params_uniform",
                  mutation_probability=0.5, mutation_rate=0.05, population_size=30,
                  crossover_probability=0.8, number_generations=20, number_gene_flow_events=10,
@@ -144,6 +145,7 @@ class GAPO():
         # Set up fitness evaluation class
         self.FitEval = self.fitness_class.FitnessEvaluation(
             model=self.model,
+            translational_sector_config = translational_sector_config,
             processes=processes,
             fixed_attr_list=fixed_attributes,
             valid_data = valid_data,

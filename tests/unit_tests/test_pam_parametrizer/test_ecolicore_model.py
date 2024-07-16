@@ -1,4 +1,5 @@
 from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer
+from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml1515
 from Scripts.pam_generation import setup_ecolicore_pam
 
 from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources
@@ -62,10 +63,10 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params()
     assert final_error_validation == pytest.approx(final_error_sut, 1e-2)
 
 def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same_as_for_genetic_algorithm():
-    #TODO
-    # Arrange
     #setup PAMparametrizer
     sut_param = set_up_pamparametrizer(-11, -0.1,other_csources = True)
+    sut_param.calculate_translational_sector_for_multiple_csources()
+    transl_sector_config = {vd.id: vd.translational_sector_config for vd in sut_param.validation_data}
 
     sut_param._init_validation_df(substrate_uptake_ids = sut_param.substrate_uptake_ids)
     sut_param._init_results_objects()
@@ -77,14 +78,19 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
 
     # set up genetic algorithm
     sut_ga = sut_param._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
-                                  enzymes_to_evaluate = {'4.1.2.55': {
-                                      'reaction':'ALCD2x', 'kcats': {'b':1/(3.0033* 3600*1e-6)} , 'sensitivity':0.1},
-                                      '1.3.5.4': {
-                                          'reaction': 'ICDHyr', 'kcats': {'f':1/(3.7271* 3600*1e-6),'b':1/(10.6819* 3600*1e-6)}, 'sensitivity': 0.1},
-                                      '2.4.2.29': {
-                                      'reaction':'CS', 'kcats': {'f':1/(32.018* 3600*1e-6)} , 'sensitivity':0.1}
-                                  },
-                                  filename_extension = '')
+                                               enzymes_to_evaluate = {
+                                                   '4.1.2.55': {
+                                                       'reaction':'ALCD2x', 'kcats': {'b': 1/(3.0033* 3600*1e-6)},
+                                                       'sensitivity': 0.1},
+                                                   '1.3.5.4': {
+                                                       'reaction': 'ICDHyr', 'kcats': {'f': 1/(3.7271* 3600*1e-6), 'b': 1/(10.6819* 3600*1e-6)},
+                                                       'sensitivity': 0.1},
+                                                   '2.4.2.29': {
+                                                       'reaction':'CS', 'kcats': {'f':1/(32.018* 3600*1e-6)},
+                                                       'sensitivity': 0.1}
+                                               },
+                                               translational_sector_config=transl_sector_config,
+                                               filename_extension = '')
     toolbox = sut_ga._init_deap_toolbox()
     toy_ga = sut_ga.ga
     population = toolbox.population(n=3)
@@ -100,6 +106,25 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
 
     # Assert
     assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-3)
+
+
+def test_pam_parametrizer_configures_translational_sector_correctly():
+    # Arrange
+    sut = set_up_pamparametrizer_iml1515(-11, -0.1)
+    #reset translational sector
+    sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config = None
+    #get the reference parameters
+    tps_0 = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+    tps_mu = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0]
+
+    # Apply
+    sut.calculate_translational_sector_for_multiple_csources()
+    transl_sector_config_sut = sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config
+
+    # Assert
+    assert transl_sector_config_sut['intercept'] == pytest.approx(tps_0, rel=1e-1)
+    assert transl_sector_config_sut['slope'] == pytest.approx(tps_mu, rel=1e-1)
+
 
 
 ########################################################################################################################

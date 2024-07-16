@@ -38,6 +38,10 @@ def set_up_validation_data(csources: list) -> list[ValidationData]:
     for csource in csources:
         if csource == 'Glucose':
             validation_data = set_up_valid_data_glucose(VALID_DATA_PATH)
+            validation_data.translational_sector_config = {
+                'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
+                'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+            }
             validation_data_objects.append(validation_data)
         elif csource in condition2uptake.keys():
             validation_data = set_up_valid_data_csource_not_glucose(

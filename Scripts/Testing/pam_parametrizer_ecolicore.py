@@ -38,6 +38,10 @@ def set_up_validation_data(csources:list) -> list[ValidationData]:
     for csource in csources:
         if csource == 'Glucose':
             validation_data = set_up_valid_data_glucose(VALID_DATA_PATH)
+            validation_data.translational_sector_config= {
+                'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
+                'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+            }
             validation_data_objects.append(validation_data)
         elif csource in condition2uptake.keys():
             validation_data = set_up_valid_data_csource_not_glucose(
@@ -81,7 +85,7 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
     valid_data_df[condition2uptake[csource] + '_ub'] = valid_data_df[condition2uptake[csource]]
     validation_data = ValidationData(valid_data_df, condition2uptake[csource], [-30, 0])
     validation_data._reactions_to_plot = list(valid_data_df.columns)
-    validation_data._reactions_to_validate = list(valid_data_df.columns)
+    validation_data._reactions_to_validate = list(valid_data_df.drop(condition2uptake[csource] + '_ub', axis=1).columns)
     return validation_data
 
 def set_up_hyperparameter() -> HyperParameters:

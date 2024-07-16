@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 import matplotlib.ticker as ticker
 
+from Modules.utils.sector_config_functions import run_simulations
+
 from Scripts.pam_generation import setup_ecolicore_pam
 from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer as set_up_pamparametrizer_ecolicore
 from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
@@ -16,16 +18,6 @@ RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
                    'EX_o2_e': 'Oxygen uptake [$mmol_[{O_2}/g_{CDW}/h$]',
                    'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]'}
 
-def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> list:
-    fluxes = []
-    for substrate in substrate_rates:
-        pamodel.change_reaction_bounds(rxn_id=sub_uptake_id,
-                                       lower_bound=substrate, upper_bound=0)
-        print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
-        sol_pam =pamodel.optimize()
-        if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
-            fluxes.append(sol_pam.fluxes)
-    return fluxes
 
 def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reactions_to_plot:list,
                     iteration:int = 0, color: int = None, max_iteration:int = 2) -> plt.Figure:

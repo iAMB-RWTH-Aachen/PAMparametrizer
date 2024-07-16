@@ -1,4 +1,4 @@
-from typing import Union, Tuple
+from typing import Union, Tuple, Iterable
 import numpy as np
 import os
 import time
@@ -17,14 +17,16 @@ from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationRe
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction
 from Modules.utils.sampling_functions import adaptive_sampling
-from Modules.utils.sector_config_functions import get_model_simulations_vs_sector, perform_linear_regression
+from Modules.utils.sector_config_functions import get_model_simulations_vs_sector, perform_linear_regression, change_translational_sector_with_config_dict
 
 
 class PAMParametrizer():
 
     #from Schmidt et al(2016):
-    TRANSL_SECTOR_INTERCEPT = 0.04738115630907698#g / g_cdw
-    TRANSL_SECTOR_SLOPE = 0.04806975534478209 #g / g_cdw / h
+    TRANSL_SECTOR_INTERCEPT_vs_MU = 0.04738115630907698#g / g_cdw
+    TRANSL_SECTOR_SLOPE_vs_MU = 0.04806975534478209 #g / g_cdw / h
+    TRANSL_SECTOR_INTERCEPT_vs_GLC = 0.046136644909661115#g / g_cdw
+    TRANSL_SECTOR_SLOPE_vs_GLC = -0.004340256958025938 #g / mmol_glc / h
     MEASURED_PROTEIN_FRACTION = 0.55*0.55
 
     def __init__(self, pamodel:PAModel,
@@ -140,30 +142,30 @@ class PAMParametrizer():
     def calculate_translational_sector_for_multiple_csources(self):
         #generate a pam with only the translational sector
         pamtransl = self.pamodel.copy()
-        pamtransl.remove_sectors(['UnusedEnzymeSector', 'ActiveEnzymeSector'])
+        pamtransl.sensitivity = False #this will speed the simulations up
+        #remove total protein to remove protein relations
+        pamtransl.remove_cons_vars([pamtransl.constraints[pamtransl.TOTAL_PROTEIN_CONSTRAINT_ID]])
 
-        #change the translational sector to per growth rate
-        pamtransl.change_sector_parameters(pamtransl.sectors.get_by_id('TranslationalProteinSector'),
-                                           self.TRANSL_SECTOR_SLOPE, self.TRANSL_SECTOR_INTERCEPT,
-                                           self.pamodel.BIOMASS_REACTION)
         for vd in self.validation_data:
+            if vd.translational_sector_config is not None: continue
             sub_upt_id = vd.id
-            step = (vd.substrate_range[0]- vd.substrate_range[1])/5
-            substrate_range = np.arange(vd.substrate_range[0], vd.substrate_range[1], step)
+            #to prevent overflow metabolism, only select the lower growth rates to derive the equation
+            substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
             #get the simulations for relatively low substrate uptake rates
             simulation_results = get_model_simulations_vs_sector(pamodel = pamtransl,
                                                                  sub_uptake_rxn = sub_upt_id,
-                                                                 biomass_rxn = self.pamodel.BIOMASS_REACTION,
+                                                                 rxn_id_to_relate_to = self.pamodel.BIOMASS_REACTION,
                                                                  substrate_range = substrate_range,
-                                                                 intercept = self.TRANSL_SECTOR_INTERCEPT,
-                                                                 slope = self.TRANSL_SECTOR_SLOPE)
-            slope, intercept = perform_linear_regression(
+                                                                 intercept = self.TRANSL_SECTOR_INTERCEPT_vs_MU,
+                                                                 slope = self.TRANSL_SECTOR_SLOPE_vs_MU)
+            if len(simulation_results)==0 or len(simulation_results[sub_upt_id].unique()) ==1: # model was infeasible for all datapoints or did not change at all
+                slope, intercept = self.TRANSL_SECTOR_SLOPE_vs_GLC, self.TRANSL_SECTOR_INTERCEPT_vs_GLC
+            else:
+                slope, intercept = perform_linear_regression(
                 x=simulation_results[sub_upt_id], y=simulation_results['translational_protein'])
-            vd.translation_sector_config = {'slope':slope*self.MEASURED_PROTEIN_FRACTION,
-                                                          'intercept':intercept*self.MEASURED_PROTEIN_FRACTION
-                                                          }
+                # slope, intercept = slope * self.MEASURED_PROTEIN_FRACTION, intercept*self.MEASURED_PROTEIN_FRACTION
+            vd.translational_sector_config = {'slope':slope,'intercept':intercept}
 
-        #TODO: unit test this thing!
 
     def perform_iteration_in_bins(self, start_time:float) -> list:
         self._init_results_objects()
@@ -173,6 +175,7 @@ class PAMParametrizer():
 
         # 2. Run model in bins, get sensitivities and calculate errors
         for subst_uptake_id, binned_substrate in binned_substrates.items():
+            self._change_translational_sector_for_substrate(substrate_uptake_id=subst_uptake_id)
             for bin_id, bin_info in binned_substrate.items():
                 self.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id = subst_uptake_id)
                 # print running time to check on progress
@@ -209,10 +212,13 @@ class PAMParametrizer():
         # substrate_rates = self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
         substrate_rates = {valid_data.id:
                                valid_data.sampled_valid_data[valid_data.id + '_ub'] for valid_data in self.validation_data}
+        translation_configs = {valid_data.id:
+                               valid_data.translational_sector_config for valid_data in self.validation_data}
 
 
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
                                           enzymes_to_evaluate=enzymes_to_evaluate,
+                                          translational_sector_config = translation_configs,
                                           filename_extension=f'final_run_{self.iteration}')
         ga.start()
 
@@ -310,6 +316,7 @@ class PAMParametrizer():
             - Either bin_information or substrate_uptake_rates should be defined in order to define the substrate uptake
                     rates to constrain the model
         """
+        self._change_translational_sector_for_substrate(substrate_uptake_reaction)
         if bin_information is not None:
             start, stop, step = bin_information[0], bin_information[1], bin_information[2]
             substrate_range = np.arange(start, stop, step)
@@ -409,10 +416,8 @@ class PAMParametrizer():
         error = []
         for valid_data in self.validation_data:
             substrate_uptake_id = valid_data.id
-            print(substrate_uptake_id)
             reactions_to_validate = valid_data._reactions_to_validate
             validation_df = valid_data.sampled_valid_data#.apply(lambda x: x.abs() if x.dtype!='object' else x)
-
 
             # self._init_validation_df(bin_information=[self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
             error += [self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
@@ -423,6 +428,8 @@ class PAMParametrizer():
 
             #remove the simulations from the result dataframe
             self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,'final')
+
+        vid = [vd.id for vd in self.validation_data]
         final_error = np.nanmean(error)
         print('The final error is ', final_error)
 
@@ -509,24 +516,9 @@ class PAMParametrizer():
                 indiv_kcat_values_all_bins = indiv_kcat_values_bin
             else:
                 indiv_kcat_values_all_bins = pd.concat([indiv_kcat_values_all_bins, indiv_kcat_values_bin])
-        #
-        # duplicate_enzymes = indiv_kcat_values_all_bins[
-        #     indiv_kcat_values_all_bins.duplicated(subset = ['id','direction','rxn_id'],keep=False)]
-        # indiv_kcat_values_all_bins = indiv_kcat_values_all_bins[
-        #     ~indiv_kcat_values_all_bins.index.isin(duplicate_enzymes.index)]
-
 
         enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
                                 nmbr_kcats_to_pick= self.hyperparameters.number_of_kcats_to_mutate)
-        #add the enzymes resulting from the enzymes to evaluate list
-        # for i,row in indiv_kcat_values_all_bins.drop_duplicates(['id', 'direction', 'rxn_id']).iterows():
-        #     #current best solution
-        #     kcat_not_parsed = self.pamodel.enzymes.get_by_id(row.id).rxn2kcat[row.rxn_id][row.direction]
-        #     kcat = 1/(kcat_not_parsed* 3600 * 1e-6)
-        #     #append solution to enzymes to evaluate
-        #     enzymes_to_evaluate[row['id']] = {'reaction': row.rxn_id, 'direction': row.direction,
-        #                                       'kcat':kcat,'sensitivity':0.7}#TODO parse sensitivity
-
         if enzymes_to_evaluate is None: return None
 
 
@@ -599,12 +591,18 @@ class PAMParametrizer():
             figure: figure to save (progress figure)
         """
         figure.savefig(self.result_figure_file, dpi=100, bbox_inches='tight')
+        transl_sector_config = pd.DataFrame(columns = ['substrate_uptake_id', 'slope', 'intercept'])
+        for vd in self.validation_data:
+            transl_sector_config.loc[len(transl_sector_config)] = [vd.id, vd.translational_sector_config['slope'],
+                                                                   vd.translational_sector_config['intercept']]
+
         with pd.ExcelWriter(self.result_diagnostics_file) as writer:
             # Write each DataFrame to a specific sheet
             self.parametrization_results.best_individuals.to_excel(writer, sheet_name='Best_Individuals', index=False)
             self.parametrization_results.computational_time.to_excel(writer, sheet_name='Computational_Time',
                                                                      index=False)
             self.parametrization_results.final_errors.to_excel(writer, sheet_name='Final_Errors', index=False)
+            transl_sector_config.to_excel(writer, sheet_name='translational_sector', index = False)
 
     def add_new_substrate_source(self, new_substrate_uptake_id:str,
                                  validation_data: pd.DataFrame,
@@ -624,6 +622,25 @@ class PAMParametrizer():
     ###########################################################################################################
     #WORKER FUNCTIONS
     ###########################################################################################################
+    def _change_translational_sector_for_substrate(self, substrate_uptake_id: str) -> None:
+        transl_sector_config = self.validation_data.get_by_id(substrate_uptake_id).translational_sector_config
+        change_translational_sector_with_config_dict(self.pamodel, transl_sector_config, substrate_uptake_id)
+
+    def _get_substrate_range_lower_substrate_conc(self, validation_range:list[Union[int, float]], number_of_steps: int = 5) -> Iterable:
+        #only loop over the low growth rates, to prevent overflow like metabolism to interfere with the derivation of a linear equation
+        # Determine the range to loop over based on absolute values
+        start = min(abs(validation_range[0]), abs(validation_range[1])) / 2
+        end = max(abs(validation_range[0]), abs(validation_range[1])) / 2
+        step = abs(start-end)/number_of_steps
+
+        # Create the substrate range
+        substrate_range = np.arange(start, end, step)
+
+        # Adjust the sign if the original range was negative
+        if validation_range[0] < 0 and validation_range[1] < 0:
+            substrate_range = -substrate_range[::-1]
+        return substrate_range
+
     def _pamodel_is_feasible(self):
         #check for feasibility at a mid substrate uptake rate
         self.pamodel.test((self.max_substrate_uptake_rate -self.min_substrate_uptake_rate/2))
@@ -684,6 +701,7 @@ class PAMParametrizer():
 
     def _init_genetic_algorithm(self, substrate_uptake_rates: dict,
                                 enzymes_to_evaluate: dict,
+                                translational_sector_config: dict,
                                 filename_extension:str) -> GAPOGauss:
         """
         Initializes the core genetic algorithm object.
@@ -707,6 +725,14 @@ class PAMParametrizer():
                         'sensitivity': esc_value
                     }
                 }
+            translational_sector_config (dict of dict): Dictionary with the slope and intercept of the translational
+                sector configuration for each substrate.
+                Format:
+                {'substrate_uptake_id':{
+                    'slope':float, #slope in g/mmol/h
+                    'intercept':float #intercept in g/mmol
+                    }
+                }
             filename_extension (str): Extension of the base filename to save the result of the genetic algorithm.
 
         Returns:
@@ -718,6 +744,7 @@ class PAMParametrizer():
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel,
             enzymes_to_eval= enzymes_to_evaluate,
+            translational_sector_config = translational_sector_config,
             valid_data = {valid_data.id: valid_data.sampled_valid_data for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,
@@ -760,7 +787,6 @@ class PAMParametrizer():
 
         #no substrate uptake rates in the requested range
         if len([rate for rate in substrate_rates.values()]) == 0:return None
-
         return substrate_rates
         # get reference datapoints
 
@@ -775,20 +801,12 @@ class PAMParametrizer():
 
 
     def _init_results_objects(self):
-        # self.parametrization_results.esc_df = pd.DataFrame(columns=['bin', 'substrate', 'enzyme_id', 'rxn_id'])
-        # self.parametrization_results.initiate_bins_to_change()
-
         reactions_to_validate_dict = {}
         for rxn in self.parametrization_results.substrate_uptake_reactions:
             reactions_to_validate_dict[rxn] = self.validation_data.get_by_id(rxn)._reactions_to_validate
 
         self.parametrization_results.initiate_result_dfs(reactions_to_validate=reactions_to_validate_dict)
 
-            # flux_results = self.parametrization_results.flux_results.get_by_id(rxn)
-            # flux_results.error_df = pd.DataFrame(columns=['bin'] + reactions_to_validate)
-            # flux_results.fluxes_df = pd.DataFrame(columns=['bin', 'substrate'] + reactions_to_validate)
-        # self.parametrization_results.initiate_result_dfs(reactions_to_validate=reactions_to_validate,
-        #                                                   biomass_reaction=self.validation_data._get_biomass_reactions())
 
     def _select_topn_enzymes(self, esc_results_df: pd.DataFrame, nmbr_kcats_to_pick:int) -> pd.DataFrame:
         """
@@ -879,8 +897,6 @@ class PAMParametrizer():
                                                                flux_df)
 
             error += [r_squared]
-
-        print(substrate_uptake_id, error, reactions_to_validate)
 
         return np.average(error)
 
@@ -1105,6 +1121,8 @@ class PAMParametrizer():
         #get the old bounds for resetting
 
         lb, ub = -self.pamodel.constraints[substrate_uptake_id+ '_lb'].ub, self.pamodel.constraints[substrate_uptake_id+ '_ub'].ub
+        self._change_translational_sector_for_substrate(substrate_uptake_id)
+
         if substrate_rates is None:
             step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
             substrate_rates = np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step)

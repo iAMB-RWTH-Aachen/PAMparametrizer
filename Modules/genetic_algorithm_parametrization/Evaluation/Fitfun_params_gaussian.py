@@ -18,6 +18,8 @@ from typing import Union
 from ..core_parametrization_gaussian import MyFitness
 
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction
+from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
+
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
 DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
@@ -31,13 +33,22 @@ class FitnessEvaluation():
     KCAT_SIGMA = 1e2
     NUM_KCATS = 5
 
-    def __init__(self, model=None, fixed_attr_list=[], processes=2, objective_id=str(),
+    def __init__(self, model=None, translational_sector_config:dict = None,
+                 fixed_attr_list=[], processes=2, objective_id=str(),
                  valid_data = dict(), sigma_denominator:int = 10, error_weights: dict = {},
                  substrate_uptake_rates = {'EX_glc__D_e':[0.7, 11.3]}, substrate_uptake_id = 'EX_glc__D_e'):
         """Initialize fitness evaluation class for a genetic algorithm
         
         Args:
-            cobra.core.Model model: Metabolic model in COBRA format
+            cobra.core.Model: Metabolic model in COBRA format
+            translational_sector_config (dict of dict): Dictionary with the slope and intercept of the translational
+                sector configuration for each substrate.
+                Format:
+                {'substrate_uptake_id':{
+                    'slope':float, #slope in g/mmol/h
+                    'intercept':float #intercept in g/mmol
+                    }
+                }
             fixed_attr_list: Identifiers of attributes not to be used as solution variables
             processes: Number of workers available (unused here)
             objective_id: identifier of the objective function
@@ -59,6 +70,7 @@ class FitnessEvaluation():
         self.growth_rate = {}
         self.reactions_with_data = {}
         self.substrate_uptake_rates = {}
+        self.translational_sector_config = translational_sector_config
 
         # only get exchanges and growth rate
         for substr_uptake, valid_data_df in valid_data.items():
@@ -263,8 +275,11 @@ class FitnessEvaluation():
             columns = ['substrate'] + self.reactions_with_data[substr_uptake]
         ) for substr_uptake in self.reactions_with_data.keys()}
         error = []
-        weigths = []
         for substrate_uptake_id, fluxes_df in fluxes.items():
+            if self.translational_sector_config is not None:
+                change_translational_sector_with_config_dict(self.model,
+                                                             self.translational_sector_config[substrate_uptake_id],
+                                                             substrate_uptake_id)
             for rate in self.substrate_uptake_rates[substrate_uptake_id]:
                 new_row = [rate] + [0] * len(fluxes_df.columns[1:])
                 fluxes_df.loc[len(fluxes_df)] = new_row
@@ -294,8 +309,7 @@ class FitnessEvaluation():
 
             # reset substrate_uptake_rate
             self.model.change_reaction_bounds(substrate_uptake_id,
-                                              lower_bound=0, upper_bound=0)
-
+                                              lower_bound=0, upper_bound=1e6)
         #average fitness:
         fitness = float(np.nanmean(error)) #TODO have to implement the weigths again, but this gives errors for now
         individual.r_squared = fitness
@@ -377,5 +391,6 @@ class FitnessEvaluation():
                 if rxn in self.weights.keys(): weights.append(self.weights[rxn])
                 else: weights.append(1)
         if len(error) == 0: return np.NaN
+
 
         return np.average(error, weights = weights)

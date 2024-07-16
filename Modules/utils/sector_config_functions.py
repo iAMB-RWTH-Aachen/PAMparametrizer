@@ -1,8 +1,6 @@
 from scipy.stats import linregress
 import plotly.graph_objs as go
 import pandas as pd
-import numpy as np
-from Scripts.Visualization.PAMparametrizer_progress_cleaned_figure import run_simulations
 
 def perform_linear_regression(x, y):
     result = linregress(x=x,y=y)
@@ -20,13 +18,17 @@ def reset_translational_sector(pamodel, slope, intercept, new_id = None):
     pamodel.add_sectors([transl_sector])
     return pamodel
 
-def get_model_simulations_vs_sector(pamodel, sub_uptake_rxn, biomass_rxn, substrate_range, intercept, slope, sector_name ='translational_protein'):
+def get_model_simulations_vs_sector(pamodel, sub_uptake_rxn, rxn_id_to_relate_to, substrate_range, intercept, slope, sector_name ='translational_protein'):
     # run the model
     simulations_transl_vs_subst = run_simulations(pamodel, substrate_range, sub_uptake_rxn)
-    simulation_results = pd.DataFrame(columns=[sub_uptake_rxn, biomass_rxn, sector_name])
+    if sub_uptake_rxn == rxn_id_to_relate_to:
+        columns = [sub_uptake_rxn, sector_name]
+    else:
+        columns = [sub_uptake_rxn, rxn_id_to_relate_to, sector_name]
+    simulation_results = pd.DataFrame(columns=columns)
     for i, sim in enumerate(simulations_transl_vs_subst):
-        sim[sector_name] = intercept + slope * sim[biomass_rxn]
-        simulation_results.loc[i] = [sim[sub_uptake_rxn], sim[biomass_rxn], sim[sector_name]]
+        sim[sector_name] = intercept + slope * sim[rxn_id_to_relate_to]
+        simulation_results.loc[i] = [sim[col] for col in columns]
 
     return simulation_results
 
@@ -88,3 +90,10 @@ def plot_unused_protein_vs_mu(results, ups_molmass, biomass_rxn):
     fig.update_traces(marker_size=10)
     fig.update_layout(font=dict(size=12), title='Glucose limitation')
     fig.show()
+
+def change_translational_sector_with_config_dict(pamodel, transl_sector_config:dict, substrate_uptake_id:str) -> None:
+    pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),
+                                              slope=transl_sector_config['slope'],
+                                              intercept=transl_sector_config['intercept'],
+                                    lin_rxn_id=substrate_uptake_id
+                                     )

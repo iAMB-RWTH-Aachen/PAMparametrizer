@@ -382,6 +382,7 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     #remove produced files
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
+
 def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     # Arrange
     sut = PAMParametrizerMock()
@@ -428,7 +429,7 @@ def bin_substrate() -> dict:
 
     return valid_binned_substrate
 
-def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict) -> tuple:
+def run_pamodel_binned(pamodel:PAModelpy.PAModel, bin_information:dict) -> tuple:
     fluxes = {}
     esc = {}
     for bin_id, bin_info in bin_information.items():
