@@ -17,7 +17,7 @@ from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMPara
 
 
 
-max_substrate_uptake_rate = 0.01
+max_substrate_uptake_rate = 0.1
 min_substrate_uptake_rate = 0.001
 
 
@@ -294,7 +294,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
 
 def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     # Arrange
-    kcat = 5
+    kcat = 6
     enzyme_id = 'E1'
     reaction_id = 'R1'
     kcat_dict = {reaction_id: {'f': kcat}}
@@ -308,19 +308,21 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     sut = PAMParametrizerMock()
     ga = sut._init_genetic_algorithm(substrate_rates,
                                      enzymes_to_evaluate,
+                                     translational_sector_config= {'R1':
+                                                                       sut.validation_data.R1.translational_sector_config},
                                      filename_extension=''
                                      )
     #for the genetic algorithm we need a dummy individual to change the kcat
     toolbox = ga._init_deap_toolbox()
     population = ga.ga.init_pop(toolbox, ga.population_size, True)
     individual = population[0]
-    individual.kcat_list = [1/(kcat*3600*1e-6)]
+    # individual.kcat_list = [1/(kcat*3600*1e-6)]
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
-    ga.FitEval._change_kcat_values_for_individual(individual)
-
     kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+
+    ga.FitEval._change_kcat_values_for_individual(individual)
     kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
 
     # Assert
@@ -410,7 +412,7 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
 
     # Assert
     # Expect a perfect fit, as the same model was used to generate the validation data
-    assert error == 1
+    assert error == pytest.approx(1, abs = 1e-5)
 
 
 #########################################################################################################################
@@ -475,7 +477,8 @@ def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
 
     for bin_id, bin_info in bin_information.items():
         filename_extension_bin = filename_extension + str(bin_id)
-        sut.run_genetic_algorithm(esc_topn_df_dummy, filename_extension_bin)
+        sut.run_genetic_algorithm(esc_topn_df_dummy,
+                                  filename_extension_bin)
 
     return sut
 

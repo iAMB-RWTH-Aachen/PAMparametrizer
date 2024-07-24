@@ -169,5 +169,7 @@ class FluxResults:
 
     def add_error_to_error_df(self, bin_id:Union[int, str], error: float):
         self.error_df.loc[len(self.error_df)] = [bin_id] + error
+        print(self.error_df)
+
     def remove_simulations_from_flux_df(self, bin_id)-> None:
         self.fluxes_df = self.fluxes_df[self.fluxes_df['bin'] != bin_id]

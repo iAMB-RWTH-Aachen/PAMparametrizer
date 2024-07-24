@@ -2,7 +2,8 @@ from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer
 from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml1515
 from Scripts.pam_generation import setup_ecolicore_pam
 
-from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources
+from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import (save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources,
+                                                                          get_kcat_values_from_model)
 
 from scipy.stats import linregress
 import pytest
@@ -42,7 +43,7 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params()
     # Arrange
     pam_params_path = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_py.xls')
     old_params_pam = setup_ecolicore_pam(pam_data_file_path = pam_params_path)
-    new_params_pam = setup_ecolicore_pam()
+    new_params_pam = setup_ecolicore_pam() # parameters from GotEnzymes
 
 
     # Act
@@ -125,6 +126,43 @@ def test_pam_parametrizer_configures_translational_sector_correctly():
     assert transl_sector_config_sut['intercept'] == pytest.approx(tps_0, rel=1e-1)
     assert transl_sector_config_sut['slope'] == pytest.approx(tps_mu, rel=1e-1)
 
+def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
+    # Arrange
+    kcat = 5
+    enzyme_id = '3.4.13.-'
+    reaction_id = 'ME1'
+    kcat_dict = {reaction_id: {'f': kcat}}
+    enzymes_to_evaluate = {enzyme_id: {
+                        'reaction': reaction_id,
+                        'kcats': {'f':kcat},
+                        'sensitivity': 0.1}}
+    substrate_rates = {'EX_glc_D__e':[-6,-5]}
+
+    #set up parametrizer and genetic algorithm objects
+    sut = set_up_pamparametrizer(-11, -0.1)
+    ga = sut._init_genetic_algorithm(substrate_rates,
+                                     enzymes_to_evaluate,
+                                     translational_sector_config= {'EX_glc__D_e':
+                                                                       sut.validation_data.EX_glc__D_e.translational_sector_config},
+                                     filename_extension=''
+                                     )
+    #for the genetic algorithm we need a dummy individual to change the kcat
+    toolbox = ga._init_deap_toolbox()
+    population = ga.ga.init_pop(toolbox, ga.population_size, True)
+    individual = population[0]
+    individual.kcat_list = [1/(kcat*3600*1e-6)]
+
+    # Act
+    sut._change_kcat_value_for_enzyme(enzyme_id=enzyme_id, kcat_dict=kcat_dict)
+    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+
+    ga.FitEval._change_kcat_values_for_individual(individual)
+    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+
+    # Assert
+    assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)
+    assert kcat == pytest.approx(kcat_model_sut, abs = 1e-3)
+    assert kcat == pytest.approx(kcat_model_ga, abs = 1e-3)
 
 
 ########################################################################################################################
@@ -216,7 +254,7 @@ def evaluate_model_fitness(model, validation_results:pd.DataFrame,
     return np.nanmean(error)
 
 def calculate_simulation_error_with_parametrizer_for_model(pamodel, other_csources = False):
-    parametrizer = set_up_pamparametrizer(-11, -0.1, other_csources)
+    parametrizer = set_up_pamparametrizer(-10, -0.1, other_csources)
     parametrizer.pamodel = pamodel
     parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_validate = RXNS_TO_VALIDATE
     parametrizer._init_results_objects()
@@ -233,6 +271,8 @@ def calculate_simulation_error_with_parametrizer_for_model(pamodel, other_csourc
                                                                       substrate_reaction_id='EX_glc__D_e',
                                                                       substrate_uptake_rate=substrate_rate,
                                                                       fluxes_abs=False)
+
+        print(parametrizer.parametrization_results.flux_results.get_by_id('EX_glc__D_e').fluxes_df)
     print(parametrizer.validation_data)
 
     return parametrizer.calculate_final_error(), parametrizer, substrate_range

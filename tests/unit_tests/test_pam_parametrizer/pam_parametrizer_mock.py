@@ -42,6 +42,7 @@ class PAMParametrizerMock(PAMParametrizer):
         validation_data.sampled_valid_data = valid_data_df
         validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
         validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
+        validation_data.translational_sector_config = {'intercept': 0.01*1e-3, 'slope': 0.01*1e-3}
         return validation_data
 
     def set_up_hyperparameter_mock(self):

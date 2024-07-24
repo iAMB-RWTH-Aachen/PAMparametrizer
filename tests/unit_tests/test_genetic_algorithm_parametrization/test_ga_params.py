@@ -9,6 +9,8 @@ from typing import Union
 from deap.base import Fitness
 
 from Modules.genetic_algorithm_parametrization import GAPOUniform
+from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict, get_model_simulations_vs_sector, perform_linear_regression
+
 from Scripts.pam_generation import setup_toy_pam
 
 
@@ -213,10 +215,13 @@ def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources
     expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
                                                                                            other_substrate_reaction,
                                                                                            substrate_uptake_rates)
+    print(expected_flux_results)
     # Change the validation data object in the genetic algorithm
     sut.FitEval.valid_data = {**sut.FitEval.valid_data, **{other_substrate_reaction:expected_flux_results}}
     sut.FitEval.substrate_uptake_rates[other_substrate_reaction] = substrate_uptake_rates
     sut.FitEval.reactions_with_data[other_substrate_reaction] = reactions_to_validate
+    sut.FitEval.translational_sector_config = {'R1': {'slope':0.01, 'intercept':0.01},
+                                             'R9': {'slope':0, 'intercept':0.01*1e-3}}
 
     # Set up a population for comparison
     toolbox = sut._init_deap_toolbox()
@@ -227,6 +232,24 @@ def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources
     fitnesses_from_ga = [fit._wsum() for fit in map(toolbox.evaluate, population)]
     # Expect a perfect fit, as the same model was used to generate the validation data
     assert fitnesses_from_ga[0] == 1
+
+def test_fitness_evaluation_configures_translational_sector_correctly():
+    # Arrange
+    sut = GeneticAlgorithmMock()
+    slope = 1
+    intercept = 0.01
+    tps_0 = sut.FitEval.model.sectors.get_by_id('TranslationalProteinSector').intercept
+    tot_prot = sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub + tps_0
+
+    # Apply
+    change_translational_sector_with_config_dict(sut.FitEval.model,
+                                                 {'slope': slope, 'intercept': intercept},
+                                                 'R1')
+    # Assert
+    rxn = sut.FitEval.model.reactions.R1
+    coeff = sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
+    assert sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub == tot_prot-intercept
+    assert -slope == coeff
 
 
 

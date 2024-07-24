@@ -178,7 +178,8 @@ class GAPO():
         # initialize populations (multiprocessing)
         if self.print_progress:
             print("({}) Initialize population --".format(print_time()))
-            
+
+
         with Pool(processes=self.processes) as pool:
             pops = pool.starmap(
                 self.ga.init_pop,
@@ -544,8 +545,6 @@ class GAPO():
             if self.print_progress:
                 print('Time left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
 
-        
-        
         return pops
     
     

@@ -48,13 +48,13 @@ class Genetic_Algorithm():
         
         
         """
-        
         # create an initial population
         pop = toolbox.population(n=population_size)
+
         if evaluate_fitness:
             # evaluate the fitness of the population
             pop = self.evaluate_pop(pop, toolbox)
-  
+
         return pop
     
     

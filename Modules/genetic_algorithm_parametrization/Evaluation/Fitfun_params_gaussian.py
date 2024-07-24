@@ -87,7 +87,7 @@ class FitnessEvaluation():
 
         # initialize metabolic model
         self.init_model(model)
-        
+
         
     ##########################################################################
     # NECESSARY CUSTOM FUNCTION
@@ -101,6 +101,8 @@ class FitnessEvaluation():
         
         """
         self.model = model
+        self.totprot_start_ub = self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub
+        self.tps_intercept = self.model.sectors.get_by_id('TranslationalProteinSector').intercept
 
 
     def compute_individuals_properties(self, pop) -> list:
@@ -180,7 +182,7 @@ class FitnessEvaluation():
         # defines the weighting of the fitness functions
         # negative/positive weights minimize/maximize the objective function
         param_fit["weights"] = (1,) # must be a tuple so single and multi objective functions can be treated equally
-        
+
         return param_fit
         
     
@@ -235,7 +237,6 @@ class FitnessEvaluation():
         """
         
         param_ind = {}
-        
 
         # create individuals represnting metabolic genes as variables/targets
         # creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -260,6 +261,7 @@ class FitnessEvaluation():
             :param int fitness: fitness of the current individual evaluated
         
         """
+        self._reset_translational_sector()#something is wrong with the copying, so we have to reset the tps to it's initial parameters
 
         # apply kcat changes and compute metabolic functionalities
         reactions = [self.model.reactions.get_by_id(rxn) for rxn in individual.reactions]
@@ -275,6 +277,7 @@ class FitnessEvaluation():
             columns = ['substrate'] + self.reactions_with_data[substr_uptake]
         ) for substr_uptake in self.reactions_with_data.keys()}
         error = []
+
         for substrate_uptake_id, fluxes_df in fluxes.items():
             if self.translational_sector_config is not None:
                 change_translational_sector_with_config_dict(self.model,
@@ -308,8 +311,12 @@ class FitnessEvaluation():
             error += [self._calculate_simulation_error(fluxes_df, substrate_uptake_id)]
 
             # reset substrate_uptake_rate
-            self.model.change_reaction_bounds(substrate_uptake_id,
+            if self.substrate_uptake_rates[substrate_uptake_id][0]<0:
+                self.model.change_reaction_bounds(substrate_uptake_id,
                                               lower_bound=0, upper_bound=1e6)
+            else:
+                self.model.change_reaction_bounds(substrate_uptake_id,
+                                              lower_bound=-1e6, upper_bound=0)
         #average fitness:
         fitness = float(np.nanmean(error)) #TODO have to implement the weigths again, but this gives errors for now
         individual.r_squared = fitness
@@ -330,6 +337,10 @@ class FitnessEvaluation():
     ##########################################################################
     # CUSTOM HELPER FUNCTIONS
     ##########################################################################
+
+    def _reset_translational_sector(self):
+        self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub = self.totprot_start_ub
+        self.model.sectors.get_by_id('TranslationalProteinSector').intercept = self.tps_intercept
 
     def _mutate_kcat_value(self, kcat:float, sensitivity:float = 0.5, toolbox:deap.base.Toolbox = None) -> float:
         """
