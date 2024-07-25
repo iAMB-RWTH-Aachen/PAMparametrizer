@@ -11,11 +11,13 @@ import pytest
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.utils import calculate_r_squared_for_reaction
 from Scripts.pam_generation import setup_toy_pam
-from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import evaluate_toy_model_fitness
+from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import (evaluate_toy_model_fitness,
+                                                                                    get_toy_model_simulations_other_csource)
 from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
 
 
-max_substrate_uptake_rate = 0.01
+
+max_substrate_uptake_rate = 0.1
 min_substrate_uptake_rate = 0.001
 
 
@@ -30,8 +32,9 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_without_splitting():
 
     # act
     sut_binned_substrate = sut._bin_substrate_uptake_rates()
+
     # assert
-    assert valid_binned_substrate == sut_binned_substrate
+    assert valid_binned_substrate == sut_binned_substrate['R1']
 
 def test_pam_parametrizer_binning_substrate_uptake_rates_with_splitting():
     #arrange
@@ -45,7 +48,7 @@ def test_pam_parametrizer_binning_substrate_uptake_rates_with_splitting():
     sut.parametrization_results.bins_to_change['bin'] = [bin_nmbr_to_split]
 
     #act
-    sut_binned_substrate = sut._bin_substrate_uptake_rates()
+    sut_binned_substrate = sut._bin_substrate_uptake_rates()['R1']
 
     del valid_binned_substrate[bin_nmbr_to_split]
     splitted_bins = {bin_nmbr_to_split: [start, start+bin_range * 0.5, step*0.5],
@@ -64,7 +67,7 @@ def test_pam_parametrizer_saves_results_of_simulation_correctly():
     pamodel = setup_toy_pam()
 
     #act
-    sut.run_pamodel_simulations_in_bin(bin_id, bin_information)
+    sut.run_pamodel_simulations_in_bin('R1', bin_id, bin_information)
     fluxes, esc_coeff_df = run_pamodel_binned(pamodel, {bin_id:bin_information})
     #need to make sure the order is correct
     esc_coeff_df = esc_coeff_df[1].reindex(columns=sut.parametrization_results.esc_df.columns)
@@ -118,9 +121,9 @@ def test_pam_parametrizer_calculates_r_squared_correctly():
     fluxes, esc_coeff_df = run_pamodel_binned(pamodel, {bin_id:bin_information})
     validation_data_mock = fluxes[bin_id]
     validation_data_mock['R1_ub'] = validation_data_mock['R1']
-    sut.run_pamodel_simulations_in_bin(bin_id, bin_information)
+    sut.run_pamodel_simulations_in_bin('R1', bin_id, bin_information)
 
-    flux_df = sut.parametrization_results.fluxes_df
+    flux_df = sut.parametrization_results.flux_results.get_by_id('R1').fluxes_df
     # check if we want to calculate the error for a single bin
     flux_df = flux_df[flux_df['bin'] == bin_id]
 
@@ -143,7 +146,7 @@ def test_pam_parametrizer_determines_most_sensitive_enzymes_correctly():
     bin_id = 1
     bin_information = [0.08, 0.09, 0.01 / 5]
     #we need to run simulations before we can parse the results
-    sut.run_pamodel_simulations_in_bin(bin_id, bin_information)
+    sut.run_pamodel_simulations_in_bin('R1', bin_id, bin_information)
 
     # Act
     esc_topn_df = sut.determine_most_sensitive_enzymes(bin_id,
@@ -171,9 +174,9 @@ def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
         'mean': [0.5, 0.2, 0.1]
     })
 
-    enzymes_to_evaluate_validation = {'E3':{'reaction':'R3','kcats':{'f':1/(3600*1e-6),'b':1/(3600*1e-6)}, 'sensitivity':0.5},
-                                      'E4':{'reaction':'R4','kcats': {'f':0.5/(3600*1e-6), 'b':0.5/(3600*1e-6)}, 'sensitivity':0.2},
-                                      'E5':{'reaction':'R5','kcats':{'f':0.45/(3600*1e-6), 'b':0.45/(3600*1e-6)}, 'sensitivity':0.1}}
+    enzymes_to_evaluate_validation = {'E3':{'reaction':'R3','kcats':{'f':1,'b':1}, 'sensitivity':0.5},
+                                      'E4':{'reaction':'R4','kcats': {'f':1/0.5, 'b':1/0.5}, 'sensitivity':0.2},
+                                      'E5':{'reaction':'R5','kcats':{'f':1/0.45, 'b':1/0.45}, 'sensitivity':0.1}}
 
     # Act
     enzymes_to_evaluate_to_test = sut._parse_enzymes_to_evaluate(esc_topn_df_dummy)
@@ -196,7 +199,7 @@ def test_if_genetic_algorithm_runs():
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
 
     # Act
-    sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension)
+    sut.run_genetic_algorithm(esc_topn_df_dummy, filename_extension)
 
     # Assert
     # check if filenames are present
@@ -229,7 +232,7 @@ def tests_pam_parametrizer_parses_enzymes_to_evaluate_for_all_bins_correctly():
     #run in regions where we know that there is protein limitation and there are thus non-zero esc
     bin_information = {1: [0.07, 0.08, 0.01 / 5], 2: [0.08, 0.09, 0.01 / 5], 3: [0.09, 0.1, 0.01 / 5]}
     for bin_id, bin_info in bin_information.items():
-        sut.run_pamodel_simulations_in_bin(bin_id, bin_info)
+        sut.run_pamodel_simulations_in_bin('R1',bin_id, bin_info)
     enzymes_to_evaluate_expected = ['E2', 'E5', 'E1']
 
     # Act
@@ -245,7 +248,7 @@ def test_if_restart_genetic_algorithm_runs():
     #first run simulations to make sure there are results
     bin_information = {1: [0.07, 0.08, 0.01 / 5], 2: [0.08, 0.09, 0.01 / 5], 3: [0.09, 0.1, 0.01 / 5]}
     for bin_id, bin_info in bin_information.items():
-        sut.run_pamodel_simulations_in_bin(bin_id, bin_info)
+        sut.run_pamodel_simulations_in_bin('R1',bin_id, bin_info)
     #run genetic algorithm to get output files for restarting
     sut = run_mock_genetic_algorithm(sut, bin_information)
 
@@ -271,7 +274,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     filename_extension = f'final_run_{sut.iteration}'
     full_file_path = os.path.join(os.getcwd(), 'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
-    sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension)
+    sut.run_genetic_algorithm(esc_topn_df_dummy, filename_extension)
 
     best_individual_kcat_df, error = sut._get_mutated_kcat_values_from_genetic_algorithm()
     kcats_expected = [[row['id'], row['direction'], row['rxn_id'], row['value']] for i, row in best_individual_kcat_df.iterrows()]
@@ -291,7 +294,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
 
 def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     # Arrange
-    kcat = 5
+    kcat = 6
     enzyme_id = 'E1'
     reaction_id = 'R1'
     kcat_dict = {reaction_id: {'f': kcat}}
@@ -299,12 +302,14 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
                         'reaction': reaction_id,
                         'kcats': {'f':kcat},
                         'sensitivity': 0.1}}
-    substrate_rates = [1e-3, 1e-2]
+    substrate_rates = {'R1':[1e-3, 1e-2]}
 
     #set up parametrizer and genetic algorithm objects
     sut = PAMParametrizerMock()
     ga = sut._init_genetic_algorithm(substrate_rates,
                                      enzymes_to_evaluate,
+                                     translational_sector_config= {'R1':
+                                                                       sut.validation_data.R1.translational_sector_config},
                                      filename_extension=''
                                      )
     #for the genetic algorithm we need a dummy individual to change the kcat
@@ -315,9 +320,9 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
-    ga.FitEval._change_kcat_values_for_individual(individual)
-
     kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+
+    ga.FitEval._change_kcat_values_for_individual(individual)
     kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
 
     # Assert
@@ -333,16 +338,22 @@ def test_pam_parametrizer_calculates_final_error_correctly():
     # Build the PAModel with expected outcome
     sut.pamodel = setup_toy_pam(kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
     # get the expected flux distribution
-    fluxes, substrate_range = sut.run_simulations_to_plot()
+    fluxes, substrate_range = sut.run_simulations_to_plot(substrate_uptake_id='R1')
+    # save the flux results
+    for simulation_result, substrate_rate in zip(fluxes, substrate_range):
+        sut.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
+                                                              bin_id='final',
+                                                              substrate_reaction_id='R1',
+                                                              substrate_uptake_rate=substrate_rate,
+                                                              fluxes_abs=False)
 
     # Act
-    final_error_validation = evaluate_toy_model_fitness(toy_model = sut.pamodel,
-                                                        substrate_rates = substrate_range)
-    final_error_sut = sut.calculate_final_error(fluxes, substrate_range)
+    final_error_sut = sut.calculate_final_error()
+
 
     #assert
-    #manual calculation results in an R^2 of 0.88 for this bin
-    assert final_error_validation == pytest.approx(final_error_sut, 1e-2)
+    #R^2 should be 1, because the same model has been used to generate the validation dataset
+    assert 1 == pytest.approx(final_error_sut, 1e-2)
 
 
 def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
@@ -355,7 +366,7 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     sut.iteration = 1
 
     start_time = time.perf_counter()
-    sut.process_bin(bin_id, bin_information=bin_info)
+    sut.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id='R1')
     computational_time = time.perf_counter() - start_time
 
     sut.final_error = 1
@@ -373,6 +384,47 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     #remove produced files
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
+
+def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
+    # Arrange
+    sut = PAMParametrizerMock()
+    # Get the simulations with the byproduct as carbon source
+    other_substrate_reaction = 'R9'
+    substrate_uptake_rates = [-1e-3, -1e-2]
+    toy_pam = setup_toy_pam(kcat_fwd=[1, 0.5, 5, 0.1, 0.25, 1.5]) #this was the model used to generate the validation data
+    sut.pamodel = toy_pam
+    expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
+                                                                                           other_substrate_reaction,
+                                                                                           substrate_uptake_rates)
+
+    # Change the validation data object in the parametrization object
+    sut.add_new_substrate_source(new_substrate_uptake_id = other_substrate_reaction,
+                                 validation_data = expected_flux_results,
+                                 substrate_range=substrate_uptake_rates,
+                                 reactions_to_validate = reactions_to_validate)
+    sut.validation_data.get_by_id(other_substrate_reaction).sampled_valid_data = expected_flux_results
+
+    #get flux data for different carbon sources
+    sut = save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources(sut)
+
+    # Act
+    error = sut.calculate_final_error()
+
+    # Assert
+    # Expect a perfect fit, as the same model was used to generate the validation data
+    assert error == pytest.approx(1, abs = 1e-5)
+
+def test_if_parametrizer_convergence_with_similar_error():
+    # Arrange
+    sut = PAMParametrizerMock()
+    sut.parametrization_results.final_errors = pd.DataFrame({'run_id': [0,1,2,3,4,5],
+                                                            'r_squared': [0.11,0.12,0.13,0.13,0.13,0.13]})
+    # Arrange
+    converged = sut._error_is_converging()
+
+    # Assert
+    assert converged
+
 #########################################################################################################################
 #HELPER FUNCTIONS
 #########################################################################################################################
@@ -389,7 +441,7 @@ def bin_substrate() -> dict:
 
     return valid_binned_substrate
 
-def run_pamodel_binned(pamodel:PAModelpy.PAModel.PAModel, bin_information:dict) -> tuple:
+def run_pamodel_binned(pamodel:PAModelpy.PAModel, bin_information:dict) -> tuple:
     fluxes = {}
     esc = {}
     for bin_id, bin_info in bin_information.items():
@@ -435,7 +487,8 @@ def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
 
     for bin_id, bin_info in bin_information.items():
         filename_extension_bin = filename_extension + str(bin_id)
-        sut.run_genetic_algorithm(bin_info, esc_topn_df_dummy, filename_extension_bin)
+        sut.run_genetic_algorithm(esc_topn_df_dummy,
+                                  filename_extension_bin)
 
     return sut
 
@@ -451,6 +504,26 @@ def get_kcat_values_from_model(model:PAModelpy.PAModel, enzyme_ids:list, reactio
 
 def assert_run_diagnostics_are_saved(parametrization_results_object: Callable,
                                      number_of_best_individuals: int) -> None:
+
     assert len(parametrization_results_object.best_individuals) == number_of_best_individuals*2 #times 2 because of f and b for each enzyme
     assert len(parametrization_results_object.computational_time) == 1
     assert len(parametrization_results_object.final_errors) == 1
+
+def save_simulation_results(parametrizer:PAMParametrizerMock,
+                            substrate_rates:list, fluxes:list, substrate_uptake_id: str) -> None:
+    for simulation_result, substrate_rate in zip(fluxes, substrate_rates):
+        parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
+                                                              bin_id='final',
+                                                              substrate_reaction_id=substrate_uptake_id,
+                                                              substrate_uptake_rate=substrate_rate,
+                                                              fluxes_abs=False)
+    return parametrizer
+
+def save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources(parametrizer):
+    for substr_uptake_id in parametrizer.substrate_uptake_ids:
+        substr_uptake_rates = parametrizer.validation_data.get_by_id(
+            substr_uptake_id).sampled_valid_data[substr_uptake_id+'_ub'].to_list()
+        fluxes, substrate_range = parametrizer.run_simulations_to_plot(substrate_uptake_id=substr_uptake_id,
+                                                              substrate_rates=substr_uptake_rates)
+        parametrizer = save_simulation_results(parametrizer, substrate_range, fluxes, substr_uptake_id)
+    return parametrizer

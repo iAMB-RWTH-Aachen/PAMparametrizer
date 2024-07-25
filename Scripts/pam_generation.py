@@ -10,7 +10,6 @@ from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, Tran
 from PAModelpy.configuration import Config
 
 from .toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
-from .toy_ec_pam2 import build_toy_gem2, build_active_enzyme_sector2
 
 'Function library for making Protein Allocation Models as described in the publication'
 
@@ -168,6 +167,7 @@ def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
             mol_mass=molmass_ups,
             configuration=config,
         )
+        unused_enzyme_sector.id = 'UnusedEnzymeSector'
     else:
         unused_enzyme_sector = None
 
@@ -175,6 +175,7 @@ def setup_ecolicore_pam(total_protein:bool = True, active_enzymes: bool = True,
 
     pa_model = PAModel(id_or_model=model, p_tot=total_protein, sensitivity=sensitivity, configuration=config,
                        active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector, unused_sector=unused_enzyme_sector)
+    pa_model.BIOMASS_REACTION = BIOMASS_REACTION
     return pa_model
 
 def setup_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bool = True,
@@ -191,6 +192,7 @@ def setup_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bo
         PAM_DATA_FILE_PATH = pam_data_file_path
 
     # some other constants
+    BIOMASS_REACTION = 'BIOMASS_Ec_iML1515_core_75p37M'
     TOTAL_PROTEIN_CONCENTRATION = 0.258  # [g_prot/g_cdw]
 
     #setup the gem ecoli iML1515 model
@@ -268,7 +270,7 @@ def setup_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bo
         translation_enzyme_sector = TransEnzymeSector(
             id_list=[translational_info[translational_info.Parameter == 'id_list'].loc[0, 'Value']],
             tps_0=[translational_info[translational_info.Parameter == 'tps_0'].loc[1, 'Value']],
-            tps_mu=[-translational_info[translational_info.Parameter == 'tps_mu'].loc[2, 'Value']],
+            tps_mu=[translational_info[translational_info.Parameter == 'tps_mu'].loc[2, 'Value']],
             mol_mass=[translational_info[translational_info.Parameter == 'mol_mass'].loc[3, 'Value']])
     else:
         translation_enzyme_sector = None
@@ -277,9 +279,9 @@ def setup_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bo
         unused_protein_info = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ExcessEnzymes')
         ups_0 = unused_protein_info[unused_protein_info.Parameter == 'ups_0'].loc[2, 'Value']
 
-        if len(pam_data_file_path) < 1:
+        try:
             ups_mu = [unused_protein_info[unused_protein_info.Parameter == 'ups_mu'].loc[1, 'Value']]
-        else:
+        except:
             smax = unused_protein_info[unused_protein_info.Parameter == 's_max_uptake'].loc[1, 'Value']
             ups_mu =[ups_0 / smax]
 
@@ -288,13 +290,17 @@ def setup_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bo
             ups_mu=ups_mu,
             ups_0=[ups_0],
             mol_mass=[unused_protein_info[unused_protein_info.Parameter == 'mol_mass'].loc[3, 'Value']])
+        unused_protein_sector.id = 'UnusedProteinSector'
     else:
         unused_protein_sector = None
 
     if total_protein: total_protein = TOTAL_PROTEIN_CONCENTRATION
+
     pamodel = PAModel(id_or_model=model, p_tot=total_protein,
                        active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector,
                        unused_sector=unused_protein_sector, sensitivity=sensitivity)
+
+    pamodel.BIOMASS_REACTION = BIOMASS_REACTION
     return pamodel
 
 def parse_coefficients(pamodel):

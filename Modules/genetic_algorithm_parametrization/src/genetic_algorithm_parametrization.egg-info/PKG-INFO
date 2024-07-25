@@ -1,8 +1,0 @@
-Metadata-Version: 2.1
-Name: genetic-algorithm-parametrization
-Version: 1.0
-Summary: Parameter optimization in Protein Allocation Models
-Author: Samira van den Bogaard
-Author-email: samira.vandenbogaard@rwth-aachen.de
-License: MIT
-Requires-Python: >=3.8
