@@ -45,6 +45,8 @@ class ValidationData:
 class HyperParameters:
     threshold_error = 0.9
     threshold_iteration = 100
+    threshold_convergence = 1e-3 #what is the difference in r_squared allowed to call it converging?
+    threshold_nmbr_convergence = 3 #how many iterations have to be converged?
     number_of_kcats_to_mutate = 5
     number_of_bins = 5
     bin_resolution = 5

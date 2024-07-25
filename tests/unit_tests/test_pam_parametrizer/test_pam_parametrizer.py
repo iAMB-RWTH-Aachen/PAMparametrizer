@@ -316,7 +316,7 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     toolbox = ga._init_deap_toolbox()
     population = ga.ga.init_pop(toolbox, ga.population_size, True)
     individual = population[0]
-    # individual.kcat_list = [1/(kcat*3600*1e-6)]
+    individual.kcat_list = [1/(kcat*3600*1e-6)]
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
@@ -414,6 +414,16 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     # Expect a perfect fit, as the same model was used to generate the validation data
     assert error == pytest.approx(1, abs = 1e-5)
 
+def test_if_parametrizer_convergence_with_similar_error():
+    # Arrange
+    sut = PAMParametrizerMock()
+    sut.parametrization_results.final_errors = pd.DataFrame({'run_id': [0,1,2,3,4,5],
+                                                            'r_squared': [0.11,0.12,0.13,0.13,0.13,0.13]})
+    # Arrange
+    converged = sut._error_is_converging()
+
+    # Assert
+    assert converged
 
 #########################################################################################################################
 #HELPER FUNCTIONS

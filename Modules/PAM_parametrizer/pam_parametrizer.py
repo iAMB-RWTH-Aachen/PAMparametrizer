@@ -57,6 +57,7 @@ class PAMParametrizer():
         self.max_substrate_uptake_rate = max_substrate_uptake_rate
         self.fluxes_df = pd.DataFrame()
         self.final_error = 0
+        self.previous_errors = 0
         self.error_fraction_to_deviate_between_runs = 0.1
 
         self.sensitivity = sensitivity
@@ -129,7 +130,9 @@ class PAMParametrizer():
             # 5. Reparametrize the model with best results and save/visualize results
             if files_to_remove is None:
                 continue
-            self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
+
+            if self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs) is None:
+                break
 
             # 6. Display progress and repeat
             print('time elapsed: ', time.perf_counter() - start, 'sec, ', (time.perf_counter() - start) / 60, 'min',
@@ -251,13 +254,13 @@ class PAMParametrizer():
                                                                           substrate_reaction_id= substrate_uptake_id,
                                                                           substrate_uptake_rate=substrate_rate,
                                                                           fluxes_abs=False)
-
-
             self.final_error = self.calculate_final_error()
 
 
             self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
             if remove_subruns: self._remove_result_files(files_to_remove)
+            if self._error_is_converging():
+                return None
         else:
             print('Newly parametrized model is not feasible')
             return
@@ -1021,6 +1024,11 @@ class PAMParametrizer():
         #need to convert the units of the kcat from 1/h to 1/s for easy interpretation
         enz_rxn_kcat_row['value'] = 1/(enz_rxn_kcat_row['value']*3600*1e-6)
         return enz_rxn_kcat_row.to_list()
+
+    def _error_is_converging(self):
+        errors = self.parametrization_results.final_errors.copy()
+        errors['diff'] = errors['r_squared'].diff().abs()
+        return errors['diff'][-self.hyperparameters.threshold_nmbr_convergence:].max() < self.hyperparameters.threshold_convergence
 
 
     #################################################################################################################
