@@ -10,12 +10,12 @@ from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMPara
 from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import GeneticAlgorithmMock
 
-FINAL_ENZYMES2KCAT = {'E1':{'R1':{'f': 1/(3600*1e-6), 'b':1/(3600*1e-6)}},
-                          'E2': {'R2': {'f': 0.5 / (3600 * 1e-6), 'b': 0.5 / (3600 * 1e-6)}},
-                          'E3':{'R3':{'f': 5/(3600*1e-6), 'b':5/(3600*1e-6)}},
-                      'E4':{'R4':{'f': 0.1/(3600*1e-6), 'b':0.1/(3600*1e-6)}},
-                      'E5':{'R5':{'f': 0.25/(3600*1e-6), 'b':0.25/(3600*1e-6)}},
-                          'E6':{'R6':{'f': 1.5/(3600*1e-6), 'b':1.5/(3600*1e-6)}}}
+FINAL_ENZYMES2KCAT = {'E1':{'CE_R1_E1':{'f': 1/(3600*1e-6), 'b':1/(3600*1e-6)}},
+                          'E2': {'CE_R2_E2': {'f': 0.5 / (3600 * 1e-6), 'b': 0.5 / (3600 * 1e-6)}},
+                          'E3':{'CE_R3_E3':{'f': 5/(3600*1e-6), 'b':5/(3600*1e-6)}},
+                      'E4':{'CE_R4_E4':{'f': 0.1/(3600*1e-6), 'b':0.1/(3600*1e-6)}},
+                      'E5':{'CE_R5_E5':{'f': 0.25/(3600*1e-6), 'b':0.25/(3600*1e-6)}},
+                          'E6':{'CE_R6_E6':{'f': 1.5/(3600*1e-6), 'b':1.5/(3600*1e-6)}}}
 
 def test_if_toy_model_parameters_in_pam_parametrizer_are_set_correctly():
     # Arrange

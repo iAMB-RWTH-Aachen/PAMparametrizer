@@ -161,7 +161,6 @@ class GAPO():
 
     # execute genetic algorithm
     def start(self):
-
         # initialize timing
         start_time = time()
 
@@ -178,7 +177,6 @@ class GAPO():
         # initialize populations (multiprocessing)
         if self.print_progress:
             print("({}) Initialize population --".format(print_time()))
-
 
         with Pool(processes=self.processes) as pool:
             pops = pool.starmap(
@@ -607,7 +605,6 @@ class GAPO():
             })
         # sort frame
         best_ind_frame = best_ind_frame.sort_values(by="id", axis=0, ascending=True)
-        
         
         # write attributes list
         attributes_frame = pd.DataFrame({
