@@ -170,13 +170,13 @@ def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1,1,1],
         'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['R3', 'R4', 'R5'],
+        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
         'mean': [0.5, 0.2, 0.1]
     })
 
-    enzymes_to_evaluate_validation = {'E3':{'reaction':'R3','kcats':{'f':1,'b':1}, 'sensitivity':0.5},
-                                      'E4':{'reaction':'R4','kcats': {'f':1/0.5, 'b':1/0.5}, 'sensitivity':0.2},
-                                      'E5':{'reaction':'R5','kcats':{'f':1/0.45, 'b':1/0.45}, 'sensitivity':0.1}}
+    enzymes_to_evaluate_validation = {'E3':{'reaction':'CE_R3_E3','kcats':{'f':1,'b':1}, 'sensitivity':0.5},
+                                      'E4':{'reaction':'CE_R4_E4','kcats': {'f':1/0.5, 'b':1/0.5}, 'sensitivity':0.2},
+                                      'E5':{'reaction':'CE_R5_E5','kcats':{'f':1/0.45, 'b':1/0.45}, 'sensitivity':0.1}}
 
     # Act
     enzymes_to_evaluate_to_test = sut._parse_enzymes_to_evaluate(esc_topn_df_dummy)
@@ -190,7 +190,7 @@ def test_if_genetic_algorithm_runs():
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1, 1, 1],
         'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['R3', 'R4', 'R5'],
+        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
         'mean': [0.5, 0.2, 0.1]
     })
     bin_info = [0.001, 0.002, 0.001/5]
@@ -267,7 +267,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1, 1, 1],
         'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['R3', 'R4', 'R5'],
+        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
         'mean': [0.5, 0.2, 0.1]
     })
     bin_info = [0.001, 0.002, 0.001 / 5]
@@ -284,7 +284,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Assert
     for kcat_info in kcats_expected:
         enzyme_id, direction, rxn_id, kcat_expected = kcat_info[0], kcat_info[1], kcat_info[2], kcat_info[3]
-        model_kcat_dict = sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id])
+        model_kcat_dict = sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id.split("_")[1]])
         if direction in model_kcat_dict.keys():
             kcat_test = 1/(model_kcat_dict[direction]*3600*1e-6)
             assert kcat_expected == pytest.approx(kcat_test, abs=1e-6)
@@ -320,10 +320,10 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
-    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     ga.FitEval._change_kcat_values_for_individual(individual)
-    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     # Assert
     assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)
@@ -479,7 +479,7 @@ def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
     esc_topn_df_dummy = pd.DataFrame({
         'bin': [1, 1, 1],
         'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['R3', 'R4', 'R5'],
+        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
         'mean': [0.5, 0.2, 0.1]
     })
 

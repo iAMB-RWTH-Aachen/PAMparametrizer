@@ -235,7 +235,6 @@ class FitnessEvaluation():
             :param dict param_ind: parameters for setting up an individual 
 
         """
-        
         param_ind = {}
 
         # create individuals represnting metabolic genes as variables/targets
@@ -298,7 +297,7 @@ class FitnessEvaluation():
                 if self.model.solver.status != 'optimal':
                     print('infeasible for substrate id', substrate_uptake_id)
                     # make sure infeasibility decreases the error
-                    fluxes_df = pd.DataFrame()
+                    fluxes_df = pd.DataFrame(columns=fluxes_df.columns)
                     # revert kcat_changes
                     self._change_kcat_values_for_individual(individual, kcat_old)
                     continue
@@ -372,7 +371,10 @@ class FitnessEvaluation():
         if len(kcat_values) == 0:
             kcat_values = individual.kcat_list
         for i, enz_id in enumerate(individual.enzymes_to_eval):
-            rxn = self.model.reactions.get_by_id(individual.reactions[i])
+            rxn_id = individual.reactions[i]
+            if enz_id not in rxn_id:
+                rxn_id = f"CE_{rxn_id}_{enz_id}"
+            rxn = self.model.reactions.get_by_id(rxn_id)
             dir = individual.directions[i]
             if dir == 'b': var = rxn.reverse_variable
             else: var = rxn.forward_variable
@@ -402,6 +404,5 @@ class FitnessEvaluation():
                 if rxn in self.weights.keys(): weights.append(self.weights[rxn])
                 else: weights.append(1)
         if len(error) == 0: return np.NaN
-
 
         return np.average(error, weights = weights)

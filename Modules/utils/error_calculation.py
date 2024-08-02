@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from typing import Union
+from typing import Union, Iterable
 
 def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataFrame,
                                      substrate_uptake_id: str,
@@ -49,3 +49,9 @@ def custom_error(observed, simulated, lambda_factor=1.0):
     distance = abs(observed - simulated)
     error = np.exp(-lambda_factor * distance)
     return error
+
+def nanaverage(data:Union[list],weights:dict = None,axis:int = None) -> Iterable:
+    masked_data = np.ma.masked_array(data, np.isnan(data))
+    average = np.ma.average(masked_data, axis=axis, weights=weights)
+    return average
+

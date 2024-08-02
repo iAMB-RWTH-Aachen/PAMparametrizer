@@ -1,6 +1,8 @@
 from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer
 from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml1515
-from Scripts.pam_generation import setup_ecolicore_pam
+from Scripts.pam_generation_uniprot_id import setup_ecolicore_pam
+from Scripts.pam_generation import setup_ecolicore_pam as setup_ecolicore_pam_ec
+
 
 from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import (save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources,
                                                                           get_kcat_values_from_model)
@@ -23,7 +25,6 @@ RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, co
 #     sut._init_results_objects()
 #     bin_information = {1:[-10,-0.1, 1e-1]}
 #     substrate_range = [abs(rate) for rate in set(sut.validation_data.valid_data_df[sut.substrate_uptake_id+'_ub'].to_list())]
-#     print(substrate_range)
 #     reference_flux_data = run_pam_simulations(sut.pamodel, substrate_rates=substrate_range)
 #
 #     # Act
@@ -34,7 +35,6 @@ RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, co
 #     for i in range(len(reference_flux_data)):
 #         if not reference_flux_data.iloc[i].equals(flux_data.iloc[i]):
 #             print(reference_flux_data.iloc[i], flux_data.iloc[i])
-#     print(reference_flux_data, flux_data)
 #     # Assert
 #     assert pd.testing.assert_frame_equal(reference_flux_data, flux_data,
 #                                          check_dtype=False, check_exact=False, atol=1e-6) is None
@@ -42,8 +42,8 @@ RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, co
 def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params():
     # Arrange
     pam_params_path = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_py.xls')
-    old_params_pam = setup_ecolicore_pam(pam_data_file_path = pam_params_path)
-    new_params_pam = setup_ecolicore_pam() # parameters from GotEnzymes
+    old_params_pam = setup_ecolicore_pam_ec(pam_data_file_path = pam_params_path)
+    new_params_pam = setup_ecolicore_pam_ec() # parameters from GotEnzymes
 
 
     # Act
@@ -80,14 +80,16 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     # set up genetic algorithm
     sut_ga = sut_param._init_genetic_algorithm(substrate_uptake_rates = substrate_rates,
                                                enzymes_to_evaluate = {
-                                                   '4.1.2.55': {
-                                                       'reaction':'ALCD2x', 'kcats': {'b': 1/(3.0033* 3600*1e-6)},
+                                                   'P0A9Q7': {
+                                                       'reaction':'ALCD2x', 'kcats': {'b': 1/(1.6088* 3600*1e-6),
+                                                                                      'f': 1/(11.6366* 3600*1e-6)},
                                                        'sensitivity': 0.1},
-                                                   '1.3.5.4': {
-                                                       'reaction': 'ICDHyr', 'kcats': {'f': 1/(3.7271* 3600*1e-6), 'b': 1/(10.6819* 3600*1e-6)},
+                                                   'P08200': {
+                                                       'reaction': 'ICDHyr', 'kcats': {'f': 1/(10.6819* 3600*1e-6),
+                                                                                       'b': 1/(10.6819* 3600*1e-6)},
                                                        'sensitivity': 0.1},
-                                                   '2.4.2.29': {
-                                                       'reaction':'CS', 'kcats': {'f':1/(32.018* 3600*1e-6)},
+                                                   'P0ABH7': {
+                                                       'reaction':'CS', 'kcats': {'f':1/(101.8665* 3600*1e-6)},
                                                        'sensitivity': 0.1}
                                                },
                                                translational_sector_config=transl_sector_config,
@@ -95,7 +97,8 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     toolbox = sut_ga._init_deap_toolbox()
     toy_ga = sut_ga.ga
     population = toolbox.population(n=3)
-    population[0].kcat_list = [1/(3.0033* 3600*1e-6),1/(3.7271* 3600*1e-6),1/(10.6819* 3600*1e-6),1/(32.018* 3600*1e-6)]
+    population[0].kcat_list = [1/(1.6088* 3600*1e-6),1/(11.6366* 3600*1e-6),1/(10.6819* 3600*1e-6),
+                               1/(10.6819* 3600*1e-6),1/(101.8665* 3600*1e-6)]
 
     # Act
     #pam parametrizer
@@ -129,7 +132,7 @@ def test_pam_parametrizer_configures_translational_sector_correctly():
 def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     # Arrange
     kcat = 5
-    enzyme_id = '3.4.13.-'
+    enzyme_id = 'P26616'
     reaction_id = 'ME1'
     kcat_dict = {reaction_id: {'f': kcat}}
     enzymes_to_evaluate = {enzyme_id: {
@@ -154,10 +157,10 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id=enzyme_id, kcat_dict=kcat_dict)
-    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     ga.FitEval._change_kcat_values_for_individual(individual)
-    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [reaction_id])[0]
+    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     # Assert
     assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)

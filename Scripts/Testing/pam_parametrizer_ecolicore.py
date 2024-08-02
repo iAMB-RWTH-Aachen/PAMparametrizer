@@ -12,6 +12,7 @@ from PAModelpy.configuration import Config
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_ecolicore_pam
+from Scripts.pam_generation_uniprot_id import setup_ecolicore_pam as setup_ecolicore_pam_uniprot
 
 # import sys
 # sys.stdout = open('output.txt','wt')
@@ -25,7 +26,7 @@ RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, co
 
 def set_up_validation_data(csources:list) -> list[ValidationData]:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e', 'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e', 'Fructose': 'EX_fru_e'}
-    model = setup_ecolicore_pam()
+    model = setup_ecolicore_pam_uniprot()
     model_reactions = [rxn.id for rxn in model.reactions]
 
 
@@ -71,8 +72,8 @@ def set_up_valid_data_glucose(file_path: str) -> ValidationData:
     valid_data_df = pd.read_excel(file_path, sheet_name='Yields')
     valid_data_df = valid_data_df.rename(columns={config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID + '_ub',
                                                   config.BIOMASS_REACTION: 'BIOMASS_Ecoli_core_w_GAM'})
-    valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (
-                valid_data_df.Reference != 'Fischer 2003')]  # valid_data_df.Reference != 'Folsom 2015') &
+    # valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (
+    #             valid_data_df.Reference != 'Fischer 2003')]  # valid_data_df.Reference != 'Folsom 2015') &
     validation_data = ValidationData(valid_data_df, config.GLUCOSE_EXCHANGE_RXNID, [MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE])
     validation_data._reactions_to_plot = RXNS_TO_VALIDATE
     validation_data._reactions_to_validate = RXNS_TO_VALIDATE
@@ -90,10 +91,10 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
 
 def set_up_hyperparameter() -> HyperParameters:
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10
+    hyperparams.threshold_iteration = 10git
     hyperparams.number_of_kcats_to_mutate = 5
     hyperparams.filename_extension = 'ecolicore_false_multiple_csources2'
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 4
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecolicore_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
@@ -118,7 +119,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float, other_csources = False) -> PAMParametrizer:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e', 'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e', 'Fructose': 'EX_fru_e'}
 
-    ecolicore_pam = setup_ecolicore_pam()
+    ecolicore_pam = setup_ecolicore_pam_uniprot()
     #turn all the carbon exchanges off
     for uptake_rxn in condition2uptake.values():
         try:

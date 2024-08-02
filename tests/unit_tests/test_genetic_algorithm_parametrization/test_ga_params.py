@@ -106,7 +106,7 @@ def test_genetic_algorithm_adjust_kcat_correctly():
     kcat_new = [5,0.1,0.25]
     individual_ut.kcat_list = kcat_new
     constraint_names = [f'EC_{enzyme}_f' for enzyme in individual_ut.enzymes_to_eval]
-    reaction_names = individual_ut.reactions
+    reaction_names = [f"CE_{rxn_id}_{enz_id}" for rxn_id, enz_id in zip(individual_ut.reactions, individual_ut.enzymes_to_eval)]
     model = sut.FitEval.model
 
     # Act
