@@ -1,4 +1,4 @@
-PAModelpy==0.0.3.9
+PAModelpy==0.0.3.15
 matplotlib==3.8.4
 deap==1.4.1y
 random

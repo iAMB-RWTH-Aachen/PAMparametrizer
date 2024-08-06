@@ -187,19 +187,17 @@ def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
 def test_if_genetic_algorithm_runs():
     # Arrange
     sut = PAMParametrizerMock()
-    esc_topn_df_dummy = pd.DataFrame({
-        'bin': [1, 1, 1],
-        'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
-        'mean': [0.5, 0.2, 0.1]
-    })
+    enzymes_to_evaluate = {'E3':{'reaction':'CE_R3_E3','kcats':{'f':1,'b':1}, 'sensitivity':0.5},
+                                      'E4':{'reaction':'CE_R4_E4','kcats': {'f':1/0.5, 'b':1/0.5}, 'sensitivity':0.2},
+                                      'E5':{'reaction':'CE_R5_E5','kcats':{'f':1/0.45, 'b':1/0.45}, 'sensitivity':0.1}}
+
     bin_info = [0.001, 0.002, 0.001/5]
     filename_extension = 'test'
     full_file_path = os.path.join(os.getcwd(),'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
 
     # Act
-    sut.run_genetic_algorithm(esc_topn_df_dummy, filename_extension)
+    sut.run_genetic_algorithm(enzymes_to_evaluate, filename_extension)
 
     # Assert
     # check if filenames are present
@@ -264,17 +262,16 @@ def test_if_restart_genetic_algorithm_runs():
 def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Arrange
     sut = PAMParametrizerMock()
-    esc_topn_df_dummy = pd.DataFrame({
-        'bin': [1, 1, 1],
-        'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
-        'mean': [0.5, 0.2, 0.1]
-    })
+    enzymes_to_evaluate = {'E3': {'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5},
+                                      'E4': {'reaction': 'CE_R4_E4', 'kcats': {'f': 1 / 0.5, 'b': 1 / 0.5},
+                                             'sensitivity': 0.2},
+                                      'E5': {'reaction': 'CE_R5_E5', 'kcats': {'f': 1 / 0.45, 'b': 1 / 0.45},
+                                             'sensitivity': 0.1}}
     bin_info = [0.001, 0.002, 0.001 / 5]
     filename_extension = f'final_run_{sut.iteration}'
     full_file_path = os.path.join(os.getcwd(), 'Results',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
-    sut.run_genetic_algorithm(esc_topn_df_dummy, filename_extension)
+    sut.run_genetic_algorithm(enzymes_to_evaluate, filename_extension)
 
     best_individual_kcat_df, error = sut._get_mutated_kcat_values_from_genetic_algorithm()
     kcats_expected = [[row['id'], row['direction'], row['rxn_id'], row['value']] for i, row in best_individual_kcat_df.iterrows()]
@@ -419,11 +416,25 @@ def test_if_parametrizer_convergence_with_similar_error():
     sut = PAMParametrizerMock()
     sut.parametrization_results.final_errors = pd.DataFrame({'run_id': [0,1,2,3,4,5],
                                                             'r_squared': [0.11,0.12,0.13,0.13,0.13,0.13]})
-    # Arrange
+    # Act
     converged = sut._error_is_converging()
 
     # Assert
     assert converged
+
+def test_if_parametrizer_runs_iteration_with_random_enzymes_to_evaluate():
+    # Arrange
+    sut = PAMParametrizerMock()
+    sut.pamodel.objective = "R7"
+    sut.pamodel.change_reaction_bounds("R1", 1e-2,1e-2)
+    sut.pamodel.optimize()
+
+    # Act
+    files_to_remove = sut.perform_iteration_without_bins(random = True)
+
+    # Assert
+    assert len(files_to_remove)>=1
+    [os.remove(file) for file in files_to_remove]
 
 #########################################################################################################################
 #HELPER FUNCTIONS
@@ -476,18 +487,17 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel, bin_information:dict) -> tuple
 def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
                                bin_information: dict = {1:[0.001, 0.002, 0.001 / 5],
                                                         2: [0.001, 0.002, 0.001 / 5]}) -> PAMParametrizerMock:
-    esc_topn_df_dummy = pd.DataFrame({
-        'bin': [1, 1, 1],
-        'enzyme_id': ['E3', 'E4', 'E5'],
-        'rxn_id': ['CE_R3_E3', 'CE_R4_E4', 'CE_R5_E5'],
-        'mean': [0.5, 0.2, 0.1]
-    })
+    enzymes_to_evaluate = {'E3': {'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5},
+                                      'E4': {'reaction': 'CE_R4_E4', 'kcats': {'f': 1 / 0.5, 'b': 1 / 0.5},
+                                             'sensitivity': 0.2},
+                                      'E5': {'reaction': 'CE_R5_E5', 'kcats': {'f': 1 / 0.45, 'b': 1 / 0.45},
+                                             'sensitivity': 0.1}}
 
     filename_extension = 'test'
 
     for bin_id, bin_info in bin_information.items():
         filename_extension_bin = filename_extension + str(bin_id)
-        sut.run_genetic_algorithm(esc_topn_df_dummy,
+        sut.run_genetic_algorithm(enzymes_to_evaluate,
                                   filename_extension_bin)
 
     return sut

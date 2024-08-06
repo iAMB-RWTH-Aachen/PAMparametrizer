@@ -132,13 +132,11 @@ class PAMParametrizer():
                 continue
 
             if self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs) is not None:
-                break
+                #if the error is converging, optimize random enzyme parameters
+                self.iteration +=1
+                files_to_remove = self.perform_iteration_without_bins(random=True)
+                self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
-            # 6. Display progress and repeat
-            print("time elapsed: ", time.perf_counter() - start, "sec, ", (time.perf_counter() - start) / 60, "min",
-                  (time.perf_counter() - start) / 3600, "hour")
-            print("Done with iteration number ", self.iteration)
-            print("-------------------------------------------------------------------------------------------")
 
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
@@ -195,7 +193,7 @@ class PAMParametrizer():
 
         return files_to_remove
 
-    def perform_iteration_without_bins(self) -> list:
+    def perform_iteration_without_bins(self, random:bool=False) -> list:
         # 1. If there are no results yet, perform simulations for a range of glc_uptake_rates
         if self.iteration == 1:
             self._init_validation_df()
@@ -205,25 +203,24 @@ class PAMParametrizer():
                                              save_fluxes_esc=True)
 
         # 2. Get the most sensitive enzymes from all runs
-        if self.sensitivity:
+        if self.sensitivity and not random:
             enzymes_to_evaluate = self._determine_enzymes_to_evaluate_for_all_bins(
                 nmbr_kcats_to_pick=self.hyperparameters.number_of_kcats_to_mutate)
-        else:
+        elif not self.sensitivity and not random:
             enzymes_to_evaluate = self.enzymes_to_evaluate
-
+        else:
+            esc_df = self.pamodel.enzyme_sensitivity_coefficients
+            esc_df["rxn_id"] = esc_df["rxn_id"].str.split(",")
+            esc_df = esc_df.explode("rxn_id", ignore_index=True)
+            enzymes_to_evaluate = self._parse_enzymes_to_evaluate(
+                esc_df.sample(
+                    self.hyperparameters.number_of_kcats_to_mutate
+                ).rename({"coefficient": "mean"}, axis=1)
+            )
 
         # 3. run genetic algorithm for a range of substrate uptake rates
-        # substrate_rates = self._init_validation_df([self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
-        substrate_rates = {valid_data.id:
-                               valid_data.sampled_valid_data[valid_data.id + "_ub"] for valid_data in self.validation_data}
-        translation_configs = {valid_data.id:
-                               valid_data.translational_sector_config for valid_data in self.validation_data}
-
-        ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
-                                          enzymes_to_evaluate=enzymes_to_evaluate,
-                                          translational_sector_config = translation_configs,
-                                          filename_extension=f"final_run_{self.iteration}")
-        ga.start()
+        self.run_genetic_algorithm(enzymes_to_evaluate=enzymes_to_evaluate,
+                                   filename_extension=f"final_run_{self.iteration}")
 
         # 3. Restart genetic algorithm using populations from bins
         files_to_remove = self._get_genetic_algorithm_json_files()
@@ -257,6 +254,13 @@ class PAMParametrizer():
 
 
             self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
+            # 6. Display progress and repeat
+            print("time elapsed: ", time.perf_counter() - start_time_iteration, "sec, ",
+                  (time.perf_counter() - start_time_iteration) / 60, "min",
+                  (time.perf_counter() - start_time_iteration) / 3600, "hour")
+            print("Done with iteration number ", self.iteration)
+            print("-------------------------------------------------------------------------------------------")
+
             if remove_subruns: self._remove_result_files(files_to_remove)
             if self._error_is_converging():
                 print("Stopped simulations because error is converging")
@@ -298,7 +302,8 @@ class PAMParametrizer():
         top_enzyme_sensitivities = self.determine_most_sensitive_enzymes(bin_id,
                                                                          self.hyperparameters.number_of_kcats_to_mutate)
         self.determine_bin_to_split(top_enzyme_sensitivities, bin_id)
-        self.run_genetic_algorithm(esc_topn_df=top_enzyme_sensitivities,
+        enzymes_to_evaluate = self._parse_enzymes_to_evaluate(top_enzyme_sensitivities)
+        self.run_genetic_algorithm(enzymes_to_evaluate =enzymes_to_evaluate,
                                    filename_extension=f"iteration_{self.iteration}_bin_{bin_id}")
 
     def run_pamodel_simulations_in_bin(self,substrate_uptake_reaction:str,
@@ -482,18 +487,24 @@ class PAMParametrizer():
             if self._esc_variability_larger_than_threshold(esc_variability):
                 self.parametrization_results.bins_to_change.loc[len(self.parametrization_results.bins_to_change)] = [bin_id, True, False]
 
-    def run_genetic_algorithm(self, esc_topn_df: pd.DataFrame, filename_extension:str) -> None:
+    def run_genetic_algorithm(self, enzymes_to_evaluate:dict, filename_extension:str) -> None:
         """ Function to run the genetic algorithm.
 
         Results will be stored in a json, pickle and xlsx file with
         filename defined by: self.hyperparameters.genetic_algorithm_filename_base + filename_extension
 
         Args:
-            esc_topn_df: DataFrame containing ESC values, where each column corresponds to an enzyme or substrate
-                            uptake reaction, and rows represent different substrate uptake rates
+            enzymes_to_evaluate (dict): Dictionary with required information about which enzyme parameters should be optimized.
+                Format:
+                {
+                    'enzyme_id': {
+                        'reaction': 'reaction_id',
+                        'kcats': {'f':kcat_value_forward, 'b':kcat_value_reverse},
+                        'sensitivity': esc_value
+                    }
+                }
             filename_extension: extension of base filename to save the result of the genetic algorithm
         """
-        enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
         substrate_rates = dict()
         translation_configs = dict()
         for valid_data in self.validation_data:
@@ -552,7 +563,6 @@ class PAMParametrizer():
         if best_individual_kcat_df is None:
             best_individual_kcat_df, best_indiv_error = self._get_mutated_kcat_values_from_genetic_algorithm()
 
-        print(best_individual_kcat_df)
         # error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
         # if best_indiv_error < error_threshold and best_indiv_error>0:
         #     return
@@ -562,14 +572,10 @@ class PAMParametrizer():
             # need to convert the coefficient to the actual kcat
             new_kcat = 1 / (row["value"] * 3600 * 1e-6)
             direction = row["direction"]
-            print(row)
-            print(self.pamodel.constraints[f'EC_{row["id"]}_{direction}'])
 
             self._change_kcat_value_for_enzyme(enzyme_id= row["id"], kcat_dict = {row["rxn_id"]:
                                                                            {direction: new_kcat}
                                                                        })
-            print(new_kcat)
-            print(self.pamodel.constraints[f'EC_{row["id"]}_{direction}'])
 
         print("after reparametrization the model is feasible", self._pamodel_is_feasible())
 
@@ -944,7 +950,7 @@ class PAMParametrizer():
             if "CE_" not in rxn_id: rxn_id = f"CE_{rxn_id}_{enzyme_id}"
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self.pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
-            enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items()}
+            enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
             enzymes_to_evaluate[enzyme_id] = enzyme_dict
         return enzymes_to_evaluate
 

@@ -12,6 +12,8 @@ from PAModelpy.configuration import Config
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_ecoli_pam
+from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_ecoli_pam_uniprot
+
 
 # import sys
 # sys.stdout = open('output.txt','wt')
@@ -26,7 +28,7 @@ def set_up_validation_data(csources: list) -> list[ValidationData]:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e',
                         'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e',
                         'Fructose': 'EX_fru_e'}
-    model = setup_ecoli_pam()
+    model = setup_ecoli_pam_uniprot()
     model_reactions = [rxn.id for rxn in model.reactions]
 
     DATA_DIR = os.path.join(os.getcwd(), 'Data')
@@ -67,8 +69,7 @@ def get_validation_data_df_other_csources(condition2uptake: dict, model_reaction
 
 def set_up_valid_data_glucose(file_path: str) -> ValidationData:
     valid_data_df = pd.read_excel(file_path, sheet_name='Yields')
-    valid_data_df = valid_data_df.rename(columns={config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID + '_ub',
-                                                  config.BIOMASS_REACTION: 'BIOMASS_Ecoli_core_w_GAM'})
+    valid_data_df = valid_data_df.rename(columns={config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID + '_ub'})
     valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (
                 valid_data_df.Reference != 'Fischer 2003')]  # valid_data_df.Reference != 'Folsom 2015') &
     validation_data = ValidationData(valid_data_df, config.GLUCOSE_EXCHANGE_RXNID, [MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE])
