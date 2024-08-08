@@ -75,7 +75,9 @@ def run_parametrization_workflow(iteration, iterations,
         parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
                                               gene_flow_events=gene_flow_events,
                                               filename_extension= configuration,
-                                              num_kcats_to_mutate = num_kcats_to_mutate)
+                                              num_kcats_to_mutate = num_kcats_to_mutate,
+                                              c_sources = ['Glycerol', 'Glucose', 'Acetate', 'Pyruvate',
+                                               'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
 
         #need to reset best individual and computational performance df
         parametrizer.parametrization_results.best_individuals = pd.DataFrame(columns=['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])

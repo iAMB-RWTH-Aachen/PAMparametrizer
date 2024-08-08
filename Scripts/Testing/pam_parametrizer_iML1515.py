@@ -126,7 +126,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            filename_extension:str = 'iML1515',
                            num_kcats_to_mutate: int =4,
                            c_sources:list = ['Glucose']):
-    ecoli_pam = setup_ecoli_pam()
+    ecoli_pam = setup_ecoli_pam_uniprot()
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
     validation_data = set_up_validation_data(c_sources)

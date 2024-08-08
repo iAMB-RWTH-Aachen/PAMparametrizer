@@ -106,19 +106,20 @@ def setup_ecolicore_pam(total_protein:bool = True,
                        unused_sector=unused_enzyme_sector, configuration=config)
     return pa_model
 
-def set_up_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bool = True,
+def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+                     model:str = 'iML1515.xml', config:Config = None,
+                     total_protein: Union[bool, float] = True, active_enzymes: bool = True,
                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
 
-    config = Config()
-    config.reset()
-
-    pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
+    if config is None:
+        config = Config()
+        config.reset()
 
     # some other constants
     TOTAL_PROTEIN_CONCENTRATION = 0.258  # [g_prot/g_cdw]
 
     #setup the gem ecoli iML1515 model
-    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+    model = cobra.io.read_sbml_model(os.path.join('Models', model))
 
     #check if a different total protein concentration is given
     if isinstance(total_protein, float):

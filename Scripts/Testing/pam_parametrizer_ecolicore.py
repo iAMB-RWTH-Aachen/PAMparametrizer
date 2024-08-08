@@ -91,7 +91,7 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
 
 def set_up_hyperparameter() -> HyperParameters:
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10git
+    hyperparams.threshold_iteration = 10
     hyperparams.number_of_kcats_to_mutate = 5
     hyperparams.filename_extension = 'ecolicore_false_multiple_csources2'
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
