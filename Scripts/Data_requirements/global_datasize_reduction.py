@@ -23,9 +23,9 @@ def run_parametrization_workflow(iteration, iterations,
                                               filename_extension= str(frac_data),
                                               num_kcats_to_mutate = num_kcats_to_mutate)
 
-    nmrb_rows_to_sample = int(frac_data*len(parametrizer.validation_data['EX_glc__D_e'].valid_data))
+    nmrb_rows_to_sample = int(frac_data*len(parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data))
 
-    parametrizer.validation_data['EX_glc__D_e'].valid_data = parametrizer.validation_data['EX_glc__D_e'].valid_data.sample(nmrb_rows_to_sample)
+    parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data = parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data.sample(nmrb_rows_to_sample)
 
     #need to reset best individual and computational performance df
     parametrizer.parametrization_results.best_individuals = pd.DataFrame(columns=['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])

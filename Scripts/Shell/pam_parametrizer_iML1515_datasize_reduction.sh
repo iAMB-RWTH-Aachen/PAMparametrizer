@@ -23,7 +23,7 @@ echo "Starting script..."
 
 # Define function to run Python script with specific configuration
 run_script() {
-    python3 -m Scripts.Scripts.Data_requirements.global_datasize_reduction > Results/pam_parameterizer_datasize_reduction_240808.txt
+    python3 -m Scripts.Data_requirements.global_datasize_reduction
 }
 
 # Run the Python script in parallel for each configuration
