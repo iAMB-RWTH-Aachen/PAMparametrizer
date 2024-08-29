@@ -367,7 +367,7 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     computational_time = time.perf_counter() - start_time
 
     sut.final_error = 1
-    results_filename = (os.path.join('Results', sut.hyperparameters.genetic_algorithm_filename_base + 'iteration_'+
+    results_filename = (os.path.join('Results', sut.hyperparameters.genetic_algorithm_filename_base + '_iteration_'+
                                      str(sut.iteration) + '_bin_1.xlsx'))
 
     # Act

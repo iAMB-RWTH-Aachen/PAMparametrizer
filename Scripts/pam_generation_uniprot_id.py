@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from typing import Union
+import json
 
 # load PAMpy modules
 from PAModelpy.PAModel import PAModel
@@ -144,7 +145,7 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
         translation_enzyme_sector = TransEnzymeSector(
             id_list=[translational_info[translational_info.Parameter == 'id_list'].loc[0, 'Value']],
             tps_0=[translational_info[translational_info.Parameter == 'tps_0'].loc[1, 'Value']],
-            tps_mu=[-translational_info[translational_info.Parameter == 'tps_mu'].loc[2, 'Value']],
+            tps_mu=[translational_info[translational_info.Parameter == 'tps_mu'].loc[2, 'Value']],
             mol_mass=[translational_info[translational_info.Parameter == 'mol_mass'].loc[3, 'Value']],
             configuration = config)
     else:
@@ -214,9 +215,12 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
     nan_ids = [f'E{i}' for i in range(nan_values.sum())]
     # replace nan values by unique id
     enzyme_db.loc[nan_values, 'uniprot_id'] = nan_ids
-    enzyme_db = enzyme_db.pivot_table(index=['rxn_id', 'kegg_id', 'Reactants', 'Products', 'EC', 'GPR', 'gene', 'uniprot_id', 'Length', 'molMass'],
+
+    enzyme_db = enzyme_db.drop(['kegg_id', 'Reactants', 'Products', 'EC', 'Length'],axis=1).pivot_table(
+                          index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
                           columns='direction',
                           values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b':'kcat_b'}, axis=1)
+
 
     protein2gene, gene2protein = _get_genes_for_proteins(enzyme_db, model)
 
@@ -443,8 +447,39 @@ def filter_sublists(nested_list, target_string):
     return [sublist for sublist in nested_list if target_string in sublist]
 
 if __name__ == '__main__':
+    pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
+
+    # setup the gem ecoli iML1515 model
+    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+    enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+
+    # create enzyme objects for each gene-associated reaction
+    rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
+
+    with open('Models/rxn2protein_iML1515_uniprot.json', 'w') as file:
+        json.dump(rxn2protein, file, indent=4, sort_keys=True)
+
+    with open('Models/protein2gene_iML1515_uniprot.json', 'w') as file:
+        json.dump(protein2gene, file, indent=4, sort_keys=True)
+
     ecoli_pam = set_up_ecoli_pam(sensitivity=False)
-    # ecoli_pam.objective = ecoli_pam.BIOMASS_REACTION
-    ecoli_pam.change_reaction_bounds('EX_glc__D_e', -10, 0)
-    ecoli_pam.optimize()
-    print(ecoli_pam.objective.value)
+    ae_sector = ecoli_pam.sectors.ActiveEnzymeSector
+    new_rxn2prot = ae_sector.rxn2protein.copy()
+    for rxn, enz_dict in ae_sector.rxn2protein.items():
+        for enzyme_id, enzyme_dict in enz_dict.items():
+            protein_reaction = enzyme_dict['protein_reaction_association']
+            if ae_sector._enzyme_is_enzyme_complex(protein_reaction, enzyme_id):
+                for pr in protein_reaction:
+                    if len(pr) > 1:
+                        enzyme_complex_id = '_'.join(pr)
+                        new_rxn2prot[rxn] = {**new_rxn2prot[rxn],
+                                                 **{enzyme_complex_id: enzyme_dict}}
+    rxn2protein_full = new_rxn2prot
+
+
+    with open('Models/rxn2kcat_iML1515_uniprot.json', 'w') as file:
+        json.dump(rxn2protein_full, file, indent=2, sort_keys=True)
+    # # ecoli_pam.objective = ecoli_pam.BIOMASS_REACTION
+    # ecoli_pam.change_reaction_bounds('EX_glc__D_e', -10, 0)
+    # ecoli_pam.optimize()
+    # print(ecoli_pam.objective.value)

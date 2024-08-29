@@ -4,7 +4,7 @@ from matplotlib.colors import to_hex
 import pandas as pd
 from Scripts.Visualization.PAMparametrizer_progress_cleaned_figure import recreate_progress_plot
 
-result_file_names = ['pam_parametrizer_statistics_2024-06-14.xlsx']
+result_file_names = ['pam_parametrizer_statistics_2024-08-14.xlsx']
 
 def create_progress_plots(result_file_names, output_file_path, recreate_plot=False):
     max_iteration = 10

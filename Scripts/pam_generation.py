@@ -21,6 +21,7 @@ def setup_toy_pam(sensitivity:bool =True, kcat_fwd:list =[1, 0.5, 1, 0.5 ,0.45, 
     config.GLUCOSE_EXCHANGE_RXNID = 'R1'
     config.CO2_EXHANGE_RXNID = 'R8'
     config.ACETATE_EXCRETION_RXNID = 'R9'
+    config.ENZYME_ID_REGEX = r'E([0-9]|[1-9][0-9])'
 
     Etot = 0.6*1e-3
     model = build_toy_gem()

@@ -386,8 +386,8 @@ class FitnessEvaluation():
     def _calculate_simulation_error(self, flux_df: pd.DataFrame, substrate_reaction:str):
         error = []
         weights = []
-        #if all rates were infeasible: r_squared should be really bad
-        if len(flux_df)==0:
+
+        if len(flux_df)==0:#if all rates were infeasible: r_squared should be really bad
             return -1
         for rxn in self.reactions_with_data[substrate_reaction]:
             #only select the rows which are filled with data

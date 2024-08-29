@@ -5,13 +5,12 @@ from typing import Tuple
 import warnings
 warnings.filterwarnings("ignore")
 
-
+from matplotlib import pyplot as plt
 
 from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation import setup_ecoli_pam
 from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_ecoli_pam_uniprot
 
 
@@ -70,8 +69,8 @@ def get_validation_data_df_other_csources(condition2uptake: dict, model_reaction
 def set_up_valid_data_glucose(file_path: str) -> ValidationData:
     valid_data_df = pd.read_excel(file_path, sheet_name='Yields')
     valid_data_df = valid_data_df.rename(columns={config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID + '_ub'})
-    valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (
-                valid_data_df.Reference != 'Fischer 2003')]  # valid_data_df.Reference != 'Folsom 2015') &
+    # valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (
+    #             valid_data_df.Reference != 'Fischer 2003')]  # valid_data_df.Reference != 'Folsom 2015') &
     validation_data = ValidationData(valid_data_df, config.GLUCOSE_EXCHANGE_RXNID, [MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE])
     validation_data._reactions_to_plot = RXNS_TO_VALIDATE
     validation_data._reactions_to_validate = RXNS_TO_VALIDATE
@@ -81,10 +80,11 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
                                           condition2uptake: dict) -> ValidationData:
     valid_data_df = valid_data_csources[valid_data_csources.condition == csource]
     valid_data_df = valid_data_df[['reaction', 'measured']].set_index('reaction').T
+
     valid_data_df[condition2uptake[csource] + '_ub'] = valid_data_df[condition2uptake[csource]]
     validation_data = ValidationData(valid_data_df, condition2uptake[csource], [-30, 0])
-    validation_data._reactions_to_plot = list(valid_data_df.columns)
-    validation_data._reactions_to_validate = list(valid_data_df.columns)
+    validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:]!="_ub"]
+    validation_data._reactions_to_validate = [col for col in valid_data_df.columns if 'EX_' in col]
     return validation_data
 
 def set_up_hyperparameter(processes: int,
@@ -94,13 +94,13 @@ def set_up_hyperparameter(processes: int,
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 10
     hyperparams.number_of_kcats_to_mutate = num_kcats_to_mutate
+    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_iML1515_'
     hyperparams.filename_extension = filename_extension
     hyperparams.genetic_algorithm_filename_base += filename_extension
 
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
-    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecoli_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
 
@@ -120,13 +120,15 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
+
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            processes: int =2,
                            gene_flow_events: int = 2,
                            filename_extension:str = 'iML1515',
                            num_kcats_to_mutate: int =4,
                            c_sources:list = ['Glucose']):
-    ecoli_pam = setup_ecoli_pam_uniprot()
+    ecoli_pam = setup_ecoli_pam_uniprot(pam_info_file = os.path.join(
+    'Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'))
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
     validation_data = set_up_validation_data(c_sources)
@@ -141,8 +143,8 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+                         c_sources = ['Glucose'])# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
 
-    pam_parametrizer.run(remove_subruns=True, binned = 'before')
+    pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_iML1515

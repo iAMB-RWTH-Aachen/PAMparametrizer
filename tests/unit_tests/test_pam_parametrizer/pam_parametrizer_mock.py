@@ -17,6 +17,7 @@ class PAMParametrizerMock(PAMParametrizer):
     def __init__(self):
         kcat_fwd = [i/5 for i in [1, 0.5, 1, 0.5, 0.45, 1.5]]
         toy_pam = setup_toy_pam(kcat_fwd)
+        toy_pam.ENZYME_ID_REGEX = r'E([0-9]|[1-9][0-9])'
         validation_data = self.set_up_validation_data_mock()
         hyperparameters = self.set_up_hyperparameter_mock()
 

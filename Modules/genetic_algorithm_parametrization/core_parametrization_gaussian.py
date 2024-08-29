@@ -163,7 +163,6 @@ class GAPO():
     def start(self):
         # initialize timing
         start_time = time()
-
         # initialize DEAP toolbox
         if self.print_progress:
             print("({}) Initialize DEAP toolbox --".format(print_time()))
@@ -184,7 +183,7 @@ class GAPO():
                 [(self.toolbox,self.population_size,True)
                  for i in range(self.processes)]
                 )
-
+        print('where are we', self.print_progress)
         # start optimization with parallel gene flow events
         if self.print_progress:
             print("({}) Start optimization --".format(print_time()))

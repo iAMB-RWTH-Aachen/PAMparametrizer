@@ -22,7 +22,6 @@ MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -20
 config = Config()
 config.reset()
-RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID,  config.OXYGEN_UPTAKE_RXNID, config.BIOMASS_REACTION, config.CO2_EXHANGE_RXNID]
 
 def set_up_validation_data(csources: list=None) -> list[ValidationData]:
     condition2uptake = {'Glycerol': 'EX_glyc_e', 'Glucose': 'EX_glc__D_e',
@@ -42,16 +41,19 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
             filtered_condition2uptake[csource] = uptake_rxn
 
     # Load the data from the sheets
-    exchanges = pd.read_excel(VALID_DATA_PATH, 'exchanges').drop(['Strain', 'Reference', 'Info'], axis=1)
+    exchanges = pd.read_excel(VALID_DATA_PATH, 'exchanges')
+    exchanges = exchanges[exchanges.Strain == "KT2440"].drop(['Strain', 'Reference', 'Info'], axis=1)
 
     # Dictionary to map carbon sources to exchange reactions and fluxomics sheets
-    fluxomics_csources = {
-        'EX_bz_e': pd.read_excel(VALID_DATA_PATH, 'fluxomics_benzoate'),
-        'EX_fru_e': pd.read_excel(VALID_DATA_PATH, 'fluxomics_fructose'),
-        'EX_glc__D_e': pd.read_excel(VALID_DATA_PATH, 'fluxomics_glucose')
-    }
-    validation_data_objects = []
+    # not fructose, because that is possibly mixotrophic growth
+    fluxomics_csources = {}
+    for rxn_id, sheet_name in zip(["EX_bz_e", "EX_glc__D_e"],["fluxomics_benzoate","fluxomics_glucose"]):
+        df = pd.read_excel(VALID_DATA_PATH, sheet_name)
+        df = df[df.Strain == "KT2440"]
+        fluxomics_csources[rxn_id] = df
 
+    #make validation data objects
+    validation_data_objects = []
     for c_uptake_id in filtered_condition2uptake.values():
         if c_uptake_id in exchanges.columns:
             #get all rows with uptake of this carbon source and drop all empty columns
@@ -65,6 +67,11 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
         valid_data_df[c_uptake_id + '_ub'] = valid_data_df[c_uptake_id]
 
         validation_data = ValidationData(valid_data_df, c_uptake_id, [-20, -0.1])
+        #validate only exchange rates and growth rate
+        validation_data._reactions_to_validate = [rxn for rxn in valid_data_df.columns if (("EX_" in rxn) & (not "_ub" in rxn))] + ['BIOMASS_KT2440_WT3']
+        validation_data._reactions_to_plot = [rxn for rxn in valid_data_df.columns if not "_ub" in rxn]
+
+
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.translational_sector_config = {
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
@@ -88,12 +95,12 @@ def set_up_hyperparameter(processes: int,
 
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_pputida_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
 
-def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE):
+def run_simulations(pamodel, substrate_rates, rxn_to_validate):
     result_df = pd.DataFrame(columns= rxn_to_validate)
 
     for substrate in substrate_rates:
@@ -110,10 +117,10 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
     return result_df
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
-                           processes: int =2,
-                           gene_flow_events: int = 2,
+                           processes: int =4,
+                           gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
-                           num_kcats_to_mutate: int =4,
+                           num_kcats_to_mutate: int =15,
                            c_sources:list = ['Glucose']):
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_iJN1463_EnzymaticData_240807.xlsx')
     model = 'iJN1463.xml'
@@ -135,7 +142,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+                         c_sources = ['Glycerol', 'Glucose'])#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

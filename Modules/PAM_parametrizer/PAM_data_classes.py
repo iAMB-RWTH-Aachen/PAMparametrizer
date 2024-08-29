@@ -30,7 +30,7 @@ class ValidationData:
         return self._get_biomass_reactions()
 
     def _get_reactions_to_validate(self) -> list:
-        return [data for data in self.valid_data.columns if data.split('_')[0] == self.exchange_reaction_extension]
+        return [data for data in self.valid_data.columns if data[-3:]!="_ub"]#data.split('_')[0] == self.exchange_reaction_extension]
 
     @property
     def reactions_to_validate(self) -> list:
