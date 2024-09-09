@@ -83,10 +83,11 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
                                           condition2uptake: dict) -> ValidationData:
     valid_data_df = valid_data_csources[valid_data_csources.condition == csource]
     valid_data_df = valid_data_df[['reaction', 'measured']].set_index('reaction').T
-    valid_data_df[condition2uptake[csource] + '_ub'] = valid_data_df[condition2uptake[csource]]
+    valid_data_df[condition2uptake[csource] + '_ub'] = valid_data_df[condition2uptake[csource]].abs()
     validation_data = ValidationData(valid_data_df, condition2uptake[csource], [-30, 0])
-    validation_data._reactions_to_plot = list(valid_data_df.columns)
-    validation_data._reactions_to_validate = list(valid_data_df.drop(condition2uptake[csource] + '_ub', axis=1).columns)
+
+    validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:]!="_ub"]
+    validation_data._reactions_to_validate = [col for col in valid_data_df.columns if 'EX_' in col]
     return validation_data
 
 def set_up_hyperparameter() -> HyperParameters:
@@ -94,8 +95,8 @@ def set_up_hyperparameter() -> HyperParameters:
     hyperparams.threshold_iteration = 10
     hyperparams.number_of_kcats_to_mutate = 5
     hyperparams.filename_extension = 'ecolicore_false_multiple_csources2'
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
-    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 4
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
+    hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = 3
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_ecolicore_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
@@ -142,7 +143,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
-    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE, other_csources=True)
+    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE, other_csources=False)
 
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

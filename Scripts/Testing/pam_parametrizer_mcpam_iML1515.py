@@ -135,7 +135,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                     value_name='kcat_values')
     pam_file['direction'] = pam_file['direction'].replace({'kcat_b': 'b', 'kcat_f': 'f'})
     pam_file['kcat_values'] = pam_file['kcat_values'].fillna(11)
-    pam_file['kcat_values'] = pam_file['kcat_values'].multiply(2)
+    pam_file['kcat_values'].loc[pam_file['kcat_values'] == 175] = 2000
     with pd.ExcelWriter(os.path.join('Data', 'mcPAM_iML1515_EnzymaticData_new.xlsx'), mode='a', engine='openpyxl',if_sheet_exists='replace') as writer:
         pam_file.to_excel(writer, sheet_name='ActiveEnzymes', index=False)
         pd.read_excel(

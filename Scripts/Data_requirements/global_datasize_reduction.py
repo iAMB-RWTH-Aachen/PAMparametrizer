@@ -43,7 +43,7 @@ def analyse_parametrizer_performance():
     min_substrate = -11
     max_substrate = -0.1
     iterations = 3
-    processes = 2
+    processes = 4
     gene_flow_events = processes
 
     # 0. Initialize result dataframes
@@ -57,7 +57,7 @@ def analyse_parametrizer_performance():
         for iteration in range(iterations):
             best_individual_df, computational_performance_df = run_parametrization_workflow(iteration+1, iterations,
                                      processes,frac_data,
-                                     gene_flow_events, 4,
+                                     gene_flow_events, 10,
                                      best_individual_df, computational_performance_df,min_substrate_uptake=min_substrate,
                                      max_substrate_uptake=max_substrate)
 

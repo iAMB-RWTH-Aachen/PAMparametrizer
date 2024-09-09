@@ -10,6 +10,7 @@ from PAModelpy.PAModel import PAModel
 from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector
 from PAModelpy.configuration import Config
 
+from PAModelpy.EnzymeSectors import CustomSector
 from Scripts.toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
 import ast
 
@@ -121,6 +122,8 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
 
     #setup the gem ecoli iML1515 model
     model = cobra.io.read_sbml_model(os.path.join('Models', model))
+
+
 
     #check if a different total protein concentration is given
     if isinstance(total_protein, float):
@@ -445,6 +448,48 @@ def filter_sublists(nested_list, target_string):
         list of list of str: A new nested list with the filtered sublists.
     """
     return [sublist for sublist in nested_list if target_string in sublist]
+
+def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx'),
+                     model:str = 'yeast9.xml', config:Config = None,
+                     total_protein: Union[bool, float] = 0.388, active_enzymes: bool = True,
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+    if config is None:
+        config = set_up_yeast_config()
+    yeast_pam = set_up_ecoli_pam(pam_info_file, model, config,
+                     total_protein, active_enzymes, translational_enzymes,
+                     unused_enzymes, sensitivity)
+    if total_protein:
+        #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
+        #can assume include this section in the total protein constraint (no correction needed)
+        yeast_pam.change_total_protein_constraint(0.2820642263886969)
+        protein_growth_relation = CustomSector(
+            id_list= ['r_2111'], #biomass formation
+            name='total_protein_growth_relation',
+            cps_0=[0],
+            cps_s=[0.45431074007034344],
+            mol_mass=1e6
+        )
+        yeast_pam.add_sector(protein_growth_relation)
+    return yeast_pam
+
+
+def set_up_yeast_config():
+    config = Config()
+    config.TOTAL_PROTEIN_CONSTRAINT_ID = "TotalProteinConstraint"
+    config.P_TOT_DEFAULT = 0.388  # g_protein/g_cdw
+    config.CO2_EXHANGE_RXNID = "r_1672"
+    config.GLUCOSE_EXCHANGE_RXNID = "r_1714"
+    config.BIOMASS_REACTION = "r_2111"
+    config.OXYGEN_UPTAKE_RXNID = "r_1992"
+    config.ACETATE_EXCRETION_RXNID = "r_1634"
+    config.PHYS_RXN_IDS = [
+    config.BIOMASS_REACTION,
+    config.GLUCOSE_EXCHANGE_RXNID,
+    config.ACETATE_EXCRETION_RXNID,
+    config.CO2_EXHANGE_RXNID,
+    config.OXYGEN_UPTAKE_RXNID]
+    config.ENZYME_ID_REGEX = r'(Y[A-P][LR][0-9]{3}[CW])'
+    return config
 
 if __name__ == '__main__':
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
