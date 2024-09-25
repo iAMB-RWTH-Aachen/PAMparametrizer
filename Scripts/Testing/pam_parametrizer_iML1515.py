@@ -11,7 +11,7 @@ from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_ecoli_pam_uniprot
+from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_ecoli_pam_uniprot, increase_kcats_in_parameter_file
 
 
 # import sys
@@ -27,7 +27,7 @@ def set_up_validation_data(csources: list) -> list[ValidationData]:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e',
                         'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e',
                         'Fructose': 'EX_fru_e'}
-    model = setup_ecoli_pam_uniprot()
+    model = setup_ecoli_pam_uniprot(pam_info_file ='Data/proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
     model_reactions = [rxn.id for rxn in model.reactions]
 
     DATA_DIR = os.path.join(os.getcwd(), 'Data')
@@ -90,9 +90,10 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
                           filename_extension:str,
-                          num_kcats_to_mutate:int = 4):
+                          num_kcats_to_mutate:int = 4,
+                          threshold_iteration:int = 10):
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 20
+    hyperparams.threshold_iteration = threshold_iteration
     hyperparams.number_of_kcats_to_mutate = num_kcats_to_mutate
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_iML1515_'
     hyperparams.filename_extension = filename_extension
@@ -126,13 +127,25 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iML1515',
                            num_kcats_to_mutate: int =10,
-                           c_sources:list = ['Glucose']):
-    ecoli_pam = setup_ecoli_pam_uniprot(pam_info_file = os.path.join(
-    'Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'))
+                           threshold_iteration:int =10,
+                           c_sources:list = ['Glucose'],
+                           kcat_increase_factor: int = 1):
+    pam_info_file_path_out = os.path.join(
+        'Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')
+
+    increase_kcats_in_parameter_file(kcat_increase_factor,
+                                     pam_info_file_path_ori= os.path.join(
+                                         'Data','proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+                                     pam_info_file_path_out=pam_info_file_path_out)
+
+
+    ecoli_pam = setup_ecoli_pam_uniprot(pam_info_file = pam_info_file_path_out)
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
     validation_data = set_up_validation_data(c_sources)
-    hyperparameters = set_up_hyperparameter(processes, gene_flow_events, filename_extension, num_kcats_to_mutate)
+    hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
+                                            filename_extension, num_kcats_to_mutate,
+                                            threshold_iteration)
 
     return PAMParametrizer(pamodel=ecoli_pam,
                      validation_data=validation_data,
@@ -143,7 +156,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glucose'])# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+                         c_sources = ['Glucose'], kcat_increase_factor= 3)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_iML1515

@@ -183,7 +183,6 @@ class GAPO():
                 [(self.toolbox,self.population_size,True)
                  for i in range(self.processes)]
                 )
-        print('where are we', self.print_progress)
         # start optimization with parallel gene flow events
         if self.print_progress:
             print("({}) Start optimization --".format(print_time()))
@@ -490,16 +489,14 @@ class GAPO():
         return copied_individuals
     
     def _parallel_gene_flow(self, pops, toolbox, start_time, previous_drifts=0):
-        
         # initialize fitness dictionary
         fitness_dict = {}
     
         drift = previous_drifts
         if self.print_progress:
             print('\nTime left:', '{0}min'.format(round((self.time_limit-time()+start_time)/60, 1)))
-        
+
         while (drift < self.number_gene_flow_events) and ((time()-start_time) < self.time_limit):
-            
             drift += 1
             if self.print_progress:
                 print("\n-- Gene drift %i --" % drift)

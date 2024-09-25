@@ -1036,6 +1036,7 @@ class PAMParametrizer():
                 self.pamodel._change_kcat_in_enzyme_constraint(rxn, enzyme_id, direction, kcat)
 
 
+
     def _remove_result_files(self, file_base: Union[list, str]) -> None:
         """ Removes files resulting from genetic algorithm runs.
 
@@ -1121,7 +1122,8 @@ class PAMParametrizer():
     def plot_simulation(self, fig, axs,
                         return_fluxes:bool = False,
                         save_esc = False,
-                        color:int= None) -> plt.Figure:
+                        color:int= None,
+                        cbar_label:str = "Iteration") -> plt.Figure:
 
         if color is None:
             #adjust color to visualize progress
@@ -1163,12 +1165,15 @@ class PAMParametrizer():
                 for reaction in valid_data._reactions_to_plot:
                     exp_measurements = feas_sampled_data[reaction]
                     simulations = [f[reaction] for f in fluxes]
-                    axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
+                    try: #sometimes it breaks here
+                        axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
+                    except:
+                        pass
 
         # Add colorbar
         if self.iteration == 1:
             cbar = fig.colorbar(mpltlib.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axs)
-            cbar.set_label("Iteration")
+            cbar.set_label(cbar_label)
 
         fig.canvas.draw()
         fig.canvas.flush_events()
@@ -1180,9 +1185,8 @@ class PAMParametrizer():
                                 save_fluxes_esc:bool = False) -> Tuple[list, list]:
         fluxes = list()
         substrate_range = list()
-        #get the old bounds for resetting
 
-        lb, ub = -self.pamodel.constraints[substrate_uptake_id+ "_lb"].ub, self.pamodel.constraints[substrate_uptake_id+ "_ub"].ub
+        #get the old bounds for resetting
         self._change_translational_sector_for_substrate(substrate_uptake_id)
 
         if substrate_rates is None:

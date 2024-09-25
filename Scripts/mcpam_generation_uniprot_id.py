@@ -21,9 +21,11 @@ def setup_ecolicore_pam(total_protein:bool = True,
                          active_enzymes: bool = True,
                          translational_enzymes:bool = True,
                          unused_enzymes:bool = True,
-                         sensitivity:bool =True):
+                         sensitivity:bool =True,
+                        membrane_sector:bool = True
+                        ):
     # Setting the relative paths
-    PAM_DATA_FILE_PATH = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
+    PAM_DATA_FILE_PATH = os.path.join('Data', 'mcPAM_iML1515_EnzymaticData.xlsx')
 
     config = Config()
     config.reset()
@@ -31,15 +33,18 @@ def setup_ecolicore_pam(total_protein:bool = True,
     # some other constants
     BIOMASS_REACTION = 'BIOMASS_Ecoli_core_w_GAM'
     TOTAL_PROTEIN_CONCENTRATION = 0.16995  # [g_prot/g_cdw]
+
     config.BIOMASS_REACTION = BIOMASS_REACTION
 
     # load the genome-scale information
-    model = cobra.io.load_json_model(os.path.join('Models', 'e_coli_core.json'))
+    model = cobra.io.load_json_model(
+        os.path.join( 'Models', 'e_coli_core.json'))
 
-    #load example data for the E.coli iML1515 model
+    # load example data for the E.coli iML1515 model
     if active_enzymes:
         # load active enzyme sector information
-        enzyme_db = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes')
+        enzyme_db = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='mcPAM_data_parametrized')
+
         # create enzyme objects for each gene-associated reaction
         rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
 
@@ -81,27 +86,44 @@ def setup_ecolicore_pam(total_protein:bool = True,
     else:
         unused_enzyme_sector = None
 
+    if membrane_sector:
+        membrane_info = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='Membrane')
+        active_enzyme_info = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='mcPAM_data')
+
+        area_avail_0 = membrane_info[membrane_info.Parameter == 'area_avail_0'].loc[1, 'Value']
+        area_avail_mu = membrane_info[membrane_info.Parameter == 'area_avail_mu'].loc[2, 'Value']
+        alpha_numbers_dict = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'alpha_numbers'].to_dict()
+        enzyme_location = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'Location'].to_dict()
+
+        membrane_sector = MembraneSector(area_avail_0=area_avail_0,
+                                         area_avail_mu=area_avail_mu,
+                                         alpha_numbers_dict=alpha_numbers_dict,
+                                         enzyme_location=enzyme_location)
+
+    else:
+        membrane_sector = None
+
     if total_protein: total_protein = TOTAL_PROTEIN_CONCENTRATION
 
-    pa_model = PAModel(id_or_model=model, p_tot=total_protein, sensitivity=sensitivity,
+    pa_model = mcPAModel(id_or_model=model, p_tot=total_protein, sensitivity=sensitivity,
                        active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector,
-                       unused_sector=unused_enzyme_sector, configuration=config)
+                       unused_sector=unused_enzyme_sector, configuration=config, membrane_sector=membrane_sector)
     return pa_model
 
-def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
-                     model:str = 'iML1515.xml', config:Config = None,
-                     total_protein: Union[bool, float] = True, active_enzymes: bool = True,
-                   translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+def set_up_ecoli_pam(total_protein: Union[bool, float] = True, active_enzymes: bool = True,
+                        translational_enzymes: bool = True, unused_enzymes: bool = True, membrane_sector: bool = True,
+                        sensitivity = True):
 
-    if config is None:
-        config = Config()
-        config.reset()
+    config = Config()
+    config.reset()
+
+    pam_info_file = os.path.join('Data', 'mcPAM_iML1515_EnzymaticData.xlsx')
 
     # some other constants
-    TOTAL_PROTEIN_CONCENTRATION = 0.258  # [g_prot/g_cdw]
+    TOTAL_PROTEIN_CONCENTRATION = 0.258 # [g_prot/g_cdw]
 
     #setup the gem ecoli iML1515 model
-    model = cobra.io.read_sbml_model(os.path.join('Models', model))
+    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
 
     #check if a different total protein concentration is given
     if isinstance(total_protein, float):
@@ -110,7 +132,7 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
     # load example data for the E.coli iML1515 model
     if active_enzymes:
         # load active enzyme sector information
-        enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+        enzyme_db = pd.read_excel(pam_info_file, sheet_name='mcPAM_data')
 
         # create enzyme objects for each gene-associated reaction
         rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
@@ -133,37 +155,43 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
         translation_enzyme_sector = None
 
     if unused_enzymes:
-        unused_protein_info = pd.read_excel(pam_info_file, sheet_name='UnusedEnzyme')
+        unused_protein_info = pd.read_excel(pam_info_file, sheet_name='ExcessEnzymes')
 
         ups_0 = unused_protein_info[unused_protein_info.Parameter == 'ups_0'].loc[2, 'Value']
-        ups_mu = unused_protein_info[unused_protein_info.Parameter == 'ups_mu'].loc[1, 'Value']
+        smax = unused_protein_info[unused_protein_info.Parameter == 's_max_uptake'].loc[1, 'Value']
 
         unused_protein_sector = UnusedEnzymeSector(
             id_list=[unused_protein_info[unused_protein_info.Parameter == 'id_list'].loc[0, 'Value']],
-            ups_mu=[ups_mu],
+            ups_mu=[ups_0 / smax],
             ups_0=[ups_0],
             mol_mass=[unused_protein_info[unused_protein_info.Parameter == 'mol_mass'].loc[3, 'Value']],
             configuration = config)
     else:
         unused_protein_sector = None
 
+    if membrane_sector:
+        membrane_info = pd.read_excel(pam_info_file, sheet_name='Membrane')
+        active_enzyme_info = pd.read_excel(pam_info_file, sheet_name='mcPAM_data')
+
+        area_avail_0 = membrane_info[membrane_info.Parameter == 'area_avail_0'].loc[1,'Value']
+        area_avail_mu = membrane_info[membrane_info.Parameter == 'area_avail_mu'].loc[2,'Value']
+        alpha_numbers_dict = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'alpha_numbers'].to_dict()
+        enzyme_location = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'Location'].to_dict()
+
+        membrane_sector = MembraneSector(area_avail_0=area_avail_0,
+                                         area_avail_mu=area_avail_mu,
+                                         alpha_numbers_dict=alpha_numbers_dict,
+                                         enzyme_location=enzyme_location)
+
+    else:
+        membrane_sector = None
+
     if total_protein: total_protein = TOTAL_PROTEIN_CONCENTRATION
 
-    # building membrane sector
-    membrane_info = pd.read_excel(pam_info_file, sheet_name='Membrane')
-
-    area_avail_0 = membrane_info[membrane_info.Parameter == 'area_avail_0'].loc[1, 'Value']
-    area_avail_mu = membrane_info[membrane_info.Parameter == 'area_avail_mu'].loc[2, 'Value']
-    alpha_numbers_dict = enzyme_db.set_index(keys='uniprot_id').loc[:, 'alpha_numbers'].to_dict()
-    enzyme_location = enzyme_db.set_index(keys='uniprot_id').loc[:, 'Location'].to_dict()
-    membrane_sector = MembraneSector(area_avail_0=area_avail_0,
-                                     area_avail_mu=area_avail_mu,
-                                     alpha_numbers_dict=alpha_numbers_dict,
-                                     enzyme_location=enzyme_location)
-
-    pamodel = mcPAModel(id_or_model=model, p_tot=total_protein, membrane_sector=membrane_sector,
+    pamodel = mcPAModel(id_or_model=model, p_tot=total_protein,
                        active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector,
-                       unused_sector=unused_protein_sector, sensitivity=sensitivity, configuration = config
+                       unused_sector=unused_protein_sector, sensitivity=sensitivity, configuration = config,
+                      membrane_sector=membrane_sector
                       )
     return pamodel
 
@@ -203,24 +231,18 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
 
     # replace NaN values with unique identifiers
     # select the NaN values
-    nan_values = enzyme_db['uniprot_id'].isnull()
+    nan_values = enzyme_db['uniprotID'].isnull()
     # make a list with unique ids
     nan_ids = [f'E{i}' for i in range(nan_values.sum())]
     # replace nan values by unique id
-    enzyme_db.loc[nan_values, 'uniprot_id'] = nan_ids
-
-    enzyme_db = enzyme_db.drop(['kegg_id', 'Reactants', 'Products', 'EC', 'Length'],axis=1).pivot_table(
-                          index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
-                          columns='direction',
-                          values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b':'kcat_b'}, axis=1)
-
+    enzyme_db.loc[nan_values, 'uniprotID'] = nan_ids
 
     protein2gene, gene2protein = _get_genes_for_proteins(enzyme_db, model)
 
     # Iterate over each row in the DataFrame
     for index, row in enzyme_db.iterrows():
         # Parse data from the row
-        rxn_id = row['rxn_id']
+        rxn_id = row['rxnID']
         if rxn_id not in model.reactions: continue
         # only parse those reactions which are in the model
         kcat_f_b = [row['kcat_f'], row['kcat_b']]
@@ -229,8 +251,8 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
 
         rxn = model.reactions.get_by_id(rxn_id)
         # get the identifiers and replace nan values by dummy placeholders
-        enzyme_id = row['uniprot_id']
-        gene_id = row['gene']
+        enzyme_id = row['uniprotID']
+        gene_id = row['m_gene']
 
         # check if there are genes associates with the reaction
         if len(rxn.genes) > 0 or isinstance(gene_id, str):
@@ -241,7 +263,7 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
                 gene_id = [gene.id for gene in rxn.genes][0]  # TODO
 
             # get the gene-protein-reaction-associations for this specific enzyme
-            gr, pr = parse_gpr_information_for_rxn2protein(row['GPR'],
+            gr, pr = parse_gpr_information_for_rxn2protein(row['m_gene_reaction_rule'],
                                                            gene2protein, protein2gene,enzyme_id)
 
             if pr is None: pr = [[enzyme_id]]
@@ -284,7 +306,6 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
             rxn2protein[rxn.id] = {enzyme_id: {
                 **kcat_dict,
                 'molmass': 3.947778784340140e04,
-                'protein_reaction_association': [[enzyme_id]],
                 'genes': gpr_info
             }}
             # add geneinfo for unknown enzymes
@@ -297,12 +318,12 @@ def _get_genes_for_proteins(enzyme_db: pd.DataFrame, model) -> dict:
     gene2protein = {}
     for index, row in enzyme_db.iterrows():
         # Parse data from the row
-        rxn_id = row['rxn_id']
+        rxn_id = row['rxnID']
         if rxn_id not in model.reactions:continue
         rxn = model.reactions.get_by_id(rxn_id)
         # get the identifiers and replace nan values by dummy placeholders
-        enzyme_id = row['uniprot_id']
-        gene_id = row['gene']
+        enzyme_id = row['uniprotID']
+        gene_id = row['m_gene']
 
         # check if there are genes associates with the reaction
         if len(rxn.genes) > 0 or isinstance(gene_id, str):
@@ -394,12 +415,9 @@ def parse_gpr_information_for_rxn2protein(gpr_info:str, gene2protein: dict,prote
         gpr_list = parse_gpr(gpr_info)
         # Extracting the inner lists and removing parentheses
         gene = protein2gene[enzyme_id]
-
         if isinstance(protein2gene[enzyme_id], list):
             gene = gene[0]
-        #only get the genes associated with this enzyme
         gpr_list = filter_sublists(gpr_list, gene)
-
         #convert the genes to the associated proteins
         enzyme_relations = []
         for sublist in gpr_list:
@@ -408,7 +426,6 @@ def parse_gpr_information_for_rxn2protein(gpr_info:str, gene2protein: dict,prote
                 if item in gene2protein.keys():
                     enz_sublist.append(gene2protein[item])
             enzyme_relations += [enz_sublist]
-        # only get the enzyme relations which involves this enzyme
         enzyme_relations = filter_sublists(enzyme_relations, enzyme_id)
         return gpr_list, enzyme_relations
     else:
@@ -418,12 +435,14 @@ def parse_gpr(gpr_info):
     # Split the string by 'or' first
     or_groups = gpr_info.split(' or ')
     parsed_gpr = []
+
     for group in or_groups:
         # Within each 'or' group, split by 'and'
         and_genes = group.split(' and ')
         # Clean up each gene string
         and_genes = [gene.strip(' ()') for gene in and_genes]
         parsed_gpr.append(and_genes)
+
     return parsed_gpr
 
 def filter_sublists(nested_list, target_string):
@@ -438,6 +457,131 @@ def filter_sublists(nested_list, target_string):
         list of list of str: A new nested list with the filtered sublists.
     """
     return [sublist for sublist in nested_list if target_string in sublist]
+
+def compare_mu_for_different_sensitivities_ecolicore_pam():
+    rxn2protein_new = {}
+    config = Config()
+    config.reset()
+    BIOMASS_REACTION = 'BIOMASS_Ecoli_core_w_GAM'
+    TOTAL_PROTEIN_CONCENTRATION = 0.16995  # [g_prot/g_cdw]
+
+    enzyme_info_path = "Data/mcPAM_iML1515_EnzymaticData.xlsx"
+    active_enzyme_info = pd.read_excel(enzyme_info_path, sheet_name='mcPAM_data')
+
+    model = cobra.io.load_json_model(os.path.join('Models', 'e_coli_core.json'))
+    rxn2protein, protein2gene = parse_reaction2protein(active_enzyme_info, model)
+
+   # building the different sectors
+    # building translational protein sector
+    # translational protein sector parameter (substrate dependent)
+    id_list_tps = ['EX_glc__D_e']
+    tps_0 = [0.04992]  # g/gDW
+    tps_mu = [-0.002944]  # g h/gDW -> transformed to match glucose uptake variable
+    molmass_tps = [405903.94]  # g/mol
+
+    # translational protein sector
+    translation_enzyme_sector = TransEnzymeSector(
+        id_list=id_list_tps,
+        tps_0=tps_0,
+        tps_mu=tps_mu,
+        mol_mass=molmass_tps,
+    )
+
+    # building unused protein sector
+    config.BIOMASS_REACTION = BIOMASS_REACTION
+    id_list_ups = [BIOMASS_REACTION]
+    ups_0 = [0.0407]  # g/gDW
+    ups_mu = [-0.0214]  # g h/gDW -> negative relation with growth rate
+    molmass_ups = [405903.94]  # g/mol
+
+    unused_enzyme_sector = UnusedEnzymeSector(
+        id_list=id_list_ups,
+        ups_0=ups_0,
+        ups_mu=ups_mu,
+        mol_mass=molmass_ups,
+    )
+
+    # building membrane sector #addition
+    membrane_info = pd.read_excel(enzyme_info_path, sheet_name='Membrane')
+
+    area_avail_0 = membrane_info[membrane_info.Parameter == 'area_avail_0'].loc[1, 'Value']
+    area_avail_mu = membrane_info[membrane_info.Parameter == 'area_avail_mu'].loc[2, 'Value']
+    alpha_numbers_dict = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'alpha_numbers'].to_dict()
+    enzyme_location = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'Location'].to_dict()
+    cog_class = active_enzyme_info.set_index(keys='uniprotID').loc[:, 'COG_group'].to_dict()
+
+    membrane_sector = MembraneSector(area_avail_0=area_avail_0,
+                                     area_avail_mu=area_avail_mu,
+                                     alpha_numbers_dict=alpha_numbers_dict,
+                                     enzyme_location=enzyme_location)
+
+    # creating models by adding one reaction at a time
+    df_mu = pd.DataFrame(columns=['True', 'False'])
+    mu_true = []
+    mu_false = []
+    loop_count = 0
+
+    for reaction, proteins in rxn2protein.items():
+        model1 = cobra.io.load_json_model(os.path.join('Models', 'e_coli_core.json'))
+        model2 = cobra.io.load_json_model(os.path.join('Models', 'e_coli_core.json'))
+
+        for protein, value in proteins.items():
+            if reaction not in rxn2protein_new:
+                rxn2protein_new[reaction] = {}  # Initialize the nested dictionary for each reaction
+
+                rxn2protein_new[reaction][protein] = value  # Add the protein-value pair to the nested dictionary
+            else:
+                rxn2protein_new[reaction][protein] = value
+        active_enzyme_sector_1 = ActiveEnzymeSector(rxn2protein=rxn2protein_new, protein2gene=protein2gene,
+                                                    configuration=config)
+
+        active_enzyme_sector_2 = ActiveEnzymeSector(rxn2protein=rxn2protein_new.copy(),
+                                                    protein2gene=protein2gene.copy(),
+                                                    configuration=config)
+
+        pamodel1 = PAModel(id_or_model=model1, p_tot=TOTAL_PROTEIN_CONCENTRATION,
+                           active_sector=active_enzyme_sector_1, translational_sector=translation_enzyme_sector,
+                           unused_sector=unused_enzyme_sector, sensitivity=True, configuration=config,
+                           membrane_sector=membrane_sector
+                           )
+        pamodel2 = PAModel(id_or_model=model2, p_tot=TOTAL_PROTEIN_CONCENTRATION,
+                           active_sector=active_enzyme_sector_2, translational_sector=translation_enzyme_sector,
+                           unused_sector=unused_enzyme_sector, sensitivity=False, configuration=config,
+                           membrane_sector=membrane_sector
+                           )
+
+        pamodel1.objective = pamodel1.BIOMASS_REACTION
+        pamodel2.objective = pamodel2.BIOMASS_REACTION
+
+        pamodel1.optimize()
+        pamodel2.optimize()
+
+        obj_true = pamodel1.objective.value
+        obj_false = pamodel2.objective.value
+
+        if pamodel1.solver.status == 'optimal':
+            obj_true = round(obj_true, 2)
+            obj_false = round(obj_false, 2)
+
+        mu_true.append(obj_true)
+        mu_false.append(obj_false)
+
+        if obj_true == obj_false:
+            print(obj_true, '=', obj_false)
+
+        # elif loop_count == 7:
+        #     break
+        else:
+            print('Objective values are not the same')
+            print('Stop at reaction', reaction, rxn2protein_new[reaction])
+
+        loop_count += 1
+
+    df_mu['True'] = mu_true
+    df_mu['False'] = mu_false
+
+    return df_mu
+
 
 if __name__ == '__main__':
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')

@@ -1,6 +1,10 @@
 import os
 import pandas as pd
 import warnings
+
+from Scripts.pam_generation_uniprot_id import setup_yeast_pam
+from sympy.logic.inference import valid
+
 warnings.filterwarnings("ignore")
 
 
@@ -9,7 +13,7 @@ from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_scerevisiae_pam_uniprot
+from Scripts.pam_generation_uniprot_id import setup_yeast_pam, increase_kcats_in_parameter_file
 
 
 # import sys
@@ -21,14 +25,13 @@ config = Config()
 config.reset()
 
 def set_up_validation_data(csources: list=None) -> list[ValidationData]:
-    condition2uptake = {'Glycerol': 'EX_glyc_e', 'Glucose': 'EX_glc__D_e',
-                        'Octanoate': 'EX_octa_e', 'Toluene': 'TOLtex', 'm-Xylene': 'M_Xylt1',
-                         'Succinate': 'EX_succ_e', 'Benzoate': 'EX_bz_e',
-                        'Fructose': 'EX_fru_e'}
+    condition2uptake = {'Maltose': 'r_1931', 'Glucose': 'r_1714',
+                        'Galactose': 'r_1710', 'Trehalose': 'r_1650'}
     if csources is None: csources = list(condition2uptake.keys())
+
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx')
     model = 'yeast9.xml'
-    model = setup_scerevisiae_pam_uniprot(pam_info_file, model, total_protein=0.3)
+    model = setup_yeast_pam(pam_info_file, model, total_protein=0.3)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Scerevisiae_phenotypes', 'scerevisiae_phenotypes.xlsx')
@@ -38,15 +41,11 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
             filtered_condition2uptake[csource] = uptake_rxn
 
     # Load the data from the sheets
-    exchanges = pd.read_excel(VALID_DATA_PATH, 'exchanges_chemostat')
+    exchanges_chemostat = pd.read_excel(VALID_DATA_PATH, 'exchanges_chemostat')
+    exchanges_batch = pd.read_excel(VALID_DATA_PATH, 'exchanges_batch').drop(['Substrate', 'RQ'], axis = 1)
 
-    # Dictionary to map carbon sources to exchange reactions and fluxomics sheets
-    # not fructose, because that is possibly mixotrophic growth
-    fluxomics_csources = {}
-    for rxn_id, sheet_name in zip(["EX_bz_e", "EX_glc__D_e"],["fluxomics_benzoate","fluxomics_glucose"]):
-        df = pd.read_excel(VALID_DATA_PATH, sheet_name)
-        df = df[df.Strain == "KT2440"]
-        fluxomics_csources[rxn_id] = df
+    exchanges = pd.concat([exchanges_batch, exchanges_chemostat], axis =0)
+
 
     #make validation data objects
     validation_data_objects = []
@@ -54,27 +53,21 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
         if c_uptake_id in exchanges.columns:
             #get all rows with uptake of this carbon source and drop all empty columns
             valid_data_df = exchanges[~exchanges[c_uptake_id].isnull()].dropna(axis=1, how='all')
-        if c_uptake_id in fluxomics_csources.keys():
-            fluxomics_data = fluxomics_csources[c_uptake_id].drop('Reference', axis=1)
-            if c_uptake_id in exchanges.columns:
-                valid_data_df = pd.concat([fluxomics_data, valid_data_df])
-            else:
-                valid_data_df = fluxomics_data
+
         valid_data_df[c_uptake_id + '_ub'] = valid_data_df[c_uptake_id]
 
         validation_data = ValidationData(valid_data_df, c_uptake_id, [-20, -0.1])
         #validate only exchange rates and growth rate
-        validation_data._reactions_to_validate = [rxn for rxn in valid_data_df.columns if (("EX_" in rxn) & (not "_ub" in rxn))] + ['BIOMASS_KT2440_WT3']
+        validation_data._reactions_to_validate = [rxn for rxn in valid_data_df.columns]
         validation_data._reactions_to_plot = [rxn for rxn in valid_data_df.columns if not "_ub" in rxn]
 
 
-        if c_uptake_id == 'EX_glc__D_e':
+        if c_uptake_id == 'r_1714': #glucose uptake
             validation_data.translational_sector_config = {
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
             }
 
-            validation_data._reactions_to_plot = ['BIOMASS_KT2440_WT3', 'EDD','MDH', 'EX_glcn_e', 'EX_25dkglcn_e']
         validation_data_objects.append(validation_data)
 
     return validation_data_objects
@@ -82,9 +75,10 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
                           filename_extension:str,
-                          num_kcats_to_mutate:int = 4):
+                          num_kcats_to_mutate:int = 4,
+                          threshold_iteration:int=10):
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10
+    hyperparams.threshold_iteration = threshold_iteration
     hyperparams.number_of_kcats_to_mutate = num_kcats_to_mutate
     hyperparams.filename_extension = filename_extension
     hyperparams.genetic_algorithm_filename_base += filename_extension
@@ -112,33 +106,40 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate):
             result_df.loc[len(result_df)] = [substrate] + results_row
     return result_df
 
+
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            processes: int =4,
                            gene_flow_events: int = 4,
-                           filename_extension:str = 'iJN1463',
-                           num_kcats_to_mutate: int =15,
-                           c_sources:list = ['Glucose']):
-    pam_info_file = os.path.join('Data', 'proteinAllocationModel_iJN1463_EnzymaticData_240807.xlsx')
-    model = 'iJN1463.xml'
-    config = Config()
-    config.reset()
-    config.BIOMASS_REACTION = 'BIOMASS_KT2440_WT3'
-    pputida_pam = setup_pputida_pam_uniprot(pam_info_file, model, config, total_protein=0.3)
-    pputida_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
+                           filename_extension:str = 'yeast9',
+                           num_kcats_to_mutate: int =10,
+                           threshold_iteration: int = 10,
+                           c_sources:list = ['Glucose'],
+                           kcat_increase_factor: int = 1):
+
+    pam_info_file_path_new = os.path.join(
+        'Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903_multi.xlsx')
+    increase_kcats_in_parameter_file(kcat_increase_factor,
+                                     pam_info_file_path_ori=os.path.join(
+                                         'Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx'),
+                                     pam_info_file_path_out=pam_info_file_path_new)
+
+    yeast_pam = setup_yeast_pam()
 
     validation_data = set_up_validation_data(c_sources)
-    hyperparameters = set_up_hyperparameter(processes, gene_flow_events, filename_extension, num_kcats_to_mutate)
+    hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
+                                            filename_extension,
+                                            num_kcats_to_mutate, threshold_iteration)
 
-    return PAMParametrizer(pamodel=pputida_pam,
+    return PAMParametrizer(pamodel=yeast_pam,
                      validation_data=validation_data,
                      hyperparameters=hyperparameters,
-                     substrate_uptake_id='EX_glc__D_e',
+                     substrate_uptake_id='r_1714',
                      max_substrate_uptake_rate=max_substrate_uptake_rate,
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glycerol', 'Glucose'])#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+                         c_sources = ['Glucose'])#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

@@ -102,6 +102,7 @@ class FitnessEvaluation():
         """
         self.model = model
         self.totprot_start_ub = self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub
+        self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0
         self.tps_intercept = self.model.sectors.get_by_id('TranslationalProteinSector').intercept
 
 

@@ -12,7 +12,7 @@ from PAModelpy.configuration import Config
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_ecoli_pam
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_pputida_pam_uniprot
+from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_pam_uniprot
 
 
 # import sys
@@ -31,7 +31,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
     if csources is None: csources = list(condition2uptake.keys())
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_iJN1463_EnzymaticData_240807.xlsx')
     model = 'iJN1463.xml'
-    model = setup_pputida_pam_uniprot(pam_info_file, model, total_protein=0.3)
+    model = setup_pam_uniprot(pam_info_file, model, total_protein=0.3)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Pputida_phenotypes', 'pputida_phenotypes.xlsx')
@@ -80,19 +80,21 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
 
             validation_data._reactions_to_plot = ['BIOMASS_KT2440_WT3', 'EDD','MDH', 'EX_glcn_e', 'EX_25dkglcn_e']
         validation_data_objects.append(validation_data)
+        print(validation_data.valid_data)
 
     return validation_data_objects
 
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
                           filename_extension:str,
-                          num_kcats_to_mutate:int = 4):
+                          num_kcats_to_mutate:int = 20):
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 10
     hyperparams.number_of_kcats_to_mutate = num_kcats_to_mutate
     hyperparams.filename_extension = filename_extension
     hyperparams.genetic_algorithm_filename_base += filename_extension
 
+    hyperparams.genetic_algorithm_hyperparams['time_limit'] = 60000
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
@@ -120,15 +122,16 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
-                           num_kcats_to_mutate: int =15,
+                           num_kcats_to_mutate: int =20,
                            c_sources:list = ['Glucose']):
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_iJN1463_EnzymaticData_240807.xlsx')
     model = 'iJN1463.xml'
     config = Config()
     config.reset()
     config.BIOMASS_REACTION = 'BIOMASS_KT2440_WT3'
-    pputida_pam = setup_pputida_pam_uniprot(pam_info_file, model, config, total_protein=0.3)
+    pputida_pam = setup_pam_uniprot(pam_info_file, model, config, total_protein=0.3)
     pputida_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
+
 
     validation_data = set_up_validation_data(c_sources)
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events, filename_extension, num_kcats_to_mutate)

@@ -48,7 +48,6 @@ class Genetic_Algorithm():
         
         
         """
-
         # create an initial population
         pop = toolbox.population(n=population_size)
 

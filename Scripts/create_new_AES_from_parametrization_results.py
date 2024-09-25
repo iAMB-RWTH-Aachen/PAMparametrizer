@@ -9,7 +9,7 @@ def search_index_in_parameter_file(df:pd.DataFrame, protein:str, reaction:str, d
     the_row = all_rxn_and_protein_rows[all_rxn_and_protein_rows.direction == direction]
     return the_row.index
 
-RESULT_PARAMETRIZATION_FILE = os.path.join('Results', 'pam_parametrizer_diagnostics_ecolicore_false_multiple_csources2.xlsx')
+RESULT_PARAMETRIZATION_FILE = os.path.join('Results', 'pam_parametrizer_diagnostics_ecolicore_UE0.7.xlsx')
 NEW_AES_SUFFIX = 'ecolicore_240906'
 SECTOR_PARAM_FILE = os.path.join('Data','proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
 

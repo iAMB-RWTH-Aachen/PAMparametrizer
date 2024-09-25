@@ -1,0 +1,69 @@
+import math
+import os
+import pandas as pd
+from typing import Callable
+from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer
+
+
+MIN_SUBSTRATE_UPTAKE_RATE = -11
+MAX_SUBSTRATE_UPTAKE_RATE = -0.1
+MAX_MU_ECOLI = 0.7 #estimate
+MAX_MU_ECOLI_ALE = math.log(2)*1.63#from lenski experiment: ln(2)*1.63(doublings per hour)
+
+UE_0 = 0.0407# intercept for the unused protein to mu relation (unused enzymes at zero growth) in g/gDW
+
+max_mu_for_UEmu_determination =[MAX_MU_ECOLI, #max growth
+                                MAX_MU_ECOLI+(MAX_MU_ECOLI_ALE-MAX_MU_ECOLI)/2, #intermediate timepoint
+                                MAX_MU_ECOLI_ALE, #max growth after ALE
+                                MAX_MU_ECOLI_ALE+(MAX_MU_ECOLI_ALE-MAX_MU_ECOLI)/2] #to check if there is still some unused protein left after ALE
+
+
+def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
+                                               intercept_unused_enzymes:float,
+                                               kcat_increase_factor:int,
+                                               result_df_file_path: str,
+                                               num_replicate_simulations:int = 3,
+                                               setup_pamparametrizer_function: Callable = set_up_pamparametrizer,
+                                               pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose'],
+                                                                                'threshold_iteration': 4,
+                                                                                'processes':2,
+                                                                                'gene_flow_events': 2},
+                                               ):
+    result_df = pd.DataFrame(columns=['maxmu', 'rsquared', 'iteration'])
+    for i, max_mu in enumerate(max_mu_list):
+        slope = -intercept_unused_enzymes / max_mu  # dy/dx (y is protein concentration, x is growth rate)
+        print('\n\n----------------------------------------------------------------------')
+        print(f'Starting optimization using {max_mu} h-1 as growth rate without unused enzymes')
+        print(
+            f'The unused protein sector represents the following relation:\n\t\t P_UE[g/gDW] = {UE_0}[g/gDW] - {abs(slope)}[g/gDW/h] * mu[h-1]')
+        for iteration in range(num_replicate_simulations):
+            print(f'\n===========\nStarting iteration number {iteration}')
+            pam_parametrizer = setup_pamparametrizer_function(MIN_SUBSTRATE_UPTAKE_RATE,
+                                                      MAX_SUBSTRATE_UPTAKE_RATE,
+                                                      kcat_increase_factor=kcat_increase_factor,
+                                                      filename_extension=f'iML1515_UE_{i}_{iteration}',
+                                                              **pam_parametrizer_kwargs)
+            # change the filename to save the results in a recognizable name
+
+            pam_parametrizer.pamodel.change_sector_parameters(
+                pam_parametrizer.pamodel.sectors.get_by_id('TranslationalProteinSector'),
+                slope=slope,
+                intercept=UE_0,
+                lin_rxn_id=pam_parametrizer.pamodel.BIOMASS_REACTION
+            )
+
+            pam_parametrizer.run(remove_subruns=True, binned='False')
+
+            result_df.loc[len(result_df)] = [max_mu, pam_parametrizer.final_error, iteration]
+
+    result_df.to_excel(result_df_file_path)
+    print("Ended the scan of unused enzyme sector parameters")
+
+
+if __name__ == "__main__":
+    #example usage iML1515
+    scan_unused_enzyme_sector_max_growth_rates(max_mu_for_UEmu_determination,
+                                               intercept_unused_enzymes= UE_0,
+                                               kcat_increase_factor=3,
+                                               result_df_file_path= os.path.join('Results',
+                                                                                 'iML1515_UES_intercept_screen.xlsx'))

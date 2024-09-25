@@ -3,6 +3,8 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from PAModelpy import Config
+
 def perform_linear_regression(x, y):
     result = linregress(x=x,y=y)
     return result.slope, result.intercept
@@ -51,6 +53,7 @@ def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> 
 
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         sol_pam =pamodel.optimize()
+        print(pamodel.solver.status, pamodel.objective.value)
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
             fluxes.append(sol_pam.fluxes)
     return fluxes
@@ -58,28 +61,33 @@ def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> 
 
 def plot_translational_protein_vs_mu(literature, results,
                                      protein_fraction, measured_protein_fraction,
-                                     oxygen_results=None, oxygen_rxn_id=None, return_fig = False):
+                                     oxygen_results=None, oxygen_rxn_id=None, return_fig = False,
+                                     configuration = None, literature_label = 'Schmidt et al (2016',
+                                     model_label = 'new iML1515 PAM'):
+
+    if configuration is None:
+        configuration  = Config().reset()
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Plotting the literature data
     ax.scatter(
         literature['Experimental Growth rate'],
         literature['Translation, ribosomal structure and biogenesis'] / 100 * measured_protein_fraction / protein_fraction,
-        label='Schmidt et al (2016)', color='blue', s=50, zorder=5
+        label=literature_label, color='blue', s=50, zorder=5
     )
 
     # Plotting the no limitation line
     ax.plot(
-        results['BIOMASS_Ec_iML1515_core_75p37M'],
+        results[configuration.BIOMASS_REACTION],
         abs(results['translational_protein']),
-        label='new iML1515 PAM', linewidth=5, color='red', zorder=10
+        label=model_label, linewidth=5, color='red', zorder=10
     )
 
     # Plotting oxygen limitation results if provided
     if oxygen_results is not None:
         for o2_level, result in oxygen_results.groupby(oxygen_rxn_id):
             ax.plot(
-                result['BIOMASS_Ec_iML1515_core_75p37M'],
+                result[configuration.BIOMASS_REACTION],
                 abs(result['translational_protein']),
                 linewidth=5,
                 label=f'{round(o2_level * 100) / 100} $mmol_{{O_{{2}}}}/g_{{CDW}}/h$'
@@ -105,24 +113,23 @@ def plot_translational_protein_vs_mu(literature, results,
     plt.show()
 
 
-def plot_unused_protein_vs_mu(results, ups_molmass, biomass_rxn):
+def plot_unused_protein_vs_mu(results, biomass_rxn):
     # plotting
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Plotting the no limitation line
     ax.plot(
-        results['BIOMASS_Ec_iML1515_core_75p37M'],
-        abs(results['translational_protein']),
+        results[biomass_rxn],
+        abs(results['unused_protein']),
         label='Simulations', linewidth=5, color='red', zorder=10
     )
 
     # Setting axes labels
     ax.set_xlabel('Growth rate (h$^{-1}$)', fontsize=12)
     ax.set_ylabel('Unused enzyme sector ($g_{unusedprotein}/g_{CDW}$)', fontsize=12)
-    ax.set_ylim([0,0.2])
 
 
-    ax.set_title('Glucose Limitation', fontsize=14)
+    ax.set_title('Substrate Limitation', fontsize=14)
     fig.tight_layout()
 
     plt.show()
@@ -140,6 +147,8 @@ def plot_unused_protein_vs_mu(results, ups_molmass, biomass_rxn):
     # fig.show()
 
 def change_translational_sector_with_config_dict(pamodel, transl_sector_config:dict, substrate_uptake_id:str) -> None:
+    pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
+
     pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),
                                               slope=transl_sector_config['slope'],
                                               intercept=transl_sector_config['intercept'],

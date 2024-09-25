@@ -113,6 +113,7 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
                      total_protein: Union[bool, float] = True, active_enzymes: bool = True,
                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
 
+
     if config is None:
         config = Config()
         config.reset()
@@ -155,16 +156,16 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
         translation_enzyme_sector = None
 
     if unused_enzymes:
-        unused_protein_info = pd.read_excel(pam_info_file, sheet_name='UnusedEnzyme')
+        unused_protein_info = pd.read_excel(pam_info_file, sheet_name='UnusedEnzyme').set_index('Parameter')
 
-        ups_0 = unused_protein_info[unused_protein_info.Parameter == 'ups_0'].loc[2, 'Value']
-        ups_mu = unused_protein_info[unused_protein_info.Parameter == 'ups_mu'].loc[1, 'Value']
+        ups_0 = unused_protein_info.at['ups_0', 'Value']
+        ups_mu = unused_protein_info.at['ups_mu', 'Value']
 
         unused_protein_sector = UnusedEnzymeSector(
-            id_list=[unused_protein_info[unused_protein_info.Parameter == 'id_list'].loc[0, 'Value']],
+            id_list=[unused_protein_info.at['id_list', 'Value']],
             ups_mu=[ups_mu],
             ups_0=[ups_0],
-            mol_mass=[unused_protein_info[unused_protein_info.Parameter == 'mol_mass'].loc[3, 'Value']],
+            mol_mass=[unused_protein_info.at['mol_mass', 'Value']],
             configuration = config)
     else:
         unused_protein_sector = None
@@ -451,7 +452,7 @@ def filter_sublists(nested_list, target_string):
 
 def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx'),
                      model:str = 'yeast9.xml', config:Config = None,
-                     total_protein: Union[bool, float] = 0.388, active_enzymes: bool = True,
+                     total_protein: Union[bool, float] = 0.2820642263886969, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
     if config is None:
         config = set_up_yeast_config()
@@ -461,7 +462,7 @@ def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationMo
     if total_protein:
         #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
         #can assume include this section in the total protein constraint (no correction needed)
-        yeast_pam.change_total_protein_constraint(0.2820642263886969)
+        # yeast_pam.change_total_protein_constraint(0.2820642263886969)
         protein_growth_relation = CustomSector(
             id_list= ['r_2111'], #biomass formation
             name='total_protein_growth_relation',
@@ -491,7 +492,7 @@ def set_up_yeast_config():
     config.ENZYME_ID_REGEX = r'(Y[A-P][LR][0-9]{3}[CW])'
     return config
 
-if __name__ == '__main__':
+def pickle_rxn2kcat_protein2gene_dicts():
     pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
 
     # setup the gem ecoli iML1515 model
@@ -518,13 +519,36 @@ if __name__ == '__main__':
                     if len(pr) > 1:
                         enzyme_complex_id = '_'.join(pr)
                         new_rxn2prot[rxn] = {**new_rxn2prot[rxn],
-                                                 **{enzyme_complex_id: enzyme_dict}}
+                                             **{enzyme_complex_id: enzyme_dict}}
     rxn2protein_full = new_rxn2prot
-
 
     with open('Models/rxn2kcat_iML1515_uniprot.json', 'w') as file:
         json.dump(rxn2protein_full, file, indent=2, sort_keys=True)
-    # # ecoli_pam.objective = ecoli_pam.BIOMASS_REACTION
-    # ecoli_pam.change_reaction_bounds('EX_glc__D_e', -10, 0)
-    # ecoli_pam.optimize()
-    # print(ecoli_pam.objective.value)
+
+def increase_kcats_in_parameter_file(kcat_increase_factor: int,
+                                     pam_info_file_path_ori: str,
+                                     pam_info_file_path_out: str = os.path.join(
+    'Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')):
+
+    pam_info_file_ori = pd.read_excel(pam_info_file_path_ori, sheet_name='ActiveEnzymes')
+    transprot = pd.read_excel(pam_info_file_path_ori, sheet_name='Translational')
+    unusedenz = pd.read_excel(pam_info_file_path_ori, sheet_name='UnusedEnzyme')
+
+    pam_info_file_new = pam_info_file_ori.rename({'kcat_values': 'kcat_values_ori'})
+    pam_info_file_new['kcat_values'] = pam_info_file_ori['kcat_values']*kcat_increase_factor
+
+    write_mode = 'w'
+    kwargs = {}
+    if os.path.isfile(pam_info_file_path_out):
+        write_mode = 'a'
+        kwargs = {'if_sheet_exists': 'replace'}
+
+    with pd.ExcelWriter(pam_info_file_path_out, engine = 'openpyxl',
+                        mode = write_mode, **kwargs) as writer:
+        pam_info_file_new.to_excel(writer, sheet_name = 'ActiveEnzymes', index=False)
+        transprot.to_excel(writer, sheet_name='Translational', index=False)
+        unusedenz.to_excel(writer, sheet_name='UnusedEnzyme', index=False)
+
+
+if __name__ == '__main__':
+    pass
