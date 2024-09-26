@@ -24,14 +24,11 @@ MIN_SUBSTRATE_UPTAKE_RATE = -20
 config = Config()
 config.reset()
 
-def set_up_validation_data(csources: list=None) -> list[ValidationData]:
+def set_up_validation_data(model,csources: list=None) -> list[ValidationData]:
     condition2uptake = {'Maltose': 'r_1931', 'Glucose': 'r_1714',
                         'Galactose': 'r_1710', 'Trehalose': 'r_1650'}
     if csources is None: csources = list(condition2uptake.keys())
 
-    pam_info_file = os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx')
-    model = 'yeast9.xml'
-    model = setup_yeast_pam(pam_info_file, model, total_protein=0.3)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Scerevisiae_phenotypes', 'scerevisiae_phenotypes.xlsx')
@@ -41,7 +38,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
             filtered_condition2uptake[csource] = uptake_rxn
 
     # Load the data from the sheets
-    exchanges_chemostat = pd.read_excel(VALID_DATA_PATH, 'exchanges_chemostat')
+    exchanges_chemostat = pd.read_excel(VALID_DATA_PATH, 'exchanges_chemostat').drop(['RQ'], axis = 1)
     exchanges_batch = pd.read_excel(VALID_DATA_PATH, 'exchanges_batch').drop(['Substrate', 'RQ'], axis = 1)
 
     exchanges = pd.concat([exchanges_batch, exchanges_chemostat], axis =0)
@@ -59,7 +56,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
         validation_data = ValidationData(valid_data_df, c_uptake_id, [-20, -0.1])
         #validate only exchange rates and growth rate
         validation_data._reactions_to_validate = [rxn for rxn in valid_data_df.columns]
-        validation_data._reactions_to_plot = [rxn for rxn in valid_data_df.columns if not "_ub" in rxn]
+        validation_data._reactions_to_plot = ['r_2111', 'r_1761', 'r_1672', 'r_1992', 'r_2033']
 
 
         if c_uptake_id == 'r_1714': #glucose uptake
@@ -125,7 +122,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
     yeast_pam = setup_yeast_pam()
 
-    validation_data = set_up_validation_data(c_sources)
+    validation_data = set_up_validation_data(yeast_pam, c_sources)
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
                                             filename_extension,
                                             num_kcats_to_mutate, threshold_iteration)

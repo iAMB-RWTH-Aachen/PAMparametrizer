@@ -25,7 +25,7 @@ def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
                                                num_replicate_simulations:int = 3,
                                                setup_pamparametrizer_function: Callable = set_up_pamparametrizer,
                                                pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose'],
-                                                                                'threshold_iteration': 4,
+                                                                                'threshold_iteration': 2,
                                                                                 'processes':2,
                                                                                 'gene_flow_events': 2},
                                                ):
@@ -64,6 +64,6 @@ if __name__ == "__main__":
     #example usage iML1515
     scan_unused_enzyme_sector_max_growth_rates(max_mu_for_UEmu_determination,
                                                intercept_unused_enzymes= UE_0,
-                                               kcat_increase_factor=3,
+                                               kcat_increase_factor=4,
                                                result_df_file_path= os.path.join('Results',
                                                                                  'iML1515_UES_intercept_screen.xlsx'))

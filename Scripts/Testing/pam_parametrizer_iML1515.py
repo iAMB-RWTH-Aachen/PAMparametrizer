@@ -51,7 +51,8 @@ def set_up_validation_data(csources: list) -> list[ValidationData]:
     return validation_data_objects
 
 
-def get_validation_data_df_other_csources(condition2uptake: dict, model_reactions: list) -> Tuple[pd.DataFrame, dict]:
+def get_validation_data_df_other_csources(condition2uptake: dict,
+                                          model_reactions: list) -> Tuple[pd.DataFrame, dict]:
     VALID_DATA_CSOURCES_PATH = os.path.join('Data', 'Ecoli_phenotypes', 'fluxomics_datasets_gerosa.xlsx')
     valid_data_csources = pd.read_excel(VALID_DATA_CSOURCES_PATH, sheet_name='Gerosa et al')
 
@@ -156,7 +157,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glucose'], kcat_increase_factor= 3)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+                         c_sources = ['Glucose'], kcat_increase_factor= 4)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_iML1515

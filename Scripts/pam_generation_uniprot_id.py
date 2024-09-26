@@ -452,7 +452,7 @@ def filter_sublists(nested_list, target_string):
 
 def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx'),
                      model:str = 'yeast9.xml', config:Config = None,
-                     total_protein: Union[bool, float] = 0.2820642263886969, active_enzymes: bool = True,
+                     total_protein: Union[bool, float] = 0.28697423725932236, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
     if config is None:
         config = set_up_yeast_config()
@@ -462,7 +462,6 @@ def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationMo
     if total_protein:
         #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
         #can assume include this section in the total protein constraint (no correction needed)
-        # yeast_pam.change_total_protein_constraint(0.2820642263886969)
         protein_growth_relation = CustomSector(
             id_list= ['r_2111'], #biomass formation
             name='total_protein_growth_relation',
@@ -551,4 +550,8 @@ def increase_kcats_in_parameter_file(kcat_increase_factor: int,
 
 
 if __name__ == '__main__':
-    pass
+    pam = setup_yeast_pam()
+    # pam.change_total_protein_constraint(1)
+    pam.change_reaction_bounds('r_1714', -1e3,0)
+    pam.optimize()
+    print(pam.objective.value)

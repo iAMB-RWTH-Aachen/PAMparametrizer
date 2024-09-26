@@ -33,34 +33,43 @@ def scan_kcat_factors(max_factor:int,
                       stepsize:Union[float, int] = 1,
                       setup_pam_function: Callable = set_up_ecoli_pam,
                       setup_pamparametrizer_function: Callable = set_up_pamparametrizer,
-                      pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose'],
-                                                       'threshold_iteration': 5},
+                      pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose']},
                       substrate_reaction_id = 'EX_glc__D_e',
                       substrate_uptake_rates: np.arange = np.arange(-11,1,1)) -> None:
 
+    factors_to_scan = np.arange(min_factor,max_factor+1,stepsize)
+
+    pam_parametrizer_kwargs['threshold_iteration'] = len(factors_to_scan)
     pam_parametrizer = setup_pamparametrizer_function(substrate_uptake_rates[0],
                                                       substrate_uptake_rates[-1],
                                                       **pam_parametrizer_kwargs)
     fig, axs = pam_parametrizer.plot_valid_data()
 
-    for mult_factor in np.arange(min_factor,max_factor+1,stepsize):
-        pam_parametrizer.iteration = mult_factor
+    for mult_factor in factors_to_scan:
+        print("\n----------------------------------------------------------------------")
+        print(f"Multiplying the kcat values with {mult_factor}")
+        pam_parametrizer.iteration += 1
 
         pam = setup_pam_function(sensitivity=False)
         pam.change_reaction_bounds(substrate_reaction_id, -1e3, 0)
         change_kcat_with_factor(pam, mult_factor)
 
-        pam_parametrizer.pamodel=pam
+        pam_parametrizer.pamodel= pam
         fig = pam_parametrizer.plot_simulation(fig,axs, cbar_label='Scaling factor')
+        pam.change_reaction_bounds(substrate_reaction_id, -1e3, 0)
+        pam.optimize()
+        print(f'The model with these parameters is *{pam.solver.status}* and the maximal possible growth rate is {pam.objective.value} h-1') #TODO why is it not giving output?
 
     plt.savefig(scan_figure_file_path)
-    print("Done scanning the kcat multiplication factors")
+    print("\n-------------------------------------------------------------------\nDone scanning the kcat multiplication factors")
 
 def scan_kcat_factors_iML1515():
     scan_kcat_factors(5, os.path.join('Results', 'multifactor_scan_iML1515.png'))
 
 def scan_kcat_factors_yeast9():
-    scan_kcat_factors(max_factor=5,
+    scan_kcat_factors(max_factor=100,
+                      min_factor=10,
+                      stepsize=10,
                       scan_figure_file_path= os.path.join('Results', 'yeast9','multifactor_scan_yeast9.png'),
                       setup_pam_function=setup_yeast_pam,
                       setup_pamparametrizer_function=set_up_pamparam_yeast,
