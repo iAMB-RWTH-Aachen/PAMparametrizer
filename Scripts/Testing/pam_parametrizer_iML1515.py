@@ -104,6 +104,8 @@ def set_up_hyperparameter(processes: int,
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
+    hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'EX_ac_e':3,
+                                                                  config.BIOMASS_REACTION: 5}
     return hyperparams
 
 def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE):
@@ -157,7 +159,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glucose'], kcat_increase_factor= 4)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+                         c_sources = ['Glucose'], kcat_increase_factor= 3)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.Testing.pam_parametrizer_iML1515

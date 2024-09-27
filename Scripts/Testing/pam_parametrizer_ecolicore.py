@@ -87,7 +87,7 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
     validation_data = ValidationData(valid_data_df, condition2uptake[csource], [-30, 0])
 
     validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:]!="_ub"]
-    validation_data._reactions_to_validate = [col for col in valid_data_df.columns if 'EX_' in col]
+    validation_data._reactions_to_validate = [col for col in valid_data_df.columns if ('EX_' in col)]
     return validation_data
 
 def set_up_hyperparameter() -> HyperParameters:

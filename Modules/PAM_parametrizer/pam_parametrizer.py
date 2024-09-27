@@ -43,7 +43,12 @@ class PAMParametrizer():
                  enzymes_to_evaluate:list = []):
 
         self.core_genetic_algorithm = None
-        self.pamodel = pamodel
+
+        #set up models with (find enzymes to change) and without (decrease simulation time) sensitivity
+        self.pamodel = pamodel.copy(copy_with_pickle = True)
+        self.pamodel_no_sensitivity = pamodel.copy(copy_with_pickle = True)
+        self.pamodel_no_sensitivity.sensitivity = False
+
         #change total protein constraint to equality constraint for better fittinh
         self._set_total_protein_constraint_to_equality()
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
@@ -108,7 +113,7 @@ class PAMParametrizer():
 
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
-        fig = self.plot_simulation(fig=fig, axs=axs, color="#010328")
+        fig = self.plot_simulation(fig=fig, axs=axs, color="#010328", sensitivity = False)
 
         #keep track of time for computational performance
         start = time.perf_counter()
@@ -148,9 +153,7 @@ class PAMParametrizer():
     def calculate_translational_sector_for_multiple_csources(self):
         #generate a pam with only the translational sector
         #make a copy of the pam using pickle (the copy method for some reason does not work properly)
-        pam_pickle = pickle.dumps(self.pamodel)
-        pamtransl = pickle.loads(pam_pickle)
-        pamtransl.sensitivity = False #this will speed the simulations up
+        pamtransl = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
 
         #remove total protein to remove protein relations
         pamtransl.remove_cons_vars([pamtransl.constraints[pamtransl.TOTAL_PROTEIN_CONSTRAINT_ID]])
@@ -185,7 +188,8 @@ class PAMParametrizer():
 
         # 2. Run model in bins, get sensitivities and calculate errors
         for subst_uptake_id, binned_substrate in binned_substrates.items():
-            self._change_translational_sector_for_substrate(substrate_uptake_id=subst_uptake_id)
+            self._change_translational_sector_for_substrate(substrate_uptake_id=subst_uptake_id,
+                                                            pamodel=self.pamodel)
             for bin_id, bin_info in binned_substrate.items():
                 self.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id = subst_uptake_id)
                 # print running time to check on progress
@@ -327,7 +331,7 @@ class PAMParametrizer():
             - Either bin_information or substrate_uptake_rates should be defined in order to define the substrate uptake
                     rates to constrain the model
         """
-        self._change_translational_sector_for_substrate(substrate_uptake_reaction)
+        self._change_translational_sector_for_substrate(substrate_uptake_reaction, self.pamodel)
         if bin_information is not None:
             start, stop, step = bin_information[0], bin_information[1], bin_information[2]
             substrate_range = np.arange(start, stop, step)
@@ -642,10 +646,10 @@ class PAMParametrizer():
     ###########################################################################################################
     #WORKER FUNCTIONS
     ###########################################################################################################
-    def _change_translational_sector_for_substrate(self, substrate_uptake_id: str) -> None:
+    def _change_translational_sector_for_substrate(self, substrate_uptake_id: str, pamodel:PAModel) -> None:
         transl_sector_config = self.validation_data.get_by_id(substrate_uptake_id).translational_sector_config
         if transl_sector_config is None: return # use default if other parameterization is not provided
-        change_translational_sector_with_config_dict(self.pamodel, transl_sector_config, substrate_uptake_id)
+        change_translational_sector_with_config_dict(pamodel, transl_sector_config, substrate_uptake_id)
 
     def _get_substrate_range_lower_substrate_conc(self, validation_range:list[Union[int, float]], number_of_steps: int = 5) -> Iterable:
         #only loop over the low growth rates, to prevent overflow like metabolism to interfere with the derivation of a linear equation
@@ -764,10 +768,10 @@ class PAMParametrizer():
         results_filename = self.hyperparameters.genetic_algorithm_filename_base + filename_extension
 
         ga = self.hyperparameters.genetic_algorithm(
-            model=self.pamodel,
+            model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
             translational_sector_config = translational_sector_config,
-            valid_data = {valid_data.id: valid_data.sampled_valid_data for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
+            valid_data = {valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,
             substrate_uptake_rates = substrate_uptake_rates, # bin_info: [start, stop, step]
@@ -926,6 +930,7 @@ class PAMParametrizer():
         error = []
         flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
 
+
         if len(flux_df) == 0:  # means model is infeasible
             return -1
         # check if we want to calculate the error for a single bin
@@ -1030,12 +1035,8 @@ class PAMParametrizer():
         return final_run_results_best_indiv ,error
 
     def _change_kcat_value_for_enzyme(self, enzyme_id:str, kcat_dict:dict) -> None:
-        self.pamodel.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
-        for rxn, kcat in kcat_dict.items():
-            for direction, kcat in kcat.items():
-                self.pamodel._change_kcat_in_enzyme_constraint(rxn, enzyme_id, direction, kcat)
-
-
+        for pamodel in [self.pamodel, self.pamodel_no_sensitivity]:
+            pamodel.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
 
     def _remove_result_files(self, file_base: Union[list, str]) -> None:
         """ Removes files resulting from genetic algorithm runs.
@@ -1051,7 +1052,8 @@ class PAMParametrizer():
             [os.remove(file_path_base + file_type) for file_type in [".json", ".xlsx", ".pickle"]]
 
     def _set_total_protein_constraint_to_equality(self):
-        self.pamodel.constraints[self.pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = self.pamodel.constraints[self.pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub
+        for pamodel in [self.pamodel, self.pamodel_no_sensitivity]:
+            pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub
 
     def _parse_row_with_enz_rxn_kcat_for_saving(self, enz_rxn_kcat_row:pd.Series) -> list:
         """ Parsing a row from a result dataframe for saving
@@ -1123,7 +1125,8 @@ class PAMParametrizer():
                         return_fluxes:bool = False,
                         save_esc = False,
                         color:int= None,
-                        cbar_label:str = "Iteration") -> plt.Figure:
+                        cbar_label:str = "Iteration",
+                        sensitivity = True) -> plt.Figure:
 
         if color is None:
             #adjust color to visualize progress
@@ -1141,7 +1144,8 @@ class PAMParametrizer():
 
             fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
                                                                    substrate_rates=substrate_range,
-                                                                    save_fluxes_esc=save_esc)
+                                                                    save_fluxes_esc=save_esc,
+                                                                   sensitivity = sensitivity)
             if len(fluxes) > 0: # only plot feasible model results
                 fluxes_dict[substrate_id] = fluxes
                 substrate_range_dict[substrate_id] = substrate_range
@@ -1182,39 +1186,46 @@ class PAMParametrizer():
 
     def run_simulations_to_plot(self, substrate_uptake_id:str,
                                 substrate_rates: Union[np.array, list, pd.Series] = None,
-                                save_fluxes_esc:bool = False) -> Tuple[list, list]:
+                                save_fluxes_esc:bool = False,
+                                sensitivity: bool = True) -> Tuple[list, list]:
         fluxes = list()
         substrate_range = list()
 
+        if sensitivity:
+            pamodel = self.pamodel
+        else:
+            pamodel = self.pamodel_no_sensitivity
+
         #get the old bounds for resetting
-        self._change_translational_sector_for_substrate(substrate_uptake_id)
+        self._change_translational_sector_for_substrate(substrate_uptake_id,
+                                                        pamodel)
 
         if substrate_rates is None:
             step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
             substrate_rates = np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step)
         for substrate in substrate_rates:
             if substrate>=0:
-                self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
+                pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
                                                 lower_bound=0, upper_bound=substrate)
             else:
-                self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
+                pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
                                                     lower_bound=substrate, upper_bound=0)
             # solve the model
-            sol_pam = self.pamodel.optimize()
-            if self.pamodel.solver.status == "optimal" and self.pamodel.objective.value != 0:
+            sol_pam = pamodel.optimize()
+            if pamodel.solver.status == "optimal" and pamodel.objective.value != 0:
                 substrate_range += [abs(substrate)]
                 fluxes.append(sol_pam.fluxes)
-                if save_fluxes_esc: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
+                if save_fluxes_esc and sensitivity: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
                                                                          substrate_uptake_reaction=substrate_uptake_id,
                                                                          bin_id= "no bins")
 
 
             # reset substrate_uptake_rate
             if substrate<0:
-                self.pamodel.change_reaction_bounds(substrate_uptake_id,
+                pamodel.change_reaction_bounds(substrate_uptake_id,
                                               lower_bound=0, upper_bound=1e6)
             else:
-                self.pamodel.change_reaction_bounds(substrate_uptake_id,
+                pamodel.change_reaction_bounds(substrate_uptake_id,
                                               lower_bound=-1e6, upper_bound=0)
 
             # if substrate >= 0:

@@ -34,7 +34,7 @@ class ValidationData:
 
     @property
     def reactions_to_validate(self) -> list:
-        return self._get_reactions_to_validate()
+        return self._reactions_to_validate()
 
     @reactions_to_validate.setter
     def reactions_to_validate(self, reactions_to_validate:list):
