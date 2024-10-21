@@ -193,7 +193,7 @@ def test_if_genetic_algorithm_runs():
 
     bin_info = [0.001, 0.002, 0.001/5]
     filename_extension = 'test'
-    full_file_path = os.path.join(os.getcwd(),'Results',
+    full_file_path = os.path.join('Results', '2_parametrization',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
 
     # Act
@@ -211,7 +211,7 @@ def test_if_pam_parametrizer_gets_all_genetic_algorithm_json_files():
     sut = PAMParametrizerMock()
     bin_information =  {1: [0.001, 0.002, 0.001 / 5], 2: [0.001, 0.002, 0.001 / 5]}
     sut = run_mock_genetic_algorithm(sut, bin_information)
-    full_file_path = os.path.join(os.getcwd(), 'Results',
+    full_file_path = os.path.join('Results', '2_parametrization',
                                   sut.hyperparameters.genetic_algorithm_filename_base + 'test')
 
     # Act
@@ -269,7 +269,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
                                              'sensitivity': 0.1}}
     bin_info = [0.001, 0.002, 0.001 / 5]
     filename_extension = f'final_run_{sut.iteration}'
-    full_file_path = os.path.join(os.getcwd(), 'Results',
+    full_file_path = os.path.join('Results', '2_parametrization',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
     sut.run_genetic_algorithm(enzymes_to_evaluate, filename_extension)
 
@@ -367,7 +367,8 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     computational_time = time.perf_counter() - start_time
 
     sut.final_error = 1
-    results_filename = (os.path.join('Results', sut.hyperparameters.genetic_algorithm_filename_base + '_iteration_'+
+    results_filename = (os.path.join('Results', '2_parametrization',
+                                     sut.hyperparameters.genetic_algorithm_filename_base + '_iteration_'+
                                      str(sut.iteration) + '_bin_1.xlsx'))
 
     # Act

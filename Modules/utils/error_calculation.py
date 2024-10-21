@@ -1,6 +1,10 @@
 import pandas as pd
 import numpy as np
 from typing import Union, Iterable
+import traceback
+
+from sympy.logic.inference import valid
+
 
 def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataFrame,
                                      substrate_uptake_id: str,

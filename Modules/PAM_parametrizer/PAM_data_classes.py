@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 from PAModelpy.configuration import Config
 from typing import Union, Callable
-from pathlib import Path
+import os
 from cobra import DictList
 import random
 
@@ -30,7 +30,11 @@ class ValidationData:
         return self._get_biomass_reactions()
 
     def _get_reactions_to_validate(self) -> list:
-        return [data for data in self.valid_data.columns if data[-3:]!="_ub"]#data.split('_')[0] == self.exchange_reaction_extension]
+        if len(self._reactions_to_validate)==0:
+            rxns2validate = [data for data in self.valid_data.columns if data[-3:]!="_ub"]#data.split('_')[0] == self.exchange_reaction_extension]
+        else:
+            rxns2validate = self._reactions_to_validate
+        return rxns2validate
 
     @property
     def reactions_to_validate(self) -> list:
@@ -45,8 +49,8 @@ class ValidationData:
 class HyperParameters:
     threshold_error = 0.9
     threshold_iteration = 100
-    threshold_convergence = 1e-3 #what is the difference in r_squared allowed to call it converging?
-    threshold_nmbr_convergence = 3 #how many iterations have to be converged?
+    threshold_convergence = 0.09 #what is the difference in r_squared allowed to call it converging?
+    threshold_nmbr_convergence = 2 #how many iterations have to be converged?
     number_of_kcats_to_mutate = 5
     number_of_bins = 5
     bin_resolution = 5
@@ -66,7 +70,7 @@ class HyperParameters:
                                 'processes': 2,  # number of parallel workers
                                 'time_limit': 60000,  # time limit in seconds
                                 # 'error_weights': {'EX_ac_e':5}, # reaction which should have a different impact on the error calculation than other reactions
-                                'folderpath_save': Path(r"Results"),  # path for saving results
+                                'folderpath_save':os.path.join('Results', '2_parametrization'),  # path for saving results
                                 'overwrite_intermediate_results': True,  # if true, saved intermediate results are overwritten
                                 'print_progress': True # if True, progress of the genetic algorithm is printed
                                      }
@@ -170,6 +174,8 @@ class FluxResults:
                 self.fluxes_df.iloc[-1, self.fluxes_df.columns.get_loc(rxn_id)] = flux
 
     def add_error_to_error_df(self, bin_id:Union[int, str], error: float):
+        print(self.error_df)
+        print(error)
         self.error_df.loc[len(self.error_df)] = [bin_id] + error
 
     def remove_simulations_from_flux_df(self, bin_id)-> None:

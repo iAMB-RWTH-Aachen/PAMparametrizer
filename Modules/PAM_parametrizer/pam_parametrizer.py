@@ -9,13 +9,8 @@ import matplotlib as mpltlib
 from matplotlib.colors import to_hex
 from PAModelpy.PAModel import PAModel
 import pandas as pd
-from scipy.stats import linregress
-import pickle
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.preprocessing import StandardScaler
 import re
 from cobra import DictList
-from sympy.logic.inference import valid
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
@@ -76,10 +71,12 @@ class PAMParametrizer():
         # attributes for keeping track of the workflow
         self.iteration = 0
         self.bins = list(range(self.hyperparameters.number_of_bins))
+
+        self._create_result_dirs()
         self.result_figure_file = os.path.join(
-            "Results", f"pam_parametrizer_progress_{hyperparameters.filename_extension}.png")
+            "Results", "2_parametrization", "progress", f"pam_parametrizer_progress_{hyperparameters.filename_extension}.png")
         self.result_diagnostics_file = os.path.join(
-            "Results", f"pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx")
+            "Results",  "2_parametrization", "diagnostics", f"pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx")
 
 
     def run(self, remove_subruns:bool = True, binned:str = "False") -> None:
@@ -140,10 +137,15 @@ class PAMParametrizer():
             if files_to_remove is None:
                 continue
 
-            if self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs) is not None:
-                #if the error is converging, optimize random enzyme parameters
+            self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
+
+            if self._error_is_converging() and (self.iteration+1 <= self.hyperparameters.threshold_iteration):
+                self.hyperparameters.number_of_kcats_to_mutate = len(self.pamodel.enzymes)
+                print("Pick random enzymes to mutate because error is converging")
                 self.iteration +=1
-                files_to_remove = self.perform_iteration_without_bins(random=True)
+                files_to_remove = self.perform_iteration_without_bins()
+
+                # files_to_remove = self.perform_iteration_in_bins(start)
                 self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
 
@@ -243,9 +245,9 @@ class PAMParametrizer():
             fig = self.plot_simulation(fig, axs, save_esc=True)
 
             for valid_data in self.validation_data:
-                sampled_data = valid_data.sampled_valid_data
+                data = valid_data.valid_data
                 substrate_uptake_id = valid_data.id
-                substrate_rates_for_error = sampled_data[substrate_uptake_id+"_ub"].to_list()
+                substrate_rates_for_error = data[substrate_uptake_id+"_ub"].to_list()
 
                 fluxes, substrate_rates = self.run_simulations_to_plot(substrate_uptake_id,
                                                                        substrate_rates=substrate_rates_for_error)
@@ -268,9 +270,6 @@ class PAMParametrizer():
             print("-------------------------------------------------------------------------------------------")
 
             if remove_subruns: self._remove_result_files(files_to_remove)
-            if self._error_is_converging():
-                print("Stopped simulations because error is converging")
-                return np.nan
         else:
             print("Newly parametrized model is not feasible")
             return
@@ -409,7 +408,7 @@ class PAMParametrizer():
         """
         valid_data = self.validation_data.get_by_id(substrate_uptake_reaction)
         reactions_to_validate = valid_data._reactions_to_validate
-        validation_df = valid_data.sampled_valid_data
+        validation_df = self._get_validation_data_to_validate(valid_data)
         # calculate error for different exchange rates
         error = self._calculate_error_for_reactions(substrate_uptake_id=substrate_uptake_reaction,
                                                     validation_df = validation_df,
@@ -432,9 +431,8 @@ class PAMParametrizer():
         for valid_data in self.validation_data:
             substrate_uptake_id = valid_data.id
             reactions_to_validate = valid_data._reactions_to_validate
-            validation_df = valid_data.sampled_valid_data#.apply(lambda x: x.abs() if x.dtype!='object' else x)
+            validation_df = self._get_validation_data_to_validate(valid_data)
 
-            # self._init_validation_df(bin_information=[self.min_substrate_uptake_rate, self.max_substrate_uptake_rate])
             error += [nanaverage(self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
                                                          validation_df=validation_df,
                                                          reactions_to_validate= reactions_to_validate,
@@ -582,8 +580,6 @@ class PAMParametrizer():
                                                                            {direction: new_kcat}
                                                                        })
 
-        print("after reparametrization the model is feasible", self._pamodel_is_feasible())
-
 
     def save_diagnostics(self, computational_time: float,
                          results_filename:str = None) -> None:
@@ -616,6 +612,9 @@ class PAMParametrizer():
         """
         figure.savefig(self.result_figure_file, dpi=100, bbox_inches="tight")
         transl_sector_config = pd.DataFrame(columns = ["substrate_uptake_id", "slope", "intercept"])
+        ga_weights = pd.DataFrame({'reaction':self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].keys(),
+                                   'weight': self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].values()} )
+
         for vd in self.validation_data:
             transl_sector_config.loc[len(transl_sector_config)] = [vd.id, vd.translational_sector_config["slope"],
                                                                    vd.translational_sector_config["intercept"]]
@@ -627,6 +626,7 @@ class PAMParametrizer():
                                                                      index=False)
             self.parametrization_results.final_errors.to_excel(writer, sheet_name="Final_Errors", index=False)
             transl_sector_config.to_excel(writer, sheet_name="translational_sector", index = False)
+            if len(ga_weights)>0:ga_weights.to_excel(writer, sheet_name="reaction_weights", index = False)
 
     def add_new_substrate_source(self, new_substrate_uptake_id:str,
                                  validation_data: pd.DataFrame,
@@ -646,6 +646,21 @@ class PAMParametrizer():
     ###########################################################################################################
     #WORKER FUNCTIONS
     ###########################################################################################################
+    def _create_result_dirs(self, result_file_path: str = os.path.join(
+            "Results", "2_parametrization")) -> None:
+        """ Check if directories for storing the results exist.
+
+        If the directories do not exist, they are created
+
+        Args:
+            result_file_path: the path to the directory were the results should be stored
+        """
+        if not os.path.isdir(result_file_path):
+            os.path.mkdir(result_file_path)
+        for subdir in ['progress', 'diagnostics']:
+            if not subdir in os.listdir(result_file_path):
+                os.path.mkdir(os.path.join(result_file_path, 'progress'))
+
     def _change_translational_sector_for_substrate(self, substrate_uptake_id: str, pamodel:PAModel) -> None:
         transl_sector_config = self.validation_data.get_by_id(substrate_uptake_id).translational_sector_config
         if transl_sector_config is None: return # use default if other parameterization is not provided
@@ -668,8 +683,14 @@ class PAMParametrizer():
 
     def _pamodel_is_feasible(self):
         #check for feasibility at a mid substrate uptake rate
-        self.pamodel.test((self.max_substrate_uptake_rate -self.min_substrate_uptake_rate/2))
-        return self.pamodel.solver.status == "optimal"
+        model = self.pamodel_no_sensitivity
+        sub_upt = self.max_substrate_uptake_rate -self.min_substrate_uptake_rate/2
+        if sub_upt<0:
+            model.change_reaction_bounds(self.substrate_uptake_id, lower_bound=sub_upt, upper_bound=0)
+        else:
+            model.change_reaction_bounds(self.substrate_uptake_id, lower_bound=0, upper_bound=sub_upt)
+        model.optimize()
+        return model.solver.status == "optimal"
 
     def _bin_substrate_uptake_rates(self):
         """ Bin the substrate uptake rate in intervals.
@@ -771,7 +792,7 @@ class PAMParametrizer():
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
             translational_sector_config = translational_sector_config,
-            valid_data = {valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
+            valid_data = self._create_validation_data_dict_for_genetic_algorithm(),#{valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,
             substrate_uptake_rates = substrate_uptake_rates, # bin_info: [start, stop, step]
@@ -779,6 +800,19 @@ class PAMParametrizer():
             **self.hyperparameters.genetic_algorithm_hyperparams
         )
         return ga
+
+    def _create_validation_data_dict_for_genetic_algorithm(self) -> Union[dict, pd.DataFrame]:
+        valid_data_dict = {}
+        for valid_data in self.validation_data:
+            df_for_validation = self._get_validation_data_to_validate(valid_data)
+            if df_for_validation is not None:
+                valid_data_dict[valid_data.id] = df_for_validation
+        return valid_data_dict
+
+    def _get_validation_data_to_validate(self, valid_data:ValidationData) -> pd.DataFrame:
+        if valid_data.sampled_valid_data is not None:
+            columns_to_sample = valid_data._reactions_to_validate + [valid_data.id + "_ub"]
+            return valid_data.sampled_valid_data[columns_to_sample]
 
     def _init_validation_df(self, bin_information:list = None, substrate_uptake_ids: list = None) -> dict:
         # Only sample those points which are lower than upper bound and higher than lower bound
@@ -1236,59 +1270,3 @@ class PAMParametrizer():
             #                                         lower_bound=0, upper_bound=ub)
 
         return fluxes, substrate_range
-
-    def cluster_parametrization_results(self, parameter_sets_list, fitness_values_list, n_clusters):
-        """
-        Clusters the concatenated parameter sets obtained from multiple parametrization runs,
-        considering both the parameter values and the enzyme IDs, and estimates the fitness value for each cluster.
-
-        Args:
-        - parameter_sets_list (list of lists of tuples): List of parameter sets obtained from each parametrization run,
-                                                         where each parameter set is represented as a tuple
-                                                         (enzyme_id, parameter_set).
-        - fitness_values_list (list of lists): List of fitness values obtained from each parametrization run.
-        - n_clusters (int): Number of clusters to form.
-
-        Returns:
-        - clustered_results (list of tuples): Clustered parameter sets, where each tuple contains
-                                               the cluster label, parameter sets, enzyme IDs, and estimated fitness value.
-        """
-        # Concatenate parameter sets and enzyme IDs from all runs
-        concatenated_parameter_sets = []
-        for run in parameter_sets_list:
-            concatenated_parameter_sets.extend(run)
-
-        # Extract parameter sets and enzyme IDs
-        parameter_sets = np.array([param_set for enzyme_id, param_set in concatenated_parameter_sets])
-        enzyme_ids = np.array([enzyme_id for enzyme_id, param_set in concatenated_parameter_sets])
-
-        # Standardize parameter sets (optional but recommended for clustering)
-        scaler = StandardScaler()
-        parameter_sets_standardized = scaler.fit_transform(parameter_sets)
-
-        # Concatenate parameter sets and enzyme IDs horizontally
-        data = np.hstack((parameter_sets_standardized, enzyme_ids.reshape(-1, 1)))
-
-        # Initialize Agglomerative Clustering with Ward linkage
-        clustering = AgglomerativeClustering(n_clusters=n_clusters, linkage="ward")
-
-        # Fit clustering model
-        cluster_labels = clustering.fit_predict(data)
-
-        # Compute mean fitness value for each cluster
-        clustered_fitness_values = []
-        for i in range(n_clusters):
-            cluster_indices = np.where(cluster_labels == i)[0]
-            fitness_values = [fitness_values_list[idx] for idx in cluster_indices]
-            mean_fitness = np.mean(fitness_values)
-            clustered_fitness_values.append(mean_fitness)
-
-        # Clustered results (cluster label, parameter sets, enzyme IDs, and estimated fitness value)
-        clustered_results = []
-        for label, cluster_fitness in enumerate(clustered_fitness_values):
-            cluster_indices = np.where(cluster_labels == label)[0]
-            cluster_parameter_sets = [parameter_sets[i] for i in cluster_indices]
-            cluster_enzyme_ids = [enzyme_ids[i] for i in cluster_indices]
-            clustered_results.append((label, cluster_parameter_sets, cluster_enzyme_ids, cluster_fitness))
-
-        return clustered_results

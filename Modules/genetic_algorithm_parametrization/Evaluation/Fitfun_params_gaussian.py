@@ -271,7 +271,6 @@ class FitnessEvaluation():
                     for i, enz_id in enumerate(individual.enzymes_to_eval)]
 
         self._change_kcat_values_for_individual(individual)
-
         # perform simulations and save results
         fluxes = {substr_uptake: pd.DataFrame(
             columns = ['substrate'] + self.reactions_with_data[substr_uptake]
@@ -307,7 +306,6 @@ class FitnessEvaluation():
                     for rxn_id in fluxes_df.columns[1:]:
                         if rxn_id in self.model.reactions:
                             fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
-
             error += [self._calculate_simulation_error(fluxes_df, substrate_uptake_id)]
 
             # reset substrate_uptake_rate
@@ -317,8 +315,9 @@ class FitnessEvaluation():
             else:
                 self.model.change_reaction_bounds(substrate_uptake_id,
                                               lower_bound=-1e6, upper_bound=0)
+
         #average fitness:
-        fitness = float(np.nanmean(error)) #TODO have to implement the weigths again, but this gives errors for now
+        fitness = float(np.nanmean(error))
         individual.r_squared = fitness
         individual.fitness.values = [fitness]
 
@@ -400,8 +399,9 @@ class FitnessEvaluation():
                                                          validation_data = ref_data_rxn,
                                                          substrate_uptake_id = substrate_reaction,
                                                          fluxes = flux_df)
+            error += [r_squared]
             if not np.isnan(r_squared):
-                error += [r_squared]
+                # error += [r_squared]
                 if rxn in self.weights.keys(): weights.append(self.weights[rxn])
                 else: weights.append(1)
         if len(error) == 0: return np.NaN

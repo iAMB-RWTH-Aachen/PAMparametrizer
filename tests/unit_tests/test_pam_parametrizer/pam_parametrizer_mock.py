@@ -28,14 +28,14 @@ class PAMParametrizerMock(PAMParametrizer):
                          max_substrate_uptake_rate=max_substrate_uptake_rate,
                          min_substrate_uptake_rate = min_substrate_uptake_rate)
 
-        self.result_figure_file = os.path.join('Results', 'pam_parametrizer_progress_test.png')
+        self.result_figure_file = os.path.join('Results', '2_parametrization', 'progress','pam_parametrizer_progress_test.png')
 
 
         self.parametrization_results.initiate_result_dfs(reactions_to_validate={'R1':['R1', 'R7', 'R8', 'R9']})
 
 
     def set_up_validation_data_mock(self):
-        DATA_DIR = os.path.join('Scripts', 'Testing', 'Data')
+        DATA_DIR = os.path.join('Scripts', 'i2_parametrization', 'Data')
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
         valid_data_df = pd.read_csv(RESULT_DF_FILE).round({'R1_ub': 3})
 

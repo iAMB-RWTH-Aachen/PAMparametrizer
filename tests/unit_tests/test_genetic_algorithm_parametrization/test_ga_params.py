@@ -15,7 +15,7 @@ from Scripts.pam_generation import setup_toy_pam
 
 
 class GeneticAlgorithmMock(GAPOUniform):
-    RESULT_DF_FILE = os.path.join('Scripts', 'Testing', 'Data', 'toy_model_simulations_ga.csv')
+    RESULT_DF_FILE = os.path.join('Scripts', 'i2_parametrization', 'Data', 'toy_model_simulations_ga.csv')
 
     def __init__(self,
                  substrate_uptake_rates = [0.001,0.091]):
@@ -273,7 +273,7 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def evaluate_toy_model_fitness(toy_model, substrate_rates = [0.001, 0.091],
-                               reference_data_file:Union[str, pd.DataFrame] = 'Scripts/Testing/Data/toy_model_simulations_ga.csv',
+                               reference_data_file:Union[str, pd.DataFrame] = 'Scripts/i2_parametrization/Data/toy_model_simulations_ga.csv',
                                substrate_rxn:str = 'R1_ub') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]

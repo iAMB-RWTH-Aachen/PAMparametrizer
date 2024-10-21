@@ -53,7 +53,6 @@ def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> 
 
         print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
         sol_pam =pamodel.optimize()
-        print(pamodel.solver.status, pamodel.objective.value)
         if pamodel.solver.status == 'optimal' and pamodel.objective.value>0:
             fluxes.append(sol_pam.fluxes)
     return fluxes
@@ -154,3 +153,5 @@ def change_translational_sector_with_config_dict(pamodel, transl_sector_config:d
                                               intercept=transl_sector_config['intercept'],
                                     lin_rxn_id=substrate_uptake_id
                                      )
+
+    # pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub #reset

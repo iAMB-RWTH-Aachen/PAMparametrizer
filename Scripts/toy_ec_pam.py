@@ -141,7 +141,7 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def evaluate_toy_model_fitness(toy_model: PAModel, substrate_rates = [0.001, 0.091],
-                               reference_data_file_path:str = 'Scripts/Testing/Data/toy_model_simulations_ga.csv') -> float:
+                               reference_data_file_path:str = 'Scripts/i2_parametrization/Data/toy_model_simulations_ga.csv') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn

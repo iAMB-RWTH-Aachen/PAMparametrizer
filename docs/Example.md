@@ -241,7 +241,7 @@ intuitive way.
 
 This is an example of a progress plot with only glucose as a carbon source:
 
-![example_progress_plot](../Results/pam_parametrizer_progress_ecolicore_before.png)
+![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_ecolicore_before.png)
 
 ### Step 6: Analyze the Results
 When the the parametrization is finished, you can find 2 files in the `Results` directory:

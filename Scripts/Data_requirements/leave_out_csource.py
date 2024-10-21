@@ -53,7 +53,7 @@ def run_parametrization_workflow(iteration, iterations,
 def analyse_parametrizer_performance():
     min_substrate = -11
     max_substrate = -0.1
-    iterations = 3
+    iterations = 4
     processes = 2
     gene_flow_events = processes
     all_csources = ['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']

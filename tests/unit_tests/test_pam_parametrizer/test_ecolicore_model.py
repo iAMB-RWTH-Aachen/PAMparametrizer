@@ -17,19 +17,19 @@ config = Config()
 config.reset()
 RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID, config.CO2_EXHANGE_RXNID, config.OXYGEN_UPTAKE_RXNID, 'BIOMASS_Ecoli_core_w_GAM']
 
-def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params():
+def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_gem():
     # Arrange
     pam_params_path = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_py.xls')
 
     old_params_pam = setup_ecolicore_pam_ec(pam_data_file_path = pam_params_path)
-    new_params_pam = setup_ecolicore_pam() # parameters from GotEnzymes
+    gem = setup_ecolicore_pam_ec(pam_data_file_path = pam_params_path, total_protein=1e3) # large protein pool, thus acts as gem
 
 
     # Act
-    final_error_sut , sut, substrate_range = calculate_simulation_error_with_parametrizer_for_model(old_params_pam)
+    final_error_sut ,sut, substrate_range = calculate_simulation_error_with_parametrizer_for_model(old_params_pam)
 
-    final_error_new_params, parametrizer_new, substrate_range = calculate_simulation_error_with_parametrizer_for_model(
-        new_params_pam)
+    final_error_gem, parametrizer_gem, substrate_range = calculate_simulation_error_with_parametrizer_for_model(
+        gem)
     sampled_data = sut.validation_data.get_by_id('EX_glc__D_e').sampled_valid_data
 
     final_error_validation = evaluate_model_fitness(model=sut.pamodel,
@@ -38,8 +38,8 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_new_params()
                                                     substrate_rxn = config.GLUCOSE_EXCHANGE_RXNID)
 
     # assert
-    # r^2 for new params should be smaller than r^2 for parametrized model
-    assert final_error_new_params < final_error_sut
+    # r^2 for gem should be smaller than r^2 for parametrized model
+    assert final_error_gem < final_error_sut
     assert final_error_validation == pytest.approx(final_error_sut, 1e-2)
 
 def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same_as_for_genetic_algorithm():
@@ -82,7 +82,7 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     #pam parametrizer
     r_squared_param = sut_param.calculate_final_error()
     #genetic algorithm
-    population = toy_ga.evaluate_pop(population, toolbox)#todo does not pass, need to fix it
+    population = toy_ga.evaluate_pop(population, toolbox)
     individual_to_evaluate = population[0]
     r_squared_ga = individual_to_evaluate.fitness._wsum()
 
@@ -90,60 +90,60 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-3)
 
 
-# def test_pam_parametrizer_configures_translational_sector_correctly():
-#     # Arrange
-#     sut = set_up_pamparametrizer_iml1515(-11, -0.1)
-#     #reset translational sector
-#     sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config = None
-#     #get the reference parameters
-#     tps_0 = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-#     tps_mu = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0]
-#
-#     # Apply
-#     sut.calculate_translational_sector_for_multiple_csources()
-#     transl_sector_config_sut = sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config
-#
-#     # Assert
-#     assert transl_sector_config_sut['intercept'] == pytest.approx(tps_0, rel=1e-1)
-#     assert transl_sector_config_sut['slope'] == pytest.approx(tps_mu, rel=1e-1)
-#
-# def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
-#     # Arrange
-#     kcat = 5
-#     enzyme_id = 'P26616'
-#     reaction_id = 'ME1'
-#     kcat_dict = {reaction_id: {'f': kcat}}
-#     enzymes_to_evaluate = {enzyme_id: {
-#                         'reaction': reaction_id,
-#                         'kcats': {'f':kcat},
-#                         'sensitivity': 0.1}}
-#     substrate_rates = {'EX_glc_D__e':[-6,-5]}
-#
-#     #set up parametrizer and genetic algorithm objects
-#     sut = set_up_pamparametrizer(-11, -0.1)
-#     ga = sut._init_genetic_algorithm(substrate_rates,
-#                                      enzymes_to_evaluate,
-#                                      translational_sector_config= {'EX_glc__D_e':
-#                                                                        sut.validation_data.EX_glc__D_e.translational_sector_config},
-#                                      filename_extension=''
-#                                      )
-#     #for the genetic algorithm we need a dummy individual to change the kcat
-#     toolbox = ga._init_deap_toolbox()
-#     population = ga.ga.init_pop(toolbox, ga.population_size, True)
-#     individual = population[0]
-#     individual.kcat_list = [1/(kcat*3600*1e-6)]
-#
-#     # Act
-#     sut._change_kcat_value_for_enzyme(enzyme_id=enzyme_id, kcat_dict=kcat_dict)
-#     kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
-#
-#     ga.FitEval._change_kcat_values_for_individual(individual)
-#     kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
-#
-#     # Assert
-#     assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)
-#     assert kcat == pytest.approx(kcat_model_sut, abs = 1e-3)
-#     assert kcat == pytest.approx(kcat_model_ga, abs = 1e-3)
+def test_pam_parametrizer_configures_translational_sector_correctly():
+    # Arrange
+    sut = set_up_pamparametrizer_iml1515(-11, -0.1)
+    #reset translational sector
+    sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config = None
+    #get the reference parameters
+    tps_0 = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+    tps_mu = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0]
+
+    # Apply
+    sut.calculate_translational_sector_for_multiple_csources()
+    transl_sector_config_sut = sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config
+
+    # Assert
+    assert transl_sector_config_sut['intercept'] == pytest.approx(tps_0, rel=1e-1)
+    assert transl_sector_config_sut['slope'] == pytest.approx(tps_mu, rel=1e-1)
+
+def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
+    # Arrange
+    kcat = 5
+    enzyme_id = 'P26616'
+    reaction_id = 'ME1'
+    kcat_dict = {reaction_id: {'f': kcat}}
+    enzymes_to_evaluate = {enzyme_id: {
+                        'reaction': reaction_id,
+                        'kcats': {'f':kcat},
+                        'sensitivity': 0.1}}
+    substrate_rates = {'EX_glc_D__e':[-6,-5]}
+
+    #set up parametrizer and genetic algorithm objects
+    sut = set_up_pamparametrizer(-11, -0.1)
+    ga = sut._init_genetic_algorithm(substrate_rates,
+                                     enzymes_to_evaluate,
+                                     translational_sector_config= {'EX_glc__D_e':
+                                                                       sut.validation_data.EX_glc__D_e.translational_sector_config},
+                                     filename_extension=''
+                                     )
+    #for the genetic algorithm we need a dummy individual to change the kcat
+    toolbox = ga._init_deap_toolbox()
+    population = ga.ga.init_pop(toolbox, ga.population_size, True)
+    individual = population[0]
+    individual.kcat_list = [1/(kcat*3600*1e-6)]
+
+    # Act
+    sut._change_kcat_value_for_enzyme(enzyme_id=enzyme_id, kcat_dict=kcat_dict)
+    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
+
+    ga.FitEval._change_kcat_values_for_individual(individual)
+    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
+
+    # Assert
+    assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)
+    assert kcat == pytest.approx(kcat_model_sut, abs = 1e-3)
+    assert kcat == pytest.approx(kcat_model_ga, abs = 1e-3)
 
 
 ########################################################################################################################

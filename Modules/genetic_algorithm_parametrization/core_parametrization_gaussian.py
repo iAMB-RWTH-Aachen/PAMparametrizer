@@ -121,8 +121,8 @@ class GAPO():
 
         # setup save folder
         self.folderpath_save = folderpath_save
-        if not folderpath_save.is_dir():
-            folderpath_save.mkdir()
+        if not os.path.isdir(folderpath_save):
+            os.mkdir(folderpath_save)
 
 
         # load genetic algorithm
@@ -170,7 +170,7 @@ class GAPO():
         self.toolbox = self._init_deap_toolbox() # initialize the toolbox
 
         # save evaluation class
-        with open(self.folderpath_save.joinpath(self.filename_save+".pickle"), "wb") as f:
+        with open(os.path.join(self.folderpath_save, self.filename_save+".pickle"), "wb") as f:
             pickle.dump(self.FitEval, f)
        
         # initialize populations (multiprocessing)
@@ -237,7 +237,7 @@ class GAPO():
         self.toolbox = self._init_deap_toolbox()
         
         # save evaluation class
-        with open(self.folderpath_save.joinpath(self.filename_save+".pickle"), "wb") as f:
+        with open(os.path.join(self.folderpath_save, self.filename_save+".pickle"), "wb") as f:
             pickle.dump(self.FitEval, f)
             
         # initialize population
@@ -374,7 +374,7 @@ class GAPO():
         self.toolbox = self._init_deap_toolbox()
 
         # save evaluation class
-        with open(self.folderpath_save.joinpath(self.filename_save + ".pickle"), "wb") as f:
+        with open(os.path.join(self.folderpath_save, self.filename_save + ".pickle"), "wb") as f:
             pickle.dump(self.FitEval, f)
 
         # initialize population
@@ -556,7 +556,7 @@ class GAPO():
         """
          
         # determine save path
-        save_path = str(self.folderpath_save.joinpath(self.filename_save+suffix))
+        save_path = os.path.join(self.folderpath_save, self.filename_save+suffix)
 
         # get attributes list from custom fitness evaluation class
         individual_attr_list = self.FitEval.individual_attr_list

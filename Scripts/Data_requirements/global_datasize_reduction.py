@@ -3,9 +3,9 @@ import numpy as np
 import os
 from datetime import date
 
-from Scripts.Testing.pam_parametrizer_performance_analysis import get_statistics_from_df, save_pam_parametrizer_results_to_df
+from Scripts.i2_parametrization.pam_parametrizer_performance_analysis import get_statistics_from_df, save_pam_parametrizer_results_to_df
 
-from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer
+from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
 RESULT_FILE_PATH = os.path.join('Results', f'pam_parametrizer_statistics_datasize_reduction_{date.today()}.xlsx')
 
 
@@ -13,7 +13,8 @@ def run_parametrization_workflow(iteration, iterations,
                                  processes, frac_data,
                                  gene_flow_events, num_kcats_to_mutate,
                                  best_individual_df, computational_performance_df,
-                                 min_substrate_uptake = -11, max_substrate_uptake = -0.1):
+                                 min_substrate_uptake = -11, max_substrate_uptake = -0.1,
+                                 kcat_increase_factor =1):
     print('\n\n###################################################################################')
     print('starting with iteration number ', iteration, ' out of ', iterations, ' iterations with ',
           frac_data*1e2, '% of the available datapoints\n')
@@ -21,7 +22,8 @@ def run_parametrization_workflow(iteration, iterations,
     parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
                                               gene_flow_events=gene_flow_events,
                                               filename_extension= f'datareduc_{str(frac_data)}_{iteration}',
-                                              num_kcats_to_mutate = num_kcats_to_mutate)
+                                              num_kcats_to_mutate = num_kcats_to_mutate,
+                                          kcat_increase_factor = kcat_increase_factor)
 
     nmrb_rows_to_sample = int(frac_data*len(parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data))
 
@@ -33,8 +35,8 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer.run(binned='False')
 
-    results_file_path = os.path.join('Results', f'pam_parametrizer_diagnostics_{str(frac_data)}.xlsx')
-    best_individual_df, computational_performance_df =  save_pam_parametrizer_results_to_df(iteration,str(nmrb_rows_to_sample),
+    results_file_path = os.path.join('Results','2_parametrization','diagnostics',  f'pam_parametrizer_diagnostics_{str(frac_data)}.xlsx')
+    best_individual_df, computational_performance_df = save_pam_parametrizer_results_to_df(iteration,str(nmrb_rows_to_sample),
                                                    best_individual_df,computational_performance_df,
                                                    results_file_path)
     return best_individual_df, computational_performance_df
@@ -42,8 +44,9 @@ def run_parametrization_workflow(iteration, iterations,
 def analyse_parametrizer_performance():
     min_substrate = -11
     max_substrate = -0.1
-    iterations = 3
+    iterations = 4
     processes = 4
+    kcat_increase_factor = 3
     gene_flow_events = processes
 
     # 0. Initialize result dataframes
@@ -55,11 +58,12 @@ def analyse_parametrizer_performance():
     # 1. Run different configuations of the toy model parametrization for n iterations and save the results
     for frac_data in np.arange(0.1,1,0.1):
         for iteration in range(iterations):
-            best_individual_df, computational_performance_df = run_parametrization_workflow(iteration+1, iterations,
-                                     processes,frac_data,
-                                     gene_flow_events, 10,
-                                     best_individual_df, computational_performance_df,min_substrate_uptake=min_substrate,
-                                     max_substrate_uptake=max_substrate)
+            best_individual_df, computational_performance_df = run_parametrization_workflow(
+                iteration+1, iterations, processes,frac_data, gene_flow_events, 10,
+                best_individual_df, computational_performance_df,
+                min_substrate_uptake=min_substrate, max_substrate_uptake=max_substrate,
+                kcat_increase_factor=kcat_increase_factor
+            )
 
     # 2. Calculate mean error and stdev for each method and for a single iteration
     error_per_iteration_config = get_statistics_from_df(best_individual_df,

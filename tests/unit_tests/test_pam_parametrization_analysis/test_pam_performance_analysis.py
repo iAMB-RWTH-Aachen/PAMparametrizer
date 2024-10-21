@@ -3,19 +3,21 @@ from datetime import date
 import subprocess
 import pandas as pd
 
-from Scripts.Testing.pam_parametrizer_toy_model import set_up_pamparametrizer
-from Scripts.Testing.pam_parametrizer_performance_analysis import run_parametrization_workflow
+from Scripts.i2_parametrization.pam_parametrizer_toy_model import set_up_pamparametrizer
+from Scripts.i2_parametrization.pam_parametrizer_performance_analysis import run_parametrization_workflow
 
-RESULT_FILE_PATH = os.path.join('Results', f'pam_parametrizer_statistics_{date.today()}.xlsx')
+RESULT_FILE_PATH = os.path.join('Results', 'i2_parametrization', f'pam_parametrizer_statistics_{date.today()}.xlsx')
 
 
 
 def test_pam_performance_analysis_runs_from_terminal_command():
     # Arrange
-    command = 'python3 -m Scripts.Testing.pam_parametrizer_performance_analysis --hyper_processes 1 --iterations 2 --model toy'
+    command = 'python3 -m Scripts.i2_parametrization.pam_parametrizer_performance_analysis --hyper_processes 1 --iterations 2 --model toy'
 
-    RESULT_PARAM_FILE_PATH_XLS = os.path.join('Results', f'pam_parametrizer_diagnostics_False.xlsx')
-    RESULT_PARAM_FILE_PATH_PNG = os.path.join('Results', f'pam_parametrizer_progress_False.png')
+    RESULT_PARAM_FILE_PATH_XLS = os.path.join('Results', 'i2_parametrization', 'diagnostics',
+                                              f'pam_parametrizer_diagnostics_0.xlsx')
+    RESULT_PARAM_FILE_PATH_PNG = os.path.join('Results', 'i2_parametrization', 'progress',
+                                              f'pam_parametrizer_progress_0.png')
 
     # Apply
     subprocess.run(command, shell=True)
@@ -35,7 +37,8 @@ def test_pam_performance_analysis_saves_results_correctly():
     gene_flow_events = 1
     num_kcats_to_mutate= 3
     # files_to_remove = [os.path.join('Results',f'pam_parametrizer_diagnostics_{config}.xlsx') for config in configurations]
-    files_to_remove = [os.path.join('Results',f'pam_parametrizer_progress_{config}.png') for config in configurations]
+    files_to_remove = [os.path.join('Results','i2_parametrization', 'progress',
+                                    f'pam_parametrizer_progress_{config}.png') for config in configurations]
 
     # Apply
     for iteration in range(iterations):

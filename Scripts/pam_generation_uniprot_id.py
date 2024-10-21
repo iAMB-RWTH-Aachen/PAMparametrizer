@@ -111,7 +111,8 @@ def setup_ecolicore_pam(total_protein:bool = True,
 def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
                      model:str = 'iML1515.xml', config:Config = None,
                      total_protein: Union[bool, float] = True, active_enzymes: bool = True,
-                   translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True,
+                     enzyme_db:pd.DataFrame = None):
 
 
     if config is None:
@@ -133,8 +134,8 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
     # load example data for the E.coli iML1515 model
     if active_enzymes:
         # load active enzyme sector information
-        enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
-
+        if enzyme_db is None:
+            enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
         # create enzyme objects for each gene-associated reaction
         rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
 
@@ -466,7 +467,7 @@ def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationMo
             id_list= ['r_2111'], #biomass formation
             name='total_protein_growth_relation',
             cps_0=[0],
-            cps_s=[0.45431074007034344],
+            cps_s=[-0.45431074007034344],
             mol_mass=1e6
         )
         yeast_pam.add_sector(protein_growth_relation)
@@ -554,4 +555,3 @@ if __name__ == '__main__':
     # pam.change_total_protein_constraint(1)
     pam.change_reaction_bounds('r_1714', -1e3,0)
     pam.optimize()
-    print(pam.objective.value)
