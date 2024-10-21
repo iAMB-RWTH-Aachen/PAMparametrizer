@@ -19,9 +19,10 @@ def run_parametrization_workflow(iteration, iterations,
     print('starting with iteration number ', iteration, ' out of ', iterations, ' iterations with ',
           frac_data*1e2, '% of the available datapoints\n')
     print('------------------------------------------------------------------------------------------------')
+    percentage_data_str = str(int(round(frac_data,2)*100))
     parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
                                               gene_flow_events=gene_flow_events,
-                                              filename_extension= f'datareduc_{str(frac_data)}_{iteration}',
+                                              filename_extension= f'datareduc_{percentage_data_str}_{iteration}',
                                               num_kcats_to_mutate = num_kcats_to_mutate,
                                           kcat_increase_factor = kcat_increase_factor)
 
@@ -35,7 +36,7 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer.run(binned='False')
 
-    results_file_path = os.path.join('Results','2_parametrization','diagnostics',  f'pam_parametrizer_diagnostics_{str(frac_data)}.xlsx')
+    results_file_path = os.path.join('Results','2_parametrization','diagnostics',  f'pam_parametrizer_diagnostics_{percentage_data_str}.xlsx')
     best_individual_df, computational_performance_df = save_pam_parametrizer_results_to_df(iteration,str(nmrb_rows_to_sample),
                                                    best_individual_df,computational_performance_df,
                                                    results_file_path)

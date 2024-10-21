@@ -1,16 +1,14 @@
 from itertools import combinations
 import pandas as pd
-import numpy as np
 import os
 from datetime import date
 
-from Scripts.Testing.pam_parametrizer_performance_analysis import (get_statistics_from_df,
+from Scripts.i2_parametrization.pam_parametrizer_performance_analysis import (get_statistics_from_df,
                                                                    save_pam_parametrizer_results_to_df)
 from Modules.utils.error_calculation import nanaverage
 
 
-from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer, set_up_validation_data
-from joblib.testing import param
+from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer, set_up_validation_data
 
 RESULT_FILE_PATH = os.path.join('Results', f'pam_parametrizer_statistics_leave_out_csource_{date.today()}.xlsx')
 
@@ -22,15 +20,18 @@ def run_parametrization_workflow(iteration, iterations,
                                  rsquared_df = None,
                                  min_substrate_uptake = -11, max_substrate_uptake = -0.1):
     print('\n\n###################################################################################')
-    print('starting with iteration number ', iteration, ' out of ', iterations, ' iterations without  data for',
+    print('starting with iteration number ', iteration, ' out of ', iterations, ' iterations with data for',
           " and ".join(leave_out_csource))
     print('------------------------------------------------------------------------------------------------')
     all_csources = ['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
-    csources =[c for c in all_csources if c not in leave_out_csource]
+    # csources =[c for c in all_csources if c not in leave_out_csource]
+    csources = ['Glucose']+leave_out_csource
+
     parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
                                               gene_flow_events=gene_flow_events,
-                                              filename_extension= f"no_{'_'.join(leave_out_csource)}",
+                                              filename_extension= f"_{'_'.join(leave_out_csource)}",
                                               num_kcats_to_mutate = num_kcats_to_mutate,
+                                          kcat_increase_factor = 3,
                                           c_sources = csources)
 
     #need to reset best individual and computational performance df
@@ -41,7 +42,7 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer.run(binned='False')
 
-    results_file_path = os.path.join('Results', f"pam_parametrizer_diagnostics_no_{'_'.join(leave_out_csource)}.xlsx")
+    results_file_path = os.path.join('Results', f"pam_parametrizer_diagnostics_{'_'.join(leave_out_csource)}.xlsx")
     best_individual_df, computational_performance_df = save_pam_parametrizer_results_to_df(iteration,'_'.join(leave_out_csource),
                                                    best_individual_df,computational_performance_df,
                                                    results_file_path)
@@ -137,7 +138,8 @@ def run_simulations_to_validate(parametrizer):
         substrate_rates_for_error = sampled_data[substrate_uptake_id + "_ub"].to_list()
 
         fluxes, substrate_rates = parametrizer.run_simulations_to_plot(substrate_uptake_id,
-                                                               substrate_rates=substrate_rates_for_error)
+                                                               substrate_rates=substrate_rates_for_error,
+                                                                       sensitivity=False)
 
         for simulation_result, substrate_rate in zip(fluxes, substrate_rates):
             parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,

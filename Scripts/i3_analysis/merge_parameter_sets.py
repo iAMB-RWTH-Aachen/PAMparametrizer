@@ -110,6 +110,8 @@ def perform_model_simulations(parametrizer: PAMParametrizer,
 def select_best_models(error_df:pd.DataFrame, num_best_models:int = 5) -> list:
     error_df_sorted = error_df.sort_values(by='error', ascending=False)
     best_models = error_df_sorted.model.loc[:num_best_models].values
+
+    print(best_models)
     return best_models
 
 def plot_best_models(fig: plt.Figure, axs: plt.Axes,
@@ -160,7 +162,7 @@ if __name__ == '__main__':
 
     with pd.ExcelWriter(ERROR_FILE_PATH, mode='w') as writer:
         for best_model in best_model_nmbrs:
-            randomized_enzyme_dbs[int(best_model)].to_excel(writer, sheet_name= 'model_'+best_model, index=False)
+            randomized_enzyme_dbs[int(best_model)].to_excel(writer, sheet_name= 'model_'+str(best_model), index=False)
 
         error_df.to_excel(writer, sheet_name= 'errors')
     plot_best_models(fig, axs, flux_dict, best_model_nmbrs,
