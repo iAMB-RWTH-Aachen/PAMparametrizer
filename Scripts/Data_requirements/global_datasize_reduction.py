@@ -13,6 +13,7 @@ def run_parametrization_workflow(iteration, iterations,
                                  processes, frac_data,
                                  gene_flow_events, num_kcats_to_mutate,
                                  best_individual_df, computational_performance_df,
+                                 param_max_iteration: int=5,
                                  min_substrate_uptake = -11, max_substrate_uptake = -0.1,
                                  kcat_increase_factor =1):
     print('\n\n###################################################################################')
@@ -21,9 +22,10 @@ def run_parametrization_workflow(iteration, iterations,
     print('------------------------------------------------------------------------------------------------')
     percentage_data_str = str(int(round(frac_data,2)*100))
     parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
-                                              gene_flow_events=gene_flow_events,
-                                              filename_extension= f'datareduc_{percentage_data_str}_{iteration}',
-                                              num_kcats_to_mutate = num_kcats_to_mutate,
+                                          threshold_iteration = param_max_iteration,
+                                          gene_flow_events=gene_flow_events,
+                                          filename_extension= f'datareduc_{percentage_data_str}_{iteration}',
+                                          num_kcats_to_mutate = num_kcats_to_mutate,
                                           kcat_increase_factor = kcat_increase_factor)
 
     nmrb_rows_to_sample = int(frac_data*len(parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data))
@@ -36,7 +38,8 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer.run(binned='False')
 
-    results_file_path = os.path.join('Results','2_parametrization','diagnostics',  f'pam_parametrizer_diagnostics_{percentage_data_str}.xlsx')
+    results_file_path = os.path.join('Results','2_parametrization','diagnostics',
+                                     f'pam_parametrizer_diagnostics_datareduc_{percentage_data_str}_{iteration}.xlsx')
     best_individual_df, computational_performance_df = save_pam_parametrizer_results_to_df(iteration,str(nmrb_rows_to_sample),
                                                    best_individual_df,computational_performance_df,
                                                    results_file_path)

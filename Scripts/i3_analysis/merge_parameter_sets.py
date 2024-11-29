@@ -11,11 +11,12 @@ from Scripts.i3_analysis.PAMparametrizer_progress_cleaned_figure import plot_val
 from Modules.PAM_parametrizer.pam_parametrizer import PAMParametrizer
 from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
+from joblib.testing import param
 
 FONTSIZE = 16
 FIGWIDTH = 20
 FIGHEIGHT = 20
-NUM_MODELS_TO_CREATE = 100
+NUM_MODELS_TO_CREATE = 10
 NUM_MODELS_TO_SELCT = 5
 FIG_FILE_PATH = os.path.join('Results', '3_analysis', 'merged_model_performance.png')
 ERROR_FILE_PATH = os.path.join('Results', '3_analysis', 'merged_models.xlsx')
@@ -92,6 +93,7 @@ def initialize_result_figure(parametrizer:PAMParametrizer,
                                iteration=0, color='black')
     return fig, axs
 
+
 def perform_model_simulations(parametrizer: PAMParametrizer,
                                        substrate_rates: np.array,
                                        save_fluxes: bool = True) -> list:
@@ -108,15 +110,14 @@ def perform_model_simulations(parametrizer: PAMParametrizer,
     return fluxes
 
 def select_best_models(error_df:pd.DataFrame, num_best_models:int = 5) -> list:
-    error_df_sorted = error_df.sort_values(by='error', ascending=False)
-    best_models = error_df_sorted.model.loc[:num_best_models].values
+    error_df_sorted = error_df.sort_values(by='error', ascending=False).reset_index().loc[:num_best_models]
+    best_models = error_df_sorted.model.values
 
-    print(best_models)
     return best_models
 
 def plot_best_models(fig: plt.Figure, axs: plt.Axes,
                      flux_dict:dict[list], best_model_ids:list[int],
-                           reactions_to_plot: list,
+                        reactions_to_plot: list,
                            substrate_rates: np.array) -> set[plt.Figure, plt.Axes]:
     for model_id in best_model_ids:
         fluxes = flux_dict[model_id]
@@ -124,7 +125,7 @@ def plot_best_models(fig: plt.Figure, axs: plt.Axes,
                                    reactions_to_plot,
                                    iteration=model_id,
                                    label=f"model{model_id}", max_iteration=len(best_model_ids))
-        return fig, axs
+    return fig, axs
 
 
 def save_simulation_plot(fig: plt.Figure, file_path: str) -> None:
@@ -170,7 +171,6 @@ if __name__ == '__main__':
                      reactions_to_plot = parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot)
 
     save_simulation_plot(fig,FIG_FILE_PATH)
-    print(error_df.to_markdown())
 
 
 

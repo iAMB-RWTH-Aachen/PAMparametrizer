@@ -45,7 +45,8 @@ class GAPO():
                  crossover_probability=0.8, number_generations=20, number_gene_flow_events=10,
                  processes=2, time_limit=600, init_attribute_probability=0,
                  fixed_attributes=[],
-                 folderpath_save=Path("Results"), filename_save="ga_results",
+                 folderpath_save=Path("Results"),
+                 filename_save="ga_results",
                  overwrite_intermediate_results=True,
                  objective_id = 'BIOMASS', valid_data = dict(),
                  sigma_denominator:int=10,
@@ -123,7 +124,6 @@ class GAPO():
         self.folderpath_save = folderpath_save
         if not os.path.isdir(folderpath_save):
             os.mkdir(folderpath_save)
-
 
         # load genetic algorithm
         self.ga = Genetic_Algorithm(

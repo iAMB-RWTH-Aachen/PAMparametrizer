@@ -2,7 +2,8 @@ import math
 import os
 import pandas as pd
 from typing import Callable
-from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer
+from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
+from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam
 
 
 MIN_SUBSTRATE_UPTAKE_RATE = -11
@@ -56,14 +57,28 @@ def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
 
             result_df.loc[len(result_df)] = [max_mu, pam_parametrizer.final_error, iteration]
 
+            reset_pam_parametrizer(pam_parametrizer)
+
     result_df.to_excel(result_df_file_path)
     print("Ended the scan of unused enzyme sector parameters")
 
+
+def reset_pam_parametrizer(parametrizer):
+    # need to reset best individual and computational performance df
+    parametrizer.parametrization_results.best_individuals = pd.DataFrame(
+        columns=['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])
+    parametrizer.parametrization_results.computational_time = pd.DataFrame(columns=['run_id', 'time_s', 'time_h'])
+
+    # reset final errors for correct saving
+    parametrizer.parametrization_results.final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
+    ecoli_pam = set_up_ecoli_pam()
+    parametrizer.pamodel = ecoli_pam
 
 if __name__ == "__main__":
     #example usage iML1515
     scan_unused_enzyme_sector_max_growth_rates(max_mu_for_UEmu_determination,
                                                intercept_unused_enzymes= UE_0,
-                                               kcat_increase_factor=4,
+                                               kcat_increase_factor=3,
                                                result_df_file_path= os.path.join('Results',
+                                                                                 '1_preprocessing',
                                                                                  'iML1515_UES_intercept_screen.xlsx'))

@@ -130,7 +130,8 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glucose'], kcat_increase_factor=1, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+                                              threshold_iteration= 5, c_sources = ['Glucose'],
+                                              kcat_increase_factor=1, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

@@ -3,10 +3,9 @@ import pandas as pd
 import os
 from datetime import date
 
+from Modules.utils.error_calculation import nanaverage
 from Scripts.i2_parametrization.pam_parametrizer_performance_analysis import (get_statistics_from_df,
                                                                    save_pam_parametrizer_results_to_df)
-from Modules.utils.error_calculation import nanaverage
-
 
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer, set_up_validation_data
 
@@ -29,7 +28,7 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
                                               gene_flow_events=gene_flow_events,
-                                              filename_extension= f"_{'_'.join(leave_out_csource)}",
+                                              filename_extension= f"{'_'.join(leave_out_csource)}",
                                               num_kcats_to_mutate = num_kcats_to_mutate,
                                           kcat_increase_factor = 3,
                                           c_sources = csources)
@@ -42,7 +41,8 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer.run(binned='False')
 
-    results_file_path = os.path.join('Results', f"pam_parametrizer_diagnostics_{'_'.join(leave_out_csource)}.xlsx")
+    results_file_path = os.path.join('Results','2_parametrization','diagnostics',
+                                     f"pam_parametrizer_diagnostics_{'_'.join(leave_out_csource)}.xlsx")
     best_individual_df, computational_performance_df = save_pam_parametrizer_results_to_df(iteration,'_'.join(leave_out_csource),
                                                    best_individual_df,computational_performance_df,
                                                    results_file_path)

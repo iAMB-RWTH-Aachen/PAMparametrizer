@@ -11,7 +11,6 @@ from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation import setup_ecoli_pam
 from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_pam_uniprot
 
 
@@ -80,7 +79,6 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
 
             validation_data._reactions_to_plot = ['BIOMASS_KT2440_WT3', 'EDD','MDH', 'EX_glcn_e', 'EX_25dkglcn_e']
         validation_data_objects.append(validation_data)
-        print(validation_data.valid_data)
 
     return validation_data_objects
 

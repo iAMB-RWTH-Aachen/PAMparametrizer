@@ -125,8 +125,6 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
     #setup the gem ecoli iML1515 model
     model = cobra.io.read_sbml_model(os.path.join('Models', model))
 
-
-
     #check if a different total protein concentration is given
     if isinstance(total_protein, float):
         TOTAL_PROTEIN_CONCENTRATION = total_protein
@@ -233,8 +231,8 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
     for index, row in enzyme_db.iterrows():
         # Parse data from the row
         rxn_id = row['rxn_id']
-        if rxn_id not in model.reactions: continue
         # only parse those reactions which are in the model
+        if rxn_id not in model.reactions: continue
         kcat_f_b = [row['kcat_f'], row['kcat_b']]
         kcat_f_b = [kcat if not np.isnan(kcat) else 0 for kcat in kcat_f_b]
         if all([np.isnan(kcat) for kcat in kcat_f_b]): continue
@@ -492,38 +490,40 @@ def set_up_yeast_config():
     config.ENZYME_ID_REGEX = r'(Y[A-P][LR][0-9]{3}[CW])'
     return config
 
-def pickle_rxn2kcat_protein2gene_dicts():
-    pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
-
-    # setup the gem ecoli iML1515 model
-    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
-    enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
-
+def get_rxn2kcat_protein2gene_dict(enzyme_db, model):
     # create enzyme objects for each gene-associated reaction
     rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
-
-    with open('Models/rxn2protein_iML1515_uniprot.json', 'w') as file:
-        json.dump(rxn2protein, file, indent=4, sort_keys=True)
-
-    with open('Models/protein2gene_iML1515_uniprot.json', 'w') as file:
-        json.dump(protein2gene, file, indent=4, sort_keys=True)
 
     ecoli_pam = set_up_ecoli_pam(sensitivity=False)
     ae_sector = ecoli_pam.sectors.ActiveEnzymeSector
     new_rxn2prot = ae_sector.rxn2protein.copy()
     for rxn, enz_dict in ae_sector.rxn2protein.items():
-        for enzyme_id, enzyme_dict in enz_dict.items():
-            protein_reaction = enzyme_dict['protein_reaction_association']
-            if ae_sector._enzyme_is_enzyme_complex(protein_reaction, enzyme_id):
-                for pr in protein_reaction:
-                    if len(pr) > 1:
-                        enzyme_complex_id = '_'.join(pr)
-                        new_rxn2prot[rxn] = {**new_rxn2prot[rxn],
-                                             **{enzyme_complex_id: enzyme_dict}}
-    rxn2protein_full = new_rxn2prot
+        if rxn[:2]!='CE':
+            for enzyme_id, enzyme_dict in enz_dict.items():
+                protein_reaction = enzyme_dict['protein_reaction_association']
+                if ae_sector._enzyme_is_enzyme_complex(protein_reaction, enzyme_id):
+                    for pr in protein_reaction:
+                        if len(pr) > 1:
+                            enzyme_complex_id = '_'.join(pr)
+                            new_rxn2prot[rxn] = {**new_rxn2prot[rxn],
+                                                 **{enzyme_complex_id: enzyme_dict}}
+    return new_rxn2prot, protein2gene
 
+def pickle_rxn2kcat_protein2gene_dicts(pam_info_file: str = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')):
+    # setup the gem ecoli iML1515 model
+    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+    enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+
+    # create enzyme objects for each gene-associated reaction
+    rxn2kcat, protein2gene = get_rxn2kcat_protein2gene_dict(enzyme_db, model)
+
+    # with open('Models/rxn2protein_iML1515_uniprot.json', 'w') as file:
+    #     json.dump(rxn2protein, file, indent=4, sort_keys=True)
     with open('Models/rxn2kcat_iML1515_uniprot.json', 'w') as file:
-        json.dump(rxn2protein_full, file, indent=2, sort_keys=True)
+        json.dump(rxn2kcat, file, indent=4, sort_keys=True)
+    with open('Models/protein2gene_iML1515_uniprot.json', 'w') as file:
+        json.dump(protein2gene, file, indent=4, sort_keys=True)
+
 
 def increase_kcats_in_parameter_file(kcat_increase_factor: int,
                                      pam_info_file_path_ori: str,
@@ -551,7 +551,15 @@ def increase_kcats_in_parameter_file(kcat_increase_factor: int,
 
 
 if __name__ == '__main__':
-    pam = setup_yeast_pam()
-    # pam.change_total_protein_constraint(1)
-    pam.change_reaction_bounds('r_1714', -1e3,0)
-    pam.optimize()
+    # pam = setup_yeast_pam()
+    # # pam.change_total_protein_constraint(1)
+    # pam.change_reaction_bounds('r_1714', -1e3,0)
+    # pam.optimize()\
+    pam_info_file: str = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
+    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+    enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+
+    # create enzyme objects for each gene-associated reaction
+    rxn2kcat, protein2gene = get_rxn2kcat_protein2gene_dict(enzyme_db, model)
+
+

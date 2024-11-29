@@ -106,6 +106,7 @@ class PAMParametrizer():
         Returns:
             A png image of the parametrization progress and an excel file with the resulting parameters
         """
+        self._set_pamodel_no_sensitivities()
         self.calculate_translational_sector_for_multiple_csources()
 
         #setup plot to visualize progress
@@ -646,6 +647,10 @@ class PAMParametrizer():
     ###########################################################################################################
     #WORKER FUNCTIONS
     ###########################################################################################################
+    def _set_pamodel_no_sensitivities(self) -> None:
+        self.pamodel_no_sensitivity = self.pamodel.copy(copy_with_pickle=True)
+        self.pamodel_no_sensitivity.sensitivity = False
+
     def _create_result_dirs(self, result_file_path: str = os.path.join(
             "Results", "2_parametrization")) -> None:
         """ Check if directories for storing the results exist.

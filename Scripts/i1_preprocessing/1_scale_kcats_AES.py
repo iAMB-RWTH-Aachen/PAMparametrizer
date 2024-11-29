@@ -6,8 +6,8 @@ from PAModelpy import PAModel
 import matplotlib.pyplot as plt
 
 from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam, setup_yeast_pam
-from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer
-from Scripts.Testing.pam_parametrizer_yeast9 import set_up_pamparametrizer as set_up_pamparam_yeast
+from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
+from Scripts.i2_parametrization.pam_parametrizer_yeast9 import set_up_pamparametrizer as set_up_pamparam_yeast
 
 
 VALID_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls')
@@ -70,7 +70,7 @@ def scan_kcat_factors_yeast9():
     scan_kcat_factors(max_factor=10,
                       min_factor=1,
                       stepsize=1,
-                      scan_figure_file_path= os.path.join('Results', 'yeast9','multifactor_scan_yeast9.png'),
+                      scan_figure_file_path= os.path.join('Results','multifactor_scan_yeast9.png'),
                       setup_pam_function=setup_yeast_pam,
                       setup_pamparametrizer_function=set_up_pamparam_yeast,
                       substrate_reaction_id= 'r_1714',
