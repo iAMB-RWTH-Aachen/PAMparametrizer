@@ -1,5 +1,5 @@
-from Scripts.Testing.pam_parametrizer_ecolicore import set_up_pamparametrizer
-from Scripts.Testing.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml1515
+from Scripts.i2_parametrization.pam_parametrizer_ecolicore import set_up_pamparametrizer
+from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml1515
 from Scripts.pam_generation_uniprot_id import setup_ecolicore_pam
 from Scripts.pam_generation import setup_ecolicore_pam as setup_ecolicore_pam_ec
 
@@ -32,8 +32,8 @@ def test_if_ecolicore_pam_old_params_has_better_rsquared_value_than_gem():
         gem)
     sampled_data = sut.validation_data.get_by_id('EX_glc__D_e').sampled_valid_data
 
-    final_error_validation = evaluate_model_fitness(model=sut.pamodel,
-                                                    substrate_rates=sampled_data['EX_glc__D_e_ub'],#substrate_range,
+    final_error_validation = evaluate_model_fitness(model=sut._pamodel,
+                                                    substrate_rates=sampled_data['EX_glc__D_e_ub'],  #substrate_range,
                                                     validation_results = sampled_data,
                                                     substrate_rxn = config.GLUCOSE_EXCHANGE_RXNID)
 
@@ -96,8 +96,8 @@ def test_pam_parametrizer_configures_translational_sector_correctly():
     #reset translational sector
     sut.validation_data.get_by_id('EX_glc__D_e').translational_sector_config = None
     #get the reference parameters
-    tps_0 = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-    tps_mu = sut.pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0]
+    tps_0 = sut._pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+    tps_mu = sut._pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0]
 
     # Apply
     sut.calculate_translational_sector_for_multiple_csources()
@@ -135,7 +135,7 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id=enzyme_id, kcat_dict=kcat_dict)
-    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
+    kcat_model_sut = get_kcat_values_from_model(sut._pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     ga.FitEval._change_kcat_values_for_individual(individual)
     kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
@@ -236,7 +236,7 @@ def evaluate_model_fitness(model, validation_results:pd.DataFrame,
 
 def calculate_simulation_error_with_parametrizer_for_model(pamodel, other_csources = False):
     parametrizer = set_up_pamparametrizer(-10, -0.1, other_csources)
-    parametrizer.pamodel = pamodel
+    parametrizer._pamodel = pamodel
     parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_validate = RXNS_TO_VALIDATE
     parametrizer._init_results_objects()
     parametrizer._init_validation_df(bin_information=[-10, -0.1])

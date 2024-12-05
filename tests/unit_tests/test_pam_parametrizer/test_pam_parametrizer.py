@@ -281,7 +281,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Assert
     for kcat_info in kcats_expected:
         enzyme_id, direction, rxn_id, kcat_expected = kcat_info[0], kcat_info[1], kcat_info[2], kcat_info[3]
-        model_kcat_dict = sut.pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id.split("_")[1]])
+        model_kcat_dict = sut._pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id.split("_")[1]])
         if direction in model_kcat_dict.keys():
             kcat_test = 1/(model_kcat_dict[direction]*3600*1e-6)
             assert kcat_expected == pytest.approx(kcat_test, abs=1e-6)
@@ -317,7 +317,7 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
-    kcat_model_sut = get_kcat_values_from_model(sut.pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
+    kcat_model_sut = get_kcat_values_from_model(sut._pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     ga.FitEval._change_kcat_values_for_individual(individual)
     kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
@@ -333,7 +333,7 @@ def test_pam_parametrizer_calculates_final_error_correctly():
     # Arrange
     sut = PAMParametrizerMock()
     # Build the PAModel with expected outcome
-    sut.pamodel = setup_toy_pam(kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
+    sut._pamodel = setup_toy_pam(kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5])
     # get the expected flux distribution
     fluxes, substrate_range = sut.run_simulations_to_plot(substrate_uptake_id='R1')
     # save the flux results
@@ -390,7 +390,7 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     other_substrate_reaction = 'R9'
     substrate_uptake_rates = [-1e-3, -1e-2]
     toy_pam = setup_toy_pam(kcat_fwd=[1, 0.5, 5, 0.1, 0.25, 1.5]) #this was the model used to generate the validation data
-    sut.pamodel = toy_pam
+    sut._pamodel = toy_pam
     expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
                                                                                            other_substrate_reaction,
                                                                                            substrate_uptake_rates)
@@ -426,9 +426,9 @@ def test_if_parametrizer_convergence_with_similar_error():
 def test_if_parametrizer_runs_iteration_with_random_enzymes_to_evaluate():
     # Arrange
     sut = PAMParametrizerMock()
-    sut.pamodel.objective = "R7"
-    sut.pamodel.change_reaction_bounds("R1", 1e-2,1e-2)
-    sut.pamodel.optimize()
+    sut._pamodel.objective = "R7"
+    sut._pamodel.change_reaction_bounds("R1", 1e-2, 1e-2)
+    sut._pamodel.optimize()
 
     # Act
     files_to_remove = sut.perform_iteration_without_bins(random = True)

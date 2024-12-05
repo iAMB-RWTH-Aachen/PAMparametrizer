@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 import pytest
-from Scripts.Testing.pam_parametrizer_toy_model import set_up_pamparametrizer
+from Scripts.i2_parametrization.pam_parametrizer_toy_model import set_up_pamparametrizer
 from Scripts.pam_generation import setup_toy_pam
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import (evaluate_toy_model_fitness,
                                                                                     get_toy_model_simulations_other_csource)
@@ -24,7 +24,7 @@ def test_if_toy_model_parameters_in_pam_parametrizer_are_set_correctly():
 
     # Assert
     for enzyme, rxn2kcat_dict in FINAL_ENZYMES2KCAT.items():
-        kcat_to_validate = sut.pamodel.enzymes.get_by_id(enzyme).rxn2kcat
+        kcat_to_validate = sut._pamodel.enzymes.get_by_id(enzyme).rxn2kcat
         assert all(v == kcat_to_validate[k] for k,v in rxn2kcat_dict.items()) and len(rxn2kcat_dict)==len(kcat_to_validate)
 
 def test_if_running_toy_model_in_pam_parametrizer_gives_correct_results():
@@ -55,7 +55,7 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     other_substrate_reaction = 'R9'
     substrate_uptake_rates = [-1e-2, -1e-3]
     toy_pam = setup_toy_pam()
-    sut_param.pamodel = toy_pam
+    sut_param._pamodel = toy_pam
 
     expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
                                                                                            other_substrate_reaction,
@@ -96,7 +96,7 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
 ##########################################################################################################################
 def change_kcat_to_expected_outcome(pam_parametrizer):
     for enz_id, kcat_dict in FINAL_ENZYMES2KCAT.items():
-        pam_parametrizer.pamodel.change_kcat_value(enz_id, kcat_dict)
+        pam_parametrizer._pamodel.change_kcat_value(enz_id, kcat_dict)
 
 def set_up_mockga_multiple_csources(expected_flux_results, new_substrate_id,
                                     reactions_to_validate, substrate_uptake_rates):
