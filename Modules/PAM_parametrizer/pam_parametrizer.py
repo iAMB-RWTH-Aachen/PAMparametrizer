@@ -6,6 +6,7 @@ import time
 import random
 import matplotlib.pyplot as plt
 import matplotlib as mpltlib
+from IPython.utils.terminal import set_term_title
 from matplotlib.colors import to_hex
 from PAModelpy.PAModel import PAModel
 import pandas as pd
@@ -40,7 +41,7 @@ class PAMParametrizer():
         self.core_genetic_algorithm = None
 
         #set up models with (find enzymes to change) and without (decrease simulation time) sensitivity
-        self.pamodel = pamodel.copy(copy_with_pickle = True)
+        self._pamodel = pamodel.copy(copy_with_pickle = True)
         self.pamodel_no_sensitivity = pamodel.copy(copy_with_pickle = True)
         self.pamodel_no_sensitivity.sensitivity = False
 
@@ -141,7 +142,7 @@ class PAMParametrizer():
             self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
 
             if self._error_is_converging() and (self.iteration+1 <= self.hyperparameters.threshold_iteration):
-                self.hyperparameters.number_of_kcats_to_mutate = len(self.pamodel.enzymes)
+                self.hyperparameters.number_of_kcats_to_mutate = len(self._pamodel.enzymes)
                 print("Pick random enzymes to mutate because error is converging")
                 self.iteration +=1
                 files_to_remove = self.perform_iteration_without_bins()
@@ -170,7 +171,7 @@ class PAMParametrizer():
             #get the simulations for relatively low substrate uptake rates
             simulation_results = get_model_simulations_vs_sector(pamodel = pamtransl,
                                                                  sub_uptake_rxn = sub_upt_id,
-                                                                 rxn_id_to_relate_to = self.pamodel.BIOMASS_REACTION,
+                                                                 rxn_id_to_relate_to = self._pamodel.BIOMASS_REACTION,
                                                                  substrate_range = substrate_range,
                                                                  intercept = self.TRANSL_SECTOR_INTERCEPT_vs_MU,
                                                                  slope = self.TRANSL_SECTOR_SLOPE_vs_MU)
@@ -192,7 +193,7 @@ class PAMParametrizer():
         # 2. Run model in bins, get sensitivities and calculate errors
         for subst_uptake_id, binned_substrate in binned_substrates.items():
             self._change_translational_sector_for_substrate(substrate_uptake_id=subst_uptake_id,
-                                                            pamodel=self.pamodel)
+                                                            pamodel=self._pamodel)
             for bin_id, bin_info in binned_substrate.items():
                 self.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id = subst_uptake_id)
                 # print running time to check on progress
@@ -331,7 +332,7 @@ class PAMParametrizer():
             - Either bin_information or substrate_uptake_rates should be defined in order to define the substrate uptake
                     rates to constrain the model
         """
-        self._change_translational_sector_for_substrate(substrate_uptake_reaction, self.pamodel)
+        self._change_translational_sector_for_substrate(substrate_uptake_reaction, self._pamodel)
         if bin_information is not None:
             start, stop, step = bin_information[0], bin_information[1], bin_information[2]
             substrate_range = np.arange(start, stop, step)
@@ -357,17 +358,17 @@ class PAMParametrizer():
         """
 
         print("Substrate uptake rate ", substrate_uptake_rate, " mmol/gcdw/h")
-        with self.pamodel:
+        with self._pamodel:
             # change glucose uptake rate
             if substrate_uptake_rate < 0:
-                self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_reaction,
-                                                    lower_bound=substrate_uptake_rate, upper_bound=0)
+                self._pamodel.change_reaction_bounds(rxn_id=substrate_uptake_reaction,
+                                                     lower_bound=substrate_uptake_rate, upper_bound=0)
             else:
-                self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_reaction,
-                                                lower_bound=0, upper_bound=substrate_uptake_rate)
+                self._pamodel.change_reaction_bounds(rxn_id=substrate_uptake_reaction,
+                                                     lower_bound=0, upper_bound=substrate_uptake_rate)
             # solve the model
-            self.pamodel.optimize()
-            if self.pamodel.solver.status == "optimal" and self.pamodel.objective.value != 0:
+            self._pamodel.optimize()
+            if self._pamodel.solver.status == "optimal" and self._pamodel.objective.value != 0:
                 self.save_pamodel_simulation_results(abs(substrate_uptake_rate), bin_id, substrate_uptake_reaction)
 
     def save_pamodel_simulation_results(self, substrate_uptake_rate: Union[float, int],
@@ -386,10 +387,10 @@ class PAMParametrizer():
         flux_results = self.parametrization_results.flux_results.get_by_id(substrate_uptake_reaction)
         flux_results.substrate_range += [substrate_uptake_rate]
 
-        self.parametrization_results.add_fluxes(self.pamodel, bin_id, substrate_uptake_reaction, substrate_uptake_rate,
+        self.parametrization_results.add_fluxes(self._pamodel, bin_id, substrate_uptake_reaction, substrate_uptake_rate,
                                                 fluxes_abs=False)
-        self.parametrization_results.add_enzyme_sensitivity_coefficients(self.pamodel.enzyme_sensitivity_coefficients,
-                                                                          bin_id, substrate_uptake_rate)
+        self.parametrization_results.add_enzyme_sensitivity_coefficients(self._pamodel.enzyme_sensitivity_coefficients,
+                                                                         bin_id, substrate_uptake_rate)
 
     def calculate_error(self, bin_id: Union[float, int, str], substrate_uptake_reaction: str) -> None:
         """ Evaluate the model simulations compared to a reference dataset within a specified substrate uptake range.
@@ -642,13 +643,20 @@ class PAMParametrizer():
         self.validation_data.append(valid_data)
         self.parametrization_results.add_new_substrate_source(new_substrate_uptake_id,
                                                               reactions_to_validate)
+    @property
+    def pamodel(self) -> PAModel:
+        return self._pamodel
 
+    @pamodel.setter
+    def pamodel(self, pamodel:PAModel):
+        self._pamodel = pamodel
+        self._set_pamodel_no_sensitivities()
 
     ###########################################################################################################
     #WORKER FUNCTIONS
     ###########################################################################################################
     def _set_pamodel_no_sensitivities(self) -> None:
-        self.pamodel_no_sensitivity = self.pamodel.copy(copy_with_pickle=True)
+        self.pamodel_no_sensitivity = self._pamodel.copy(copy_with_pickle=True)
         self.pamodel_no_sensitivity.sensitivity = False
 
     def _create_result_dirs(self, result_file_path: str = os.path.join(
@@ -938,7 +946,7 @@ class PAMParametrizer():
 
     def _get_random_enzymes_to_evaluate(self):
         if self._pamodel_is_feasible():
-            esc_df = self.pamodel.enzyme_sensitivity_coefficients
+            esc_df = self._pamodel.enzyme_sensitivity_coefficients
             esc_df["rxn_id"] = esc_df["rxn_id"].str.split(",")
             esc_df = esc_df.explode("rxn_id", ignore_index=True)
             enzymes_to_evaluate = self._parse_enzymes_to_evaluate(
@@ -948,8 +956,8 @@ class PAMParametrizer():
             )
         else:
             fake_esc_df = pd.DataFrame(columns=['enzyme_id', 'mean', 'absolute_esc_mean', 'bin', 'substrate', 'rxn_id', 'coefficient'])
-            all_proteins = self.pamodel.enzyme_variables.copy()
-            sampled_proteins = [self.pamodel.enzymes.get_by_id(
+            all_proteins = self._pamodel.enzyme_variables.copy()
+            sampled_proteins = [self._pamodel.enzymes.get_by_id(
                 ev.id) for ev in random.sample(all_proteins, k=self.hyperparameters.number_of_kcats_to_mutate)]
             for protein in sampled_proteins:
                 rxn = random.sample(list(protein.rxn2kcat.keys()), k=1)[0]
@@ -1017,10 +1025,10 @@ class PAMParametrizer():
             enzyme_dict = {}
             enzyme_dict["sensitivity"] = row["mean"]
             #create the connection to the catalytic reaction related to the enzyme
-            if ("CE_" not in rxn_id) and (not rxn_id in self.pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat.keys()):
+            if ("CE_" not in rxn_id) and (not rxn_id in self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat.keys()):
                 rxn_id = f"CE_{rxn_id}_{enzyme_id}"
             enzyme_dict["reaction"] = rxn_id
-            kcat_dict = self.pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
+            kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
             enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
             enzymes_to_evaluate[enzyme_id] = enzyme_dict
         return enzymes_to_evaluate
@@ -1074,7 +1082,7 @@ class PAMParametrizer():
         return final_run_results_best_indiv ,error
 
     def _change_kcat_value_for_enzyme(self, enzyme_id:str, kcat_dict:dict) -> None:
-        for pamodel in [self.pamodel, self.pamodel_no_sensitivity]:
+        for pamodel in [self._pamodel, self.pamodel_no_sensitivity]:
             pamodel.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
 
     def _remove_result_files(self, file_base: Union[list, str]) -> None:
@@ -1091,7 +1099,7 @@ class PAMParametrizer():
             [os.remove(file_path_base + file_type) for file_type in [".json", ".xlsx", ".pickle"]]
 
     def _set_total_protein_constraint_to_equality(self):
-        for pamodel in [self.pamodel, self.pamodel_no_sensitivity]:
+        for pamodel in [self._pamodel, self.pamodel_no_sensitivity]:
             pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub
 
     def _parse_row_with_enz_rxn_kcat_for_saving(self, enz_rxn_kcat_row:pd.Series) -> list:
@@ -1147,8 +1155,6 @@ class PAMParametrizer():
         for j in range(len(reactions_to_plot), len(axs)):
             fig.delaxes(axs[j])
 
-        #TODO: set bounds dynamically
-        # axs.flatten()[-1].plot([-10, 10], [-10,10], linestyle = "dotted")
         #make the plots square to easily see the relation
         axs.flatten()[-1].set_aspect("equal")
         axs.flatten()[-1].set_ylabel("Experimental measured fluxes")
@@ -1231,11 +1237,11 @@ class PAMParametrizer():
         substrate_range = list()
 
         if sensitivity:
-            pamodel = self.pamodel
+            pamodel = self._pamodel
         else:
             pamodel = self.pamodel_no_sensitivity
 
-        #get the old bounds for resetting
+        #change the translational sector for correct relation between substrate uptake rate and ribosome content
         self._change_translational_sector_for_substrate(substrate_uptake_id,
                                                         pamodel)
 
