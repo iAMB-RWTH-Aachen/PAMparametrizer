@@ -28,9 +28,9 @@ def test_pam_parametrizer_runs_full_workflow_with_bins():
     # Act
     sut.run()
     #remove result files (incl figure)
-    filename_extension = f'final_run_{sut.iteration}'
-    full_file_path = os.path.join('Results', '2_parametrization',
-                                  sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
+    # filename_extension = f'final_run_{sut.iteration}'
+    # full_file_path = os.path.join('Results', '2_parametrization',
+    #                               sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
     # [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
     os.remove(sut.result_figure_file)
 
