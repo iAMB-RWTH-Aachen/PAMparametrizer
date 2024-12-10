@@ -5,37 +5,15 @@ import os
 from typing import Union
 import json
 
+
 # load PAMpy modules
 from PAModelpy.PAModel import PAModel
 from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector
 from PAModelpy.configuration import Config
+from PAModelpy.utils import set_up_pam
 
-from PAModelpy.EnzymeSectors import CustomSector
-from Scripts.toy_ec_pam import build_toy_gem, build_active_enzyme_sector, build_translational_protein_sector, build_unused_protein_sector
-import ast
 
 'Function library for making Protein Allocation Models as described in the publication'
-
-
-# def set_up_toy_pam(sensitivity =True):
-#     config = Config()
-#     #setting the configuration for the toy model
-#     config.BIOMASS_REACTION = 'R7'
-#     config.GLUCOSE_EXCHANGE_RXNID = 'R1'
-#     config.CO2_EXHANGE_RXNID = 'R8'
-#     config.ACETATE_EXCRETION_RXNID = 'R9'
-#
-#     Etot = 0.6*1e-3
-#     model = build_toy_gem()
-#     active_enzyme = build_active_enzyme_sector(config)
-#     unused_enzyme = build_unused_protein_sector(config)
-#     translation_enzyme = build_translational_protein_sector(config)
-#     pamodel = PAModel(model, name='toy model MCA with enzyme constraints', active_sector=active_enzyme,
-#                       translational_sector=translation_enzyme,
-#                       unused_sector=unused_enzyme, p_tot=Etot, sensitivity=sensitivity)
-#     pamodel.objective = 'R7'
-#     config.reset()
-#     return pamodel
 
 def setup_ecolicore_pam(total_protein:bool = True,
                          active_enzymes: bool = True,
@@ -59,7 +37,7 @@ def setup_ecolicore_pam(total_protein:bool = True,
     #load example data for the E.coli iML1515 model
     if active_enzymes:
         # load active enzyme sector information
-        enzyme_db = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes')
+        enzyme_db = parse_enzyme_db(pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes'))
         # create enzyme objects for each gene-associated reaction
         rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
 
@@ -133,7 +111,7 @@ def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationM
     if active_enzymes:
         # load active enzyme sector information
         if enzyme_db is None:
-            enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+            enzyme_db = parse_enzyme_db(pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes'))
         # create enzyme objects for each gene-associated reaction
         rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
 
@@ -205,6 +183,19 @@ def _parse_enzyme_information_from_file(file_path:str):
 
     return enzyme_db
 
+def parse_enzyme_db(enzyme_db: pd.DataFrame) -> None:
+    try:
+        enzyme_db = enzyme_db.drop(['kegg_id', 'Reactants', 'Products', 'EC', 'Length'],axis=1).pivot_table(
+                          index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
+                          columns='direction',
+                          values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b':'kcat_b'}, axis=1)
+    except:
+        enzyme_db = enzyme_db.pivot_table(
+            index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
+            columns='direction',
+            values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b': 'kcat_b'}, axis=1)
+    return enzyme_db
+
 
 def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
     # Initialize dictionaries
@@ -219,11 +210,6 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
     # replace nan values by unique id
     enzyme_db.loc[nan_values, 'uniprot_id'] = nan_ids
 
-    enzyme_db = enzyme_db.drop(['kegg_id', 'Reactants', 'Products', 'EC', 'Length'],axis=1).pivot_table(
-                          index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
-                          columns='direction',
-                          values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b':'kcat_b'}, axis=1)
-
 
     protein2gene, gene2protein = _get_genes_for_proteins(enzyme_db, model)
 
@@ -235,15 +221,15 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
         if rxn_id not in model.reactions: continue
         kcat_f_b = [row['kcat_f'], row['kcat_b']]
         kcat_f_b = [kcat if not np.isnan(kcat) else 0 for kcat in kcat_f_b]
-        if all([np.isnan(kcat) for kcat in kcat_f_b]): continue
+        # if all([np.isnan(kcat) for kcat in kcat_f_b]): continue
 
         rxn = model.reactions.get_by_id(rxn_id)
         # get the identifiers and replace nan values by dummy placeholders
         enzyme_id = row['uniprot_id']
         gene_id = row['gene']
 
-        # check if there are genes associates with the reaction
-        if len(rxn.genes) > 0 or isinstance(gene_id, str):
+        # check if there are genes associates with the reaction #TODO move these if statements
+        if len(rxn.genes) > 0 or isinstance(gene_id, str): #TODO if not: stop the loop and continue
             if not isinstance(enzyme_id, str):
                 enzyme_id = 'Enzyme_' + rxn_id
                 row['molMass'] = 39959.4825  # default molmass
@@ -277,15 +263,20 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
 
     # if no enzyme info is found, add dummy enzyme with median kcat and molmass
     for rxn in model.reactions:
-        if rxn.id not in rxn2protein.keys() and 'EX'.lower() not in rxn.id.lower() and 'BIOMASS' not in rxn.id and len(
-                rxn._genes) > 0 and list(rxn._genes)[0].id != 's0001':
+        if (
+                rxn.id not in rxn2protein.keys()
+                and 'EX'.lower() not in rxn.id.lower()
+                and 'BIOMASS' not in rxn.id
+                and len(rxn._genes) > 0
+                and list(rxn._genes)[0].id != 's0001'
+        ): #TODO make if not, continue
             rev = _check_reaction_reversibility(rxn)
             if rev == 0:
                 kcat_dict = {'f': 22}
             elif rev == 1:
                 kcat_dict = {'b': 22}
             else:
-                kcat_dict = {'f': 22, 'b': 22}
+                kcat_dict = {'f': 22, 'b': 22} #TODO put in dict?
             # no enzyme information found
             print('No enzyme information found for reaction: ' + rxn.id)
             enzyme_id = 'Enzyme_' + rxn.id
@@ -300,7 +291,7 @@ def parse_reaction2protein(enzyme_db: pd.DataFrame, model:cobra.Model) -> dict:
             # add geneinfo for unknown enzymes
             protein2gpr[enzyme_id] = gpr_info
 
-        return rxn2protein, protein2gpr
+    return rxn2protein, protein2gpr
 
 def _get_genes_for_proteins(enzyme_db: pd.DataFrame, model) -> dict:
     protein2gene = {}
@@ -308,7 +299,7 @@ def _get_genes_for_proteins(enzyme_db: pd.DataFrame, model) -> dict:
     for index, row in enzyme_db.iterrows():
         # Parse data from the row
         rxn_id = row['rxn_id']
-        if rxn_id not in model.reactions:continue
+        if rxn_id not in model.reactions: continue
         rxn = model.reactions.get_by_id(rxn_id)
         # get the identifiers and replace nan values by dummy placeholders
         enzyme_id = row['uniprot_id']
@@ -449,26 +440,26 @@ def filter_sublists(nested_list, target_string):
     """
     return [sublist for sublist in nested_list if target_string in sublist]
 
-def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx'),
-                     model:str = 'yeast9.xml', config:Config = None,
+def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
+                     model:str = 'Models/yeast9.xml', config:Config = None,
                      total_protein: Union[bool, float] = 0.28697423725932236, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
     if config is None:
         config = set_up_yeast_config()
-    yeast_pam = set_up_ecoli_pam(pam_info_file, model, config,
+    yeast_pam = set_up_pam(pam_info_file, model, config,
                      total_protein, active_enzymes, translational_enzymes,
                      unused_enzymes, sensitivity)
-    if total_protein:
-        #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
-        #can assume include this section in the total protein constraint (no correction needed)
-        protein_growth_relation = CustomSector(
-            id_list= ['r_2111'], #biomass formation
-            name='total_protein_growth_relation',
-            cps_0=[0],
-            cps_s=[-0.45431074007034344],
-            mol_mass=1e6
-        )
-        yeast_pam.add_sector(protein_growth_relation)
+    # if total_protein:
+    #     #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
+    #     #can assume include this section in the total protein constraint (no correction needed)
+    #     protein_growth_relation = CustomSector(
+    #         id_list= ['r_2111'], #biomass formation
+    #         name='total_protein_growth_relation',
+    #         cps_0=[0],
+    #         cps_s=[-0.45431074007034344],
+    #         mol_mass=1e6
+    #     )
+    #     yeast_pam.add_sector(protein_growth_relation)
     return yeast_pam
 
 
@@ -490,11 +481,12 @@ def set_up_yeast_config():
     config.ENZYME_ID_REGEX = r'(Y[A-P][LR][0-9]{3}[CW])'
     return config
 
-def get_rxn2kcat_protein2gene_dict(enzyme_db, model):
+def get_rxn2kcat_protein2gene_dict(param_file):
     # create enzyme objects for each gene-associated reaction
-    rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
+    ecoli_pam = set_up_ecoli_pam(param_file, sensitivity=False)
+    enzyme_db = pd.read_excel(param_file, sheet_name='ActiveEnzymes').iloc[:,1:]
+    rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, ecoli_pam)
 
-    ecoli_pam = set_up_ecoli_pam(sensitivity=False)
     ae_sector = ecoli_pam.sectors.ActiveEnzymeSector
     new_rxn2prot = ae_sector.rxn2protein.copy()
     for rxn, enz_dict in ae_sector.rxn2protein.items():

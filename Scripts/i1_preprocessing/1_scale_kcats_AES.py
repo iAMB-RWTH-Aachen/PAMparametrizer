@@ -67,10 +67,10 @@ def scan_kcat_factors_iML1515():
     scan_kcat_factors(5, os.path.join('Results', 'multifactor_scan_iML1515.png'))
 
 def scan_kcat_factors_yeast9():
-    scan_kcat_factors(max_factor=10,
+    scan_kcat_factors(max_factor=3,
                       min_factor=1,
                       stepsize=1,
-                      scan_figure_file_path= os.path.join('Results','multifactor_scan_yeast9.png'),
+                      scan_figure_file_path= os.path.join('Results','1_preprocessing','yeast9','multifactor_scan_yeast9.png'),
                       setup_pam_function=setup_yeast_pam,
                       setup_pamparametrizer_function=set_up_pamparam_yeast,
                       substrate_reaction_id= 'r_1714',

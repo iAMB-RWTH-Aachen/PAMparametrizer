@@ -2227,3 +2227,276 @@ Start genetic algorithm --
 (29/11 08:42:49) Population 1: Generation 6/6 evaluated 4 individuals
 	Min 0.7036785588482968 	Max 0.711090563194665 	Avg 0.7086634283503739 	Std 0.0026098460836438842
 (29/11 08:42:49) Population 1: End of (successful) evolution --
+Postprocess evolved population --
+Time left: 998.6min
+(29/11 08:42:49) Evaluate final population --
+The final error is  0.4689069166049895
+time elapsed:  4185.288910587027 sec,  69.75481518418334 min 1.1625802531474942 hour
+Done with iteration number  1
+-------------------------------------------------------------------------------------------
+Pick random enzymes to mutate because error is converging
+(29/11 09:43:05) Initialize DEAP toolbox --
+(29/11 09:43:06) Initialize population --
+(29/11 09:43:23) Start optimization --
+
+Time left: 999.7min
+
+-- Gene drift 1 --
+Time left: 999.7min
+Create populations --
+Start genetic algorithm --
+(29/11 09:43:33) Population 2: Generation 1/6 --
+(29/11 09:43:39) Population 2: Generation 1/6 evaluated 4 individuals
+	Min 0.7110905631946575 	Max 0.7110905631946665 	Avg 0.7110905631946627 	Std 1.0536712127723509e-08
+(29/11 09:43:39) Population 2: Generation 2/6 --
+(29/11 09:43:42) Population 2: Generation 2/6 evaluated 2 individuals
+	Min 0.4744684180117185 	Max 0.7110905631946665 	Avg 0.6628244528497539 	Std 0.09419567043554036
+(29/11 09:43:42) Population 2: Generation 3/6 --
+(29/11 09:43:47) Population 2: Generation 3/6 evaluated 3 individuals
+	Min 0.6528037751714127 	Max 0.7110905631946707 	Avg 0.6984010630349441 	Std 0.022885695684884858
+(29/11 09:43:47) Population 2: Generation 4/6 --
+(29/11 09:43:51) Population 2: Generation 4/6 evaluated 3 individuals
+	Min 0.6707448920281202 	Max 0.7110905631946665 	Avg 0.6980188849698277 	Std 0.01576432910108873
+(29/11 09:43:51) Population 2: Generation 5/6 --
+(29/11 09:43:56) Population 2: Generation 5/6 evaluated 3 individuals
+	Min 0.5475107314989742 	Max 0.7110905631946696 	Avg 0.6597768222056537 	Std 0.0613112245152493
+(29/11 09:43:56) Population 2: Generation 6/6 --
+(29/11 09:43:59) Population 2: Generation 6/6 evaluated 2 individuals
+	Min 0.6104311399039211 	Max 0.7110905631946665 	Avg 0.6813491996868912 	Std 0.04004529454193615
+(29/11 09:43:59) Population 2: End of (successful) evolution --
+Postprocess evolved population --
+Time left: 999.0min
+
+-- Gene drift 2 --
+Time left: 999.0min
+Create populations --
+Start genetic algorithm --
+Postprocess evolved population --
+Time left: 998.2min
+(29/11 09:44:54) Evaluate final population --
+The final error is  0.46890691652083866
+time elapsed:  7595.486432180973 sec,  126.59144054579956 min 2.1098573425058245 hour
+Done with iteration number  2
+-------------------------------------------------------------------------------------------
+Setting up the proteome allocation model iML1515
+
+Add total condition-dependent protein constraint
+	Total protein concentration: 0.258 g/gDW
+
+Add active protein sector
+
+Add the following protein sector: TranslationalProteinSector
+
+Add the following protein sector: UnusedEnzymeSector
+
+Done with setting up the proteome allocation model iML1515
+
+
+===========
+Starting iteration number 2
+Setting up the proteome allocation model iML1515
+
+Add total condition-dependent protein constraint
+	Total protein concentration: 0.258 g/gDW
+
+Add active protein sector
+
+Add the following protein sector: TranslationalProteinSector
+
+Add the following protein sector: UnusedEnzymeSector
+
+Done with setting up the proteome allocation model iML1515
+
+Setting up the proteome allocation model iML1515
+
+Add total condition-dependent protein constraint
+	Total protein concentration: 0.258 g/gDW
+
+Add active protein sector
+
+Add the following protein sector: TranslationalProteinSector
+
+Add the following protein sector: UnusedEnzymeSector
+
+Done with setting up the proteome allocation model iML1515
+
+(29/11 10:59:53) Initialize DEAP toolbox --
+(29/11 10:59:54) Initialize population --
+(29/11 11:00:08) Start optimization --
+
+Time left: 999.8min
+
+-- Gene drift 1 --
+Time left: 999.8min
+Create populations --
+Start genetic algorithm --
+(29/11 11:00:18) Population 2: Generation 1/6 --
+(29/11 11:00:22) Population 2: Generation 1/6 evaluated 3 individuals
+	Min 0.406631076140898 	Max 0.41711720776450145 	Avg 0.4097897069085771 	Std 0.003727261096047605
+(29/11 11:00:22) Population 2: Generation 2/6 --
+(29/11 11:00:23) Population 2: Generation 2/6 evaluated 1 individuals
+	Min 0.3855849480169162 	Max 0.41711720776450145 	Avg 0.4073239061275136 	Std 0.011547433734916226
+(29/11 11:00:23) Population 2: Generation 3/6 --
+(29/11 11:00:26) Population 2: Generation 3/6 evaluated 3 individuals
+	Min 0.36040569103742154 	Max 0.42166445549070936 	Avg 0.40179550789054524 	Std 0.02184688206008405
+(29/11 11:00:26) Population 2: Generation 4/6 --
+(29/11 11:00:30) Population 2: Generation 4/6 evaluated 4 individuals
+	Min 0.3954343921353813 	Max 0.4240741431568382 	Avg 0.4116826138259406 	Std 0.01127328155874544
+(29/11 11:00:30) Population 2: Generation 5/6 --
+(29/11 11:00:32) Population 2: Generation 5/6 evaluated 3 individuals
+	Min 0.3738275305478633 	Max 0.4240741431568382 	Avg 0.40051848481724595 	Std 0.0205452448542757
+(29/11 11:00:32) Population 2: Generation 6/6 --
+(29/11 11:00:35) Population 2: Generation 6/6 evaluated 2 individuals
+	Min 0.3839879045071394 	Max 0.42407414315684183 	Avg 0.4088524012805088 	Std 0.018686989045681477
+(29/11 11:00:35) Population 2: End of (successful) evolution --
+(29/11 11:00:18) Population 1: Generation 1/6 --
+(29/11 11:00:21) Population 1: Generation 1/6 evaluated 3 individuals
+	Min 0.3724474164699716 	Max 0.40840008354582447 	Avg 0.3943844684624812 	Std 0.017175275447417034
+(29/11 11:00:21) Population 1: Generation 2/6 --
+(29/11 11:00:24) Population 1: Generation 2/6 evaluated 3 individuals
+	Min 0.3414360818290883 	Max 0.41293819515118085 	Avg 0.3959149055235551 	Std 0.02729605697394032
+(29/11 11:00:24) Population 1: Generation 3/6 --
+(29/11 11:00:27) Population 1: Generation 3/6 evaluated 4 individuals
+	Min 0.28666924473905203 	Max 0.4129381951512117 	Avg 0.3793976337939705 	Std 0.0477535964883665
+(29/11 11:00:27) Population 1: Generation 4/6 --
+(29/11 11:00:30) Population 1: Generation 4/6 evaluated 3 individuals
+	Min 0.3896648049852818 	Max 0.4204386631031883 	Avg 0.40808210119243 	Std 0.010162188204620407
+(29/11 11:00:30) Population 1: Generation 5/6 --
+(29/11 11:00:33) Population 1: Generation 5/6 evaluated 4 individuals
+	Min 0.2046482868735924 	Max 0.4204386631031652 	Avg 0.36788116987008257 	Std 0.08230658306980658
+(29/11 11:00:33) Population 1: Generation 6/6 --
+(29/11 11:00:36) Population 1: Generation 6/6 evaluated 4 individuals
+	Min 0.36422997992991585 	Max 0.42095785877353414 	Avg 0.40167689193599454 	Std 0.021177010095898577
+(29/11 11:00:36) Population 1: End of (successful) evolution --
+Postprocess evolved population --
+Time left: 999.3min
+
+-- Gene drift 2 --
+Time left: 999.3min
+Create populations --
+Start genetic algorithm --
+(29/11 11:00:47) Population 2: Generation 1/6 --
+(29/11 11:00:49) Population 2: Generation 1/6 evaluated 2 individuals
+	Min 0.3880516724248866 	Max 0.4240741431568271 	Avg 0.4138545605248886 	Std 0.014161130012608145
+(29/11 11:00:49) Population 2: Generation 2/6 --
+(29/11 11:00:53) Population 2: Generation 2/6 evaluated 4 individuals
+	Min 0.2681341066537933 	Max 0.42407414315681513 	Avg 0.3690546528510926 	Std 0.05703650317429811
+(29/11 11:00:53) Population 2: Generation 3/6 --
+(29/11 11:00:57) Population 2: Generation 3/6 evaluated 4 individuals
+	Min 0.3541444403661021 	Max 0.4269065314653442 	Avg 0.3958997248727845 	Std 0.031308413175410665
+(29/11 11:00:57) Population 2: Generation 4/6 --
+(29/11 11:01:01) Population 2: Generation 4/6 evaluated 4 individuals
+	Min 0.3469091069657967 	Max 0.4269065314653231 	Avg 0.3925510009179537 	Std 0.03668410159206071
+(29/11 11:01:01) Population 2: Generation 5/6 --
+(29/11 11:01:05) Population 2: Generation 5/6 evaluated 4 individuals
+	Min 0.3554529538135263 	Max 0.42690653146537405 	Avg 0.40921834621582087 	Std 0.027273935343803367
+(29/11 11:01:05) Population 2: Generation 6/6 --
+(29/11 11:01:08) Population 2: Generation 6/6 evaluated 3 individuals
+	Min 0.4098504238019357 	Max 0.4269065314653629 	Avg 0.4170756056664152 	Std 0.00652451297729976
+(29/11 11:01:08) Population 2: End of (successful) evolution --
+Postprocess evolved population --
+Time left: 998.7min
+(29/11 11:01:09) Evaluate final population --
+The final error is  -0.2519432679940318
+time elapsed:  4013.17990359501 sec,  66.88633173118288 min 1.1147721955777767 hour
+Done with iteration number  1
+-------------------------------------------------------------------------------------------
+(29/11 11:57:46) Initialize DEAP toolbox --
+(29/11 11:57:47) Initialize population --
+(29/11 11:58:01) Start optimization --
+
+Time left: 999.7min
+
+-- Gene drift 1 --
+Time left: 999.7min
+Create populations --
+Start genetic algorithm --
+(29/11 11:58:12) Population 1: Generation 1/6 --
+(29/11 11:58:15) Population 1: Generation 1/6 evaluated 3 individuals
+	Min 0.4318875615062408 	Max 0.43287456248470285 	Avg 0.43213223804181816 	Std 0.0003724146431530956
+(29/11 11:58:15) Population 1: Generation 2/6 --
+(29/11 11:58:17) Population 1: Generation 2/6 evaluated 2 individuals
+	Min 0.3110844166190724 	Max 0.4328745624846447 	Avg 0.40815325048008144 	Std 0.048536116395974195
+(29/11 11:58:17) Population 1: Generation 3/6 --
+(29/11 11:58:18) Population 1: Generation 3/6 evaluated 1 individuals
+	Min 0.40585906869747307 	Max 0.43287456248470285 	Avg 0.4272898223114927 	Std 0.01072114854532041
+(29/11 11:58:18) Population 1: Generation 4/6 --
+(29/11 11:58:20) Population 1: Generation 4/6 evaluated 2 individuals
+	Min 0.43196635540608663 	Max 0.43287456248470285 	Avg 0.4326929210689485 	Std 0.00036328283136223696
+(29/11 11:58:20) Population 1: Generation 5/6 --
+(29/11 11:58:22) Population 1: Generation 5/6 evaluated 1 individuals
+	Min 0.4328745624846071 	Max 0.43287456248470285 	Avg 0.4328745624846557 	Std 5.268356063861754e-09
+(29/11 11:58:22) Population 1: Generation 6/6 --
+(29/11 11:58:25) Population 1: Generation 6/6 evaluated 3 individuals
+	Min 0.3740788238399117 	Max 0.43287456248470285 	Avg 0.419734595570085 	Std 0.02290081199691495
+(29/11 11:58:25) Population 1: End of (successful) evolution --
+(29/11 11:58:12) Population 2: Generation 1/6 --
+(29/11 11:58:16) Population 2: Generation 1/6 evaluated 4 individuals
+	Min 0.43011460145036806 	Max 0.4322245867516557 	Avg 0.43160444051330843 	Std 0.000757162689645118
+(29/11 11:58:16) Population 2: Generation 2/6 --
+(29/11 11:58:18) Population 2: Generation 2/6 evaluated 3 individuals
+	Min 0.41979026843752043 	Max 0.43286048489871365 	Avg 0.42816545599222816 	Std 0.005280495708591143
+(29/11 11:58:18) Population 2: Generation 3/6 --
+(29/11 11:58:20) Population 2: Generation 3/6 evaluated 2 individuals
+	Min 0.3330601905490507 	Max 0.43286048489872236 	Avg 0.4111365085228342 	Std 0.03916074601625062
+(29/11 11:58:20) Population 2: Generation 4/6 --
+(29/11 11:58:24) Population 2: Generation 4/6 evaluated 3 individuals
+	Min 0.42764054372274507 	Max 0.4328614863431499 	Avg 0.4318119089587441 	Std 0.0020857038378340824
+(29/11 11:58:24) Population 2: Generation 5/6 --
+(29/11 11:58:27) Population 2: Generation 5/6 evaluated 4 individuals
+	Min 0.41450268331341034 	Max 0.4328614863431666 	Avg 0.4289307431821345 	Std 0.007222210560966439
+(29/11 11:58:27) Population 2: Generation 6/6 --
+(29/11 11:58:29) Population 2: Generation 6/6 evaluated 2 individuals
+	Min 0.41241106318309667 	Max 0.4328614863431458 	Avg 0.4285459508303921 	Std 0.00807246104820393
+(29/11 11:58:29) Population 2: End of (successful) evolution --
+Postprocess evolved population --
+Time left: 999.3min
+
+-- Gene drift 2 --
+Time left: 999.3min
+Create populations --
+Start genetic algorithm --
+(29/11 11:58:40) Population 2: Generation 1/6 --
+(29/11 11:58:44) Population 2: Generation 1/6 evaluated 4 individuals
+	Min 0.4245601106701456 	Max 0.43286148634313304 	Avg 0.43026600112529645 	Std 0.0032240572002886344
+(29/11 11:58:44) Population 2: Generation 2/6 --
+(29/11 11:58:47) Population 2: Generation 2/6 evaluated 4 individuals
+	Min 0.4262604580368902 	Max 0.43286148634317134 	Avg 0.43017757500155485 	Std 0.0028064307609669535
+(29/11 11:58:47) Population 2: Generation 3/6 --
+(29/11 11:58:50) Population 2: Generation 3/6 evaluated 3 individuals
+	Min 0.4146877427195284 	Max 0.4328614863431588 	Avg 0.4291156392929719 	Std 0.007217155639560592
+(29/11 11:58:50) Population 2: Generation 4/6 --
+(29/11 11:58:51) Population 2: Generation 4/6 evaluated 1 individuals
+	Min 0.31584027991086105 	Max 0.43286148634314353 	Avg 0.4093461467312326 	Std 0.04675342841011232
+(29/11 11:58:51) Population 2: Generation 5/6 --
+(29/11 11:58:55) Population 2: Generation 5/6 evaluated 4 individuals
+	Min 0.4318653725090347 	Max 0.4328614863431719 	Avg 0.43255116525088216 	Std 0.0004048006465415381
+(29/11 11:58:55) Population 2: Generation 6/6 --
+(29/11 11:58:59) Population 2: Generation 6/6 evaluated 4 individuals
+	Min 0.4283120690927411 	Max 0.43286148634319926 	Avg 0.43141614338345846 	Std 0.0017108334788602485
+(29/11 11:58:59) Population 2: End of (successful) evolution --
+(29/11 11:58:39) Population 1: Generation 1/6 --
+(29/11 11:58:42) Population 1: Generation 1/6 evaluated 2 individuals
+	Min 0.3913511910099286 	Max 0.43287456248470285 	Avg 0.42410752938093366 	Std 0.0164026243212531
+(29/11 11:58:42) Population 1: Generation 2/6 --
+(29/11 11:Postprocess evolved population --
+Time left: 998.8min
+(29/11 11:59:00) Evaluate final population --
+The final error is  -0.21442790290092129
+time elapsed:  3266.6631798630115 sec,  54.44438633846682 min 0.9074064390397204 hour
+Done with iteration number  2
+-------------------------------------------------------------------------------------------
+Setting up the proteome allocation model iML1515
+
+Add total condition-dependent protein constraint
+	Total protein concentration: 0.258 g/gDW
+
+Add active protein sector
+
+Add the following protein sector: TranslationalProteinSector
+
+Add the following protein sector: UnusedEnzymeSector
+
+Done with setting up the proteome allocation model iML1515
+
+Ended the scan of unused enzyme sector parameters

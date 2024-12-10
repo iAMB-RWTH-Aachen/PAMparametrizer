@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
+import seaborn as sns
 import numpy as np
 import pandas as pd
 import os
@@ -8,6 +9,8 @@ from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam
 
 SECTOR_PARAM_FILE = os.path.join('Data','proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')
 RESULT_KCAT_HISTOGRAM_PATH = os.path.join('Results', '3_analysis', 'aes_histogram_iML1515_241012.png')
+RESULT_KCAT_JOYPLOT_PATH = os.path.join('Results', '3_analysis', 'aes_joyplot_iML1515_241012.png')
+
 RESULT_FLUX_HISTOGRAM_PATH = os.path.join('Results', '3_analysis', 'flux_histogram_iML1515_241012.png')
 
 def gaussian(x, mean, amplitude, standard_deviation):
@@ -59,6 +62,49 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     plt.tight_layout()
     plt.savefig(result_fig_file)
 
+
+def create_kcat_joyplot_old_vs_new(data_file_paths: list[pd.DataFrame],
+                                   label_names: list[str],
+                                   result_fig_file: str = RESULT_KCAT_JOYPLOT_PATH):
+    # Prepare data
+    combined_data = []
+    for label, data_file_path in zip(label_names, data_file_paths):
+        aes_parameter_df = pd.read_excel(data_file_path, sheet_name='ActiveEnzymes')
+        kcat_values = aes_parameter_df['kcat_values'].dropna()
+        combined_data.append(pd.DataFrame({'Kcat': kcat_values, 'Dataset': label}))
+        print('------------------------------------------------------------------------')
+        print(
+            f'The kcat set from {label} has:\n \tMedian:\t\t\t{np.median(kcat_values)} \n \tMean:\t\t\t{np.mean(kcat_values)}')
+
+    # Combine all data into a single DataFrame
+    combined_df = pd.concat(combined_data, ignore_index=True)
+    combined_df['Log_Kcat'] = np.log10(combined_df['Kcat'])
+
+    # Create the ridgeline plot
+    sns.set(style="whitegrid")
+    g = sns.FacetGrid(combined_df, row="Dataset", hue="Dataset", aspect=15, height=0.6, palette="viridis")
+
+    # Add KDE plots
+    g.map(sns.kdeplot, "Log_Kcat", fill=True, alpha=0.7, linewidth=1.5)
+
+    # Add white line to separate the KDE plots for better visibility
+    g.map(sns.kdeplot, "Log_Kcat", color="white", linewidth=1)
+
+    # Adjust layout
+    g.fig.subplots_adjust(hspace=-0.6)
+    g.set_titles("")
+    g.set(yticks=[], ylabel="")
+    g.despine(bottom=True, left=True)
+
+    # Add labels
+    plt.xlabel(r"Log10(Kcat value [s⁻¹])")
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig(result_fig_file, dpi=300)
+    plt.show()
+
+
 def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      label_names:list[str],
                                      result_fig_file: str = RESULT_FLUX_HISTOGRAM_PATH,
@@ -109,7 +155,7 @@ if __name__ == '__main__':
     other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
                                'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
 
-    for file_nmbr in [1,2]:
+    for file_nmbr in range(1,7):
         suffix = f'iML1515_{file_nmbr}'
 
         other_files += [os.path.join('Results', '3_analysis', 'parameter_files',
@@ -118,8 +164,13 @@ if __name__ == '__main__':
     create_flux_histogram_old_vs_new([os.path.join('Data','proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names = ['GotEnzymes', 'After preprocessing']\
-                                                   + [f'alternative {i}' for i in [1,2,3]])
+                                                   + [f'alternative {i}' for i in range(1,8)])
     create_kcat_histogram_old_vs_new([os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in [1, 2, 3]])
+                                                 + [f'alternative {i}' for i in range(1,8)])
+
+    create_kcat_joyplot_old_vs_new([os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+                                      SECTOR_PARAM_FILE] + other_files,
+                                     label_names=['GotEnzymes', 'After preprocessing'] \
+                                                 + [f'alternative {i}' for i in range(1,8)])

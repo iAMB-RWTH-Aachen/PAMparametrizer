@@ -2,7 +2,7 @@ import os.path
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 import pandas as pd
-from Scripts.Visualization.PAMparametrizer_progress_cleaned_figure import recreate_progress_plot
+from Scripts.i3_analysis.PAMparametrizer_progress_cleaned_figure import recreate_progress_plot
 
 result_file_names = ['pam_parametrizer_statistics_2024-08-14.xlsx']
 

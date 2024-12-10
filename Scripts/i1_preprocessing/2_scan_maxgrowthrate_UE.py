@@ -46,11 +46,11 @@ def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
                                                               **pam_parametrizer_kwargs)
             # change the filename to save the results in a recognizable name
 
-            pam_parametrizer.pamodel.change_sector_parameters(
-                pam_parametrizer.pamodel.sectors.get_by_id('TranslationalProteinSector'),
+            pam_parametrizer._pamodel.change_sector_parameters(
+                pam_parametrizer._pamodel.sectors.get_by_id('TranslationalProteinSector'),
                 slope=slope,
                 intercept=UE_0,
-                lin_rxn_id=pam_parametrizer.pamodel.BIOMASS_REACTION
+                lin_rxn_id=pam_parametrizer._pamodel.BIOMASS_REACTION
             )
 
             pam_parametrizer.run(remove_subruns=True, binned='False')
@@ -72,7 +72,7 @@ def reset_pam_parametrizer(parametrizer):
     # reset final errors for correct saving
     parametrizer.parametrization_results.final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
     ecoli_pam = set_up_ecoli_pam()
-    parametrizer.pamodel = ecoli_pam
+    parametrizer._pamodel = ecoli_pam
 
 if __name__ == "__main__":
     #example usage iML1515

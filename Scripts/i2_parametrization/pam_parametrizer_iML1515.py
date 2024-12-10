@@ -5,13 +5,11 @@ from typing import Tuple
 import warnings
 warnings.filterwarnings("ignore")
 
-from matplotlib import pyplot as plt
-
 from PAModelpy.configuration import Config
+from PAModelpy.utils.pam_generation import set_up_pam, increase_kcats_in_parameter_file
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_ecoli_pam_uniprot, increase_kcats_in_parameter_file
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -10
@@ -23,8 +21,9 @@ def set_up_validation_data(csources: list) -> list[ValidationData]:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e',
                         'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e',
                         'Fructose': 'EX_fru_e'}
-    model = setup_ecoli_pam_uniprot(pam_info_file =os.path.join('Results','1_preprocessing',
-                                                                'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'))
+    model = set_up_pam(pam_info_file =os.path.join('Results','1_preprocessing',
+                                                                'proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx'),
+                       model = os.path.join('Models', 'iML1515.xml'))
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls')
@@ -130,15 +129,15 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            c_sources:list = ['Glucose'],
                            kcat_increase_factor: int = 1):
     pam_info_file_path_out = os.path.join(
-        'Results','2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')
+        'Results','2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_241209_multi.xlsx')
 
     increase_kcats_in_parameter_file(kcat_increase_factor,
                                      pam_info_file_path_ori= os.path.join(
-                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx'),
                                      pam_info_file_path_out=pam_info_file_path_out)
 
 
-    ecoli_pam = setup_ecoli_pam_uniprot(pam_info_file = pam_info_file_path_out)
+    ecoli_pam = set_up_pam(pam_info_file = pam_info_file_path_out, model = os.path.join('Models', 'iML1515.xml'))
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
     validation_data = set_up_validation_data(c_sources)

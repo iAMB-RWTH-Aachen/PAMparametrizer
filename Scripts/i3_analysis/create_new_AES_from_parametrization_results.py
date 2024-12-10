@@ -6,12 +6,12 @@ from PAModelpy import CatalyticEvent
 
 
 RESULT_PARAMETRIZATION_FILE = os.path.join('Results', '2_parametrization', 'pam_parametrizer_diagnostics_iML1515_randomized.xlsx')
-NEW_AES_SUFFIX = 'iMl1515_241009'
-SECTOR_PARAM_FILE = os.path.join('Data','proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')
+NEW_AES_SUFFIX = 'iMl1515_241209'
+SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_241209_multi.xlsx')
 
 
 def search_index_in_parameter_file(df:pd.DataFrame, protein:str, reaction:str, direction:str):
-    all_protein_rows = df[df.uniprot_id == protein]
+    all_protein_rows = df[df.enzyme_id == protein]
     all_rxn_and_protein_rows = all_protein_rows[all_protein_rows.rxn_id == reaction]
     the_row = all_rxn_and_protein_rows[all_rxn_and_protein_rows.direction == direction]
     return the_row.index
@@ -23,14 +23,13 @@ def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
     tps_parameter_file = pd.read_excel(old_param_file, sheet_name='Translational')
     ues_parameter_file = pd.read_excel(old_param_file, sheet_name='UnusedEnzyme')
 
-    parametrization_results = pd.read_excel(result_file_path, sheet_name='Best_Individuals')
+    parametrization_results = pd.read_excel(
+        result_file_path, sheet_name='Best_Individuals').drop_duplicates(
+        ['rxn_id', 'direction', 'enzyme_id'], keep='last')
 
     # extract reaction id from catalytic event id
     parametrization_results['rxn_id'] = [CatalyticEvent._extract_reaction_id_from_catalytic_reaction_id(id) for id in
                                          parametrization_results['rxn_id']]
-    # split all enzyme complex ids and make seperate rows from them
-    parametrization_results['enzyme_id'] = parametrization_results.enzyme_id.str.split('_')
-    parametrization_results = parametrization_results.explode('enzyme_id')
 
     for index, row in parametrization_results.iterrows():
         aes_index = search_index_in_parameter_file(aes_parameter_file, row.enzyme_id, row.rxn_id, row.direction)
@@ -57,7 +56,7 @@ if __name__ == '__main__':
     other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
                                'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
 
-    for file_nmbr in range(1,6):
+    for file_nmbr in range(1,7):
         suffix = f'iML1515_{file_nmbr}'
         result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx')
         create_new_aes_parameter_file(result_file_path= result_file,

@@ -5,7 +5,7 @@ from typing import Union
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml
 from Scripts.i2_parametrization.pam_parametrizer_toy_model import set_up_pamparametrizer as set_up_pamparametrizer_toy
 from Scripts.i2_parametrization.pam_parametrizer_ecolicore import set_up_pamparametrizer as set_up_pamparametrizer_core
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_ecoli_pam_uniprot
+from Modules.utils.pam_generation import set_up_pam
 
 
 from datetime import date
@@ -83,7 +83,7 @@ def run_parametrization_workflow(iteration, iterations,
                                               kcat_increase_factor=3#, 'Glycerol', 'Acetate']
                                               #['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
                                               )
-
+        pamodel_copy = parametrizer.pamodel.copy(copy_with_pickle = True)
         parametrizer.run(binned=configuration)
 
         #need to reset best individual and computational performance df
@@ -93,12 +93,7 @@ def run_parametrization_workflow(iteration, iterations,
         #reset final errors for correct saving
         parametrizer.parametrization_results.final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
         if len(configurations)>1:
-            ecoli_pam = setup_ecoli_pam_uniprot()
-            ecoli_pam_no_senz = ecoli_pam.copy(copy_with_pickle=True)
-            ecoli_pam_no_senz.sensitivity = False
-
-            parametrizer.pamodel = ecoli_pam
-            parametrizer.pamodel_no_sensitivity = ecoli_pam_no_senz
+            parametrizer.pamodel = pamodel_copy
 
         results_file_path = os.path.join('Results', 'i2_parametrization', 'diagnostics',
                                          f'pam_parametrizer_diagnostics_{str(iteration)}_1.xlsx')

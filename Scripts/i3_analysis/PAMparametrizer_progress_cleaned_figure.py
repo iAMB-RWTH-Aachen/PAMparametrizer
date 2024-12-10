@@ -37,7 +37,7 @@ def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reacti
     fig.canvas.flush_events()
     return fig, axs
 
-def plot_valid_data(parametrizer, fontsize:int = 12, core = True):
+def plot_valid_data(parametrizer, fontsize:int = 12, core = False):
     if not core:
         RXN_NAME_MAPPER['BIOMASS_Ec_iML1515_core_75p37M'] = 'Growth rate [$h^{-1}$]'
 

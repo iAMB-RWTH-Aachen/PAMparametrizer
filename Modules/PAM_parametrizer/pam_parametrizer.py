@@ -1,4 +1,3 @@
-from random import sample
 from typing import Union, Tuple, Iterable
 import numpy as np
 import os
@@ -6,7 +5,6 @@ import time
 import random
 import matplotlib.pyplot as plt
 import matplotlib as mpltlib
-from IPython.utils.terminal import set_term_title
 from matplotlib.colors import to_hex
 from PAModelpy.PAModel import PAModel
 import pandas as pd
