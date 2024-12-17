@@ -8,7 +8,7 @@ import json
 
 # load PAMpy modules
 from PAModelpy.PAModel import PAModel
-from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector
+from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector, CustomSector
 from PAModelpy.configuration import Config
 from PAModelpy.utils import set_up_pam
 
@@ -449,17 +449,17 @@ def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationMo
     yeast_pam = set_up_pam(pam_info_file, model, config,
                      total_protein, active_enzymes, translational_enzymes,
                      unused_enzymes, sensitivity)
-    # if total_protein:
-    #     #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
-    #     #can assume include this section in the total protein constraint (no correction needed)
-    #     protein_growth_relation = CustomSector(
-    #         id_list= ['r_2111'], #biomass formation
-    #         name='total_protein_growth_relation',
-    #         cps_0=[0],
-    #         cps_s=[-0.45431074007034344],
-    #         mol_mass=1e6
-    #     )
-    #     yeast_pam.add_sector(protein_growth_relation)
+    if total_protein:
+        #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
+        #can assume include this section in the total protein constraint (no correction needed)
+        protein_growth_relation = CustomSector(
+            id_list= ['r_2111'], #biomass formation
+            name='total_protein_growth_relation',
+            cps_0=[0],
+            cps_s=[-0.45431074007034344],
+            mol_mass=1e6
+        )
+        yeast_pam.add_sector(protein_growth_relation)
     return yeast_pam
 
 
@@ -543,15 +543,21 @@ def increase_kcats_in_parameter_file(kcat_increase_factor: int,
 
 
 if __name__ == '__main__':
-    # pam = setup_yeast_pam()
-    # # pam.change_total_protein_constraint(1)
-    # pam.change_reaction_bounds('r_1714', -1e3,0)
-    # pam.optimize()\
-    pam_info_file: str = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
-    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
-    enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+    pam = setup_yeast_pam(os.path.join(
+        'Results', '1_preprocessing',  'yeast9','proteinAllocationModel_yeast9_EnzymaticData_TurnUp_multi.xlsx'),
+        sensitivity=True)
+    # pam.change_total_protein_constraint(1)
+    pam.change_reaction_bounds('r_1714', -1e3,0)
+    pam.optimize()
+    print(pam.summary())
+    print(pam.enzyme_sensitivity_coefficients.sort_values('coefficient', ascending=False))
+    print(pam.capacity_sensitivity_coefficients.sort_values('coefficient', ascending=False))
+
+    # pam_info_file: str = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
+    # model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+    # enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
 
     # create enzyme objects for each gene-associated reaction
-    rxn2kcat, protein2gene = get_rxn2kcat_protein2gene_dict(enzyme_db, model)
+    # rxn2kcat, protein2gene = get_rxn2kcat_protein2gene_dict(enzyme_db, model)
 
 

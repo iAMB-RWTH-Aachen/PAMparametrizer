@@ -108,13 +108,13 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            kcat_increase_factor: int = 1):
 
     pam_info_file_path_new = os.path.join(
-        'Results', '1_preprocessing', 'proteinAllocationModel_yeast9_EnzymaticData_240903_multi.xlsx')
+        'Results', '1_preprocessing',  'yeast9','proteinAllocationModel_yeast9_EnzymaticData_TurnUp_multi.xlsx')
     increase_kcats_in_parameter_file(kcat_increase_factor,
                                      pam_info_file_path_ori=os.path.join(
-                                         'Results', '1_preprocessing', 'proteinAllocationModel_yeast9_EnzymaticData_240903.xlsx'),
+                                         'Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
                                      pam_info_file_path_out=pam_info_file_path_new)
 
-    yeast_pam = setup_yeast_pam()
+    yeast_pam = setup_yeast_pam(pam_info_file_path_new)
 
     validation_data = set_up_validation_data(yeast_pam, c_sources)
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
@@ -131,7 +131,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
                                               threshold_iteration= 5, c_sources = ['Glucose'],
-                                              kcat_increase_factor=1, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+                                              kcat_increase_factor=0.4, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

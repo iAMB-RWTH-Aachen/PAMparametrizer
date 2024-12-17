@@ -1023,8 +1023,15 @@ class PAMParametrizer():
             enzyme_dict = {}
             enzyme_dict["sensitivity"] = row["mean"]
             #create the connection to the catalytic reaction related to the enzyme
-            if ("CE_" not in rxn_id) and (not rxn_id in self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat.keys()):
+            if (
+                    ("CE_" not in rxn_id)
+                    and (not rxn_id in self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat.keys())
+            ):
                 rxn_id = f"CE_{rxn_id}_{enzyme_id}"
+            # sometimes the catalytic event without a relation to the enzyme id is given. Need to connect it to the right catalytic reaction
+            elif rxn_id not in self._pamodel.reactions:
+                rxn_id = f"{rxn_id}_{enzyme_id}"
+
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
             enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}

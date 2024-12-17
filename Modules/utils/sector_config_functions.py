@@ -3,7 +3,7 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from PAModelpy import Config
+from PAModelpy import Config, PAModel
 
 def perform_linear_regression(x, y):
     result = linregress(x=x,y=y)
@@ -145,7 +145,9 @@ def plot_unused_protein_vs_mu(results, biomass_rxn):
     # fig.update_layout(font=dict(size=12), title='Glucose limitation')
     # fig.show()
 
-def change_translational_sector_with_config_dict(pamodel, transl_sector_config:dict, substrate_uptake_id:str) -> None:
+def change_translational_sector_with_config_dict(pamodel:PAModel,
+                                                 transl_sector_config:dict,
+                                                 substrate_uptake_id:str) -> None:
     pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
 
     pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),

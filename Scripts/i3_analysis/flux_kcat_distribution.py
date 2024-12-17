@@ -81,7 +81,7 @@ def create_kcat_joyplot_old_vs_new(data_file_paths: list[pd.DataFrame],
     combined_df['Log_Kcat'] = np.log10(combined_df['Kcat'])
 
     # Create the ridgeline plot
-    sns.set(style="whitegrid")
+    sns.set_theme(style="whitegrid")
     g = sns.FacetGrid(combined_df, row="Dataset", hue="Dataset", aspect=15, height=0.6, palette="viridis")
 
     # Add KDE plots

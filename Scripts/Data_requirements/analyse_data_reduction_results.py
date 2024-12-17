@@ -1,4 +1,6 @@
 from typing import Iterable
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
@@ -44,13 +46,17 @@ def compute_final_error_on_full_dataset_for_all_experiments(base_file_path: str,
         for sample in range(1,num_replicates+1):
             print(f'\tReplicate {sample}')
             file_path = f'{base_file_path}{datasize}_{sample}.xlsx'
-            error = get_error_for_parametrization_experiment(parametrizer, file_path, substrate_rates)
-            final_errors.loc[len(final_errors)] = [datasize, sample, error]
+            if os.path.exists(file_path):
+                error = get_error_for_parametrization_experiment(parametrizer, file_path, substrate_rates)
+                final_errors.loc[len(final_errors)] = [datasize, sample, error]
+    return final_errors
 
 if __name__ == '__main__':
     diagnostic_file_path_base = os.path.join('Results', 'data_reduction_results', 'diagnostics', 'pam_parametrizer_diagnostics_datareduc_')
     final_errors = compute_final_error_on_full_dataset_for_all_experiments(diagnostic_file_path_base,
                                                                            datasizes= np.arange(10,80,10),
-                                                                           num_replicates=3)
-    print(final_errors)
+                                                                           num_replicates=4)
+    final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
 
+    plt.scatter(final_errors.perc_data, final_errors.final_error)
+    plt.savefig(os.path.join('Results', 'data_reduction_results', 'error_progression.png'))

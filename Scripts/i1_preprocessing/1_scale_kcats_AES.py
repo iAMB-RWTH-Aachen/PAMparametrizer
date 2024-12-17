@@ -37,7 +37,7 @@ def scan_kcat_factors(max_factor:int,
                       substrate_reaction_id = 'EX_glc__D_e',
                       substrate_uptake_rates: np.arange = np.arange(-11,1,1)) -> None:
 
-    factors_to_scan = np.arange(min_factor,max_factor+1,stepsize)
+    factors_to_scan = np.arange(min_factor,max_factor+stepsize,stepsize)
 
     pam_parametrizer_kwargs['threshold_iteration'] = len(factors_to_scan)
     pam_parametrizer = setup_pamparametrizer_function(substrate_uptake_rates[0],
@@ -67,9 +67,9 @@ def scan_kcat_factors_iML1515():
     scan_kcat_factors(5, os.path.join('Results', 'multifactor_scan_iML1515.png'))
 
 def scan_kcat_factors_yeast9():
-    scan_kcat_factors(max_factor=3,
-                      min_factor=1,
-                      stepsize=1,
+    scan_kcat_factors(max_factor=1,
+                      min_factor=0.3,
+                      stepsize=0.05,
                       scan_figure_file_path= os.path.join('Results','1_preprocessing','yeast9','multifactor_scan_yeast9.png'),
                       setup_pam_function=setup_yeast_pam,
                       setup_pamparametrizer_function=set_up_pamparam_yeast,
