@@ -72,12 +72,14 @@ def set_up_hyperparameter(processes: int,
     hyperparams.genetic_algorithm_filename_base += filename_extension
 
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
+    hyperparams.genetic_algorithm_hyperparams['mutation_probability'] = 0.9
+
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_yeast_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
 
-    hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'r_1761':3,
+    hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'r_1761':5,
                                                                   config.BIOMASS_REACTION: 7}
     return hyperparams
 
@@ -115,6 +117,8 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                      pam_info_file_path_out=pam_info_file_path_new)
 
     yeast_pam = setup_yeast_pam(pam_info_file_path_new)
+    #force a bit of ethanol production
+    # yeast_pam.change_reaction_bounds('r_1761', lower_bound=0.5, upper_bound=1e3)
 
     validation_data = set_up_validation_data(yeast_pam, c_sources)
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
@@ -129,9 +133,9 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
-    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, -2,
                                               threshold_iteration= 5, c_sources = ['Glucose'],
-                                              kcat_increase_factor=0.4, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+                                              kcat_increase_factor=0.5, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

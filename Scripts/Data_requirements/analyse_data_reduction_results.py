@@ -59,4 +59,4 @@ if __name__ == '__main__':
     final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
 
     plt.scatter(final_errors.perc_data, final_errors.final_error)
-    plt.savefig(os.path.join('Results', 'data_reduction_results', 'error_progression.png'))
+    plt.savefig(os.path.join('Results', 'data_reduction_results', 'error_progression_new.png'))

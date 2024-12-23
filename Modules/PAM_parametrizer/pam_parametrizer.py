@@ -43,7 +43,7 @@ class PAMParametrizer():
         self.pamodel_no_sensitivity = pamodel.copy(copy_with_pickle = True)
         self.pamodel_no_sensitivity.sensitivity = False
 
-        #change total protein constraint to equality constraint for better fittinh
+        #change total protein constraint to equality constraint for better fitting
         self._set_total_protein_constraint_to_equality()
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
@@ -140,7 +140,7 @@ class PAMParametrizer():
             self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
 
             if self._error_is_converging() and (self.iteration+1 <= self.hyperparameters.threshold_iteration):
-                self.hyperparameters.number_of_kcats_to_mutate = len(self._pamodel.enzymes)
+                self.hyperparameters.number_of_kcats_to_mutate = len(self._pamodel.enzyme_variables)
                 print("Pick random enzymes to mutate because error is converging")
                 self.iteration +=1
                 files_to_remove = self.perform_iteration_without_bins()
@@ -437,7 +437,6 @@ class PAMParametrizer():
                                                          validation_df=validation_df,
                                                          reactions_to_validate= reactions_to_validate,
                                                          bin_id="final"))]
-
             #remove the simulations from the result dataframe
             self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,"final")
         final_error = np.nanmean(error)
@@ -1243,6 +1242,8 @@ class PAMParametrizer():
 
         if sensitivity:
             pamodel = self._pamodel
+            pamodel = self.pamodel_no_sensitivity
+
         else:
             pamodel = self.pamodel_no_sensitivity
 
@@ -1263,11 +1264,11 @@ class PAMParametrizer():
             # solve the model
             sol_pam = pamodel.optimize()
             if pamodel.solver.status == "optimal" and pamodel.objective.value != 0:
-                substrate_range += [abs(substrate)]
+                substrate_range += [abs(pamodel.reactions.get_by_id(substrate_uptake_id).flux)]
                 fluxes.append(sol_pam.fluxes)
-                if save_fluxes_esc and sensitivity: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
-                                                                         substrate_uptake_reaction=substrate_uptake_id,
-                                                                         bin_id= "no bins")
+                # if save_fluxes_esc and sensitivity: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
+                #                                                          substrate_uptake_reaction=substrate_uptake_id,
+                #                                                          bin_id= "no bins")
 
 
             # reset substrate_uptake_rate

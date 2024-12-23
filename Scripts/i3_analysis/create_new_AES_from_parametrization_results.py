@@ -19,9 +19,9 @@ def search_index_in_parameter_file(df:pd.DataFrame, protein:str, reaction:str, d
 def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
                                   result_file_path:str = RESULT_PARAMETRIZATION_FILE,
                                   new_aes_suffix: str = NEW_AES_SUFFIX):
-    aes_parameter_file = pd.read_excel(old_param_file, sheet_name='ActiveEnzymes')
-    tps_parameter_file = pd.read_excel(old_param_file, sheet_name='Translational')
-    ues_parameter_file = pd.read_excel(old_param_file, sheet_name='UnusedEnzyme')
+
+    parameter_files = pd.read_excel(old_param_file, sheet_name=None)
+    aes_parameter_file =parameter_files['ActiveEnzymes']
 
     parametrization_results = pd.read_excel(
         result_file_path, sheet_name='Best_Individuals').drop_duplicates(
@@ -46,20 +46,24 @@ def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
     with pd.ExcelWriter(result_file,
             mode=write_mode, engine='openpyxl', **kwargs) as writer:
         aes_parameter_file.to_excel(writer, sheet_name='ActiveEnzymes', index=False)
-        tps_parameter_file.to_excel(writer, sheet_name='Translational', index=False)
-        ues_parameter_file.to_excel(writer, sheet_name='UnusedEnzyme', index=False)
+        for sheet, df in parameter_files.items():
+            if sheet != 'ActiveEnzymes':
+                df.to_excel(writer, sheet_name = sheet, index=False)
 
 def gaussian(x, mean, amplitude, standard_deviation):
     return amplitude * np.exp( - (x - mean)**2 / (2*standard_deviation ** 2))
 
 if __name__ == '__main__':
-    other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
-                               'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
-
+    # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
+    #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
+    #
     for file_nmbr in range(1,7):
-        suffix = f'iML1515_{file_nmbr}'
-        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx')
+        suffix = f'iML1515_{file_nmbr}_1'
+        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}_1.xlsx')
         create_new_aes_parameter_file(result_file_path= result_file,
                                       new_aes_suffix= suffix)
-
+    # result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
+    #                            f'pam_parametrizer_diagnostics_mciML1515.xlsx')
+    # create_new_aes_parameter_file(result_file_path= result_file,
+    #                                   new_aes_suffix= 'mciML1515')
 
