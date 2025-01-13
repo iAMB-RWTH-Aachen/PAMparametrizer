@@ -20,26 +20,25 @@ import cobra
 
 #PAModelpy toolbox
 from PAModelpy.configuration import Config
-from PAModelpy.PAModel import PAModel
-from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector
+from PAModelpy.utils import set_up_pam, parse_reaction2protein
+
 
 #this repo
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import parse_reaction2protein
 ```
 
 ### Step 0: Initiate the parameter set using GotEnzymes
 We first need to get our initial parameter set. For this, we use the reactions and proteins which are available in the model,
 uniprot and GotEnzymes. In order to parse everything properly, we need to juggle the identifiers of the proteins and reactions.
-Please refer to `Scripts/parse_kcat_values_GotEnzymes.ipynb` for an example notebook on how to do this.
+Please refer to `Scripts/i1_preprocessing/0_parse_kcat_values_GotEnzymes.ipynb` for an example notebook on how to do this.
 
 ### Step 1: Organize the data
 The parametrizer needs data to validate the model with. This data is stored in Excel files and should be parsed in a format
 which matches the valid_data attribute in the ValidationData object. In the `Data/Ecoli_phenotypes/Ecoli_phenotypes_py_rev.xls`
 file there are measurements of different exchange rates from different experiments and studies.
 
-If you want to use this example for your microbe, or adapt any off the set-up scripts available in the `Scripts/Testing`
+If you want to use this example for your microbe, or adapt any off the set-up scripts available in the `Scripts/i2_parametrization`
 folder, we advise you to parse your exchange rates in the following format:
 
 | \<Biomass reaction id\> | \<substrate uptake id\>           | \<other exchane reaction id\>     |
@@ -52,78 +51,26 @@ With all the data in place, we are ready to build some models. We start building
 the parameters we have gathered in step 0. There are ready-made scripts for building the *E. coli* PAM in `Scripts/pam_generation.py`
 (using EC numbers as enzyme identifiers, not including gene-protein-reaction associations (GPRAs)) and 
 `Scripst/pam_generation_uniprot_id.py` (using uniprot identifiers for individual peptides and thereby including GPRAs),
-but for completeness, we will describe here shortly how the PAM is initiated. For more details, please refer to the 
-[PAModelpy documentation](https://github.com/iAMB-RWTH-Aachen/PAModelpy/blob/main/docs/docs/example.md).
+but for completeness, we will describe here shortly how the PAM is initiated using the setup utilities from 
+[PAModelpy](https://github.com/iAMB-RWTH-Aachen/PAModelpy). As an input, we need to provide an excel file with the GPRAs
+and initial kcat values to create dictionaries which contain the mapping of the reactions to proteins to genes, and the path
+to the SBML model. For more details, please refer to the 
+[PAModelpy documentation](https://pamodelpy.readthedocs.io/en/latest/PAM_setup_guide.html). 
 
-First, we load our initial genome scale model
+
 ```python
-#setup the gem ecoli iML1515 model
-model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
-
 #make sure the model gets the right IDs. Adjust the Config object for your microbe as needed
 config = Config()
 config.reset()
+
+pam = set_up_pam(os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx'),
+                 os.path.join('Models', 'iML1515.xml'), 
+                 configuration = config)
 ```
 
-Next, we use the excel file with the GPRAs and initial kcat values to create dictionaries which contain the mapping
-of the reactions to proteins to genes. We use this information to create the active enzyme sector.
-
-```python
-#define the path to the file holding the information about the enzyme sectors
-pam_info_file = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
-
-# load active enzyme sector information
-enzyme_db = pd.read_excel(pam_info_file, 
-                          sheet_name='ActiveEnzymes')
-
-# create enzyme objects for each gene-associated reaction
-rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
-
-active_enzyme_sector = ActiveEnzymeSector(rxn2protein=rxn2protein, protein2gene=protein2gene,
-                                          configuration = config)
-```
-
-We use the parameters in the file to set up the other sectors as well. If for your microbe this information is not available,
-you can use the *E. coli* parameters. In the PAMparametrizer, the relation between the substrate uptake rate and translational
-protein sector will be automatically parametrized if you do not provide a set of parameters when initializing the PAMparametrizer.
-More details will be given in the next step.
-
-```python
-#get translational sector info
-translational_info = pd.read_excel(pam_info_file, sheet_name='Translational')
-
-translation_enzyme_sector = TransEnzymeSector(
-            id_list=[translational_info[translational_info.Parameter == 'id_list'].loc[0, 'Value']], #substrate uptake id
-            tps_0=[translational_info[translational_info.Parameter == 'tps_0'].loc[1, 'Value']], #intercept
-            tps_mu=[-translational_info[translational_info.Parameter == 'tps_mu'].loc[2, 'Value']], #slope
-            mol_mass=[translational_info[translational_info.Parameter == 'mol_mass'].loc[3, 'Value']],
-            configuration = config)
-
-
-#get unused protein info
-unused_protein_info = pd.read_excel(pam_info_file, sheet_name='UnusedEnzyme')
-
-#define the intercept (ups_0) and slope (ups_mu)
-ups_0 = unused_protein_info[unused_protein_info.Parameter == 'ups_0'].loc[2, 'Value'] 
-ups_mu = unused_protein_info[unused_protein_info.Parameter == 'ups_mu'].loc[1, 'Value']
-
-unused_protein_sector = UnusedEnzymeSector(
-            id_list=[unused_protein_info[unused_protein_info.Parameter == 'id_list'].loc[0, 'Value']], #biomass rxn id
-            ups_mu=[ups_mu],
-            ups_0=[ups_0],
-            mol_mass=[unused_protein_info[unused_protein_info.Parameter == 'mol_mass'].loc[3, 'Value']],
-            configuration = config)
-```
-
-Finally, we can combine the sectors and the GEM to create the PAM
-
-```python
-#sensitivity should be True to enable the PAM to determine the enzyme sensitivities
-pamodel = PAModel(id_or_model=model, p_tot=total_protein,
-                       active_sector=active_enzyme_sector, translational_sector=translation_enzyme_sector,
-                       unused_sector=unused_protein_sector, sensitivity=True, configuration = config
-                      )
-```
+If for your microbe this information is not available, you can use the *E. coli* parameters. In the PAMparametrizer,
+the relation between the substrate uptake rate and translational protein sector will be automatically parametrized if 
+you do not provide a set of parameters when initializing the PAMparametrizer.
 
 ### Step 3: Create the data objects required for the PAMparametrizer
 After initiating the model, we need to define the required phenotype (e.g. experimental data) and some hyperparameters
@@ -208,7 +155,7 @@ single FLuxResults object to store the simulation results for the glucose-limite
 
 ### Step 4: Build the PAMparametrizer object
 Now we have all data objects, models and initial parameters in place, we are finally ready to start building our 
-*E. coli* PAMparametrizer :D! Please note that, even though we have only a single ValidationData object, we have to 
+*E. coli* PAMparametrizer (:D)! Please note that, even though we have only a single ValidationData object, we have to 
 provide it as a DictList. In this case, as we only have a single condition, providing the `substrate_uptake_id` is obvious.
 However, if you have multiple conditions, you have to select the most representative substrate uptake reaction
 (with the most data, the most complex metabolic phenotype, etc), as this condition will then be used to visualize the 
@@ -241,7 +188,7 @@ intuitive way.
 
 This is an example of a progress plot with only glucose as a carbon source:
 
-![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_ecolicore_before.png)
+![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_1.png)
 
 ### Step 6: Analyze the Results
 When the the parametrization is finished, you can find 2 files in the `Results` directory:
@@ -253,7 +200,7 @@ The former is the file containing the results of the parametrization. The PAMpar
 `Computation_Time`, `Final_Errors`, and `translational_sector`. For most users, the `Best_Individuals` and `Final_Errors`
 sheets will be most important, as these contain the k<sub>cat</sub> values for each enzyme-reaction relation resulting
 from each iteration of the genetic algorithm, and the final error between the simulations and experimental data, respectively.
-If you want to create a very pretty plot from these results, please adapt the `Scripts/Visualization/PAMparametrizer_progress_cleaned_figure.py`
+If you want to create a very pretty plot from these results, please adapt the `Scripts/i3_analysis/PAMparametrizer_progress_cleaned_figure.py`
 script to your liking.
 
 You can use both the output figure as the file to determine how happy you are with the parametrization. If you want 
@@ -274,7 +221,7 @@ multiple carbon sources. In this case we also use intracellular fluxes measured 
 This is not recommended, as the accuracy of these measurements is low and this strongly affects the parametrization.
 
 ### Step 0: Initiate the parameter set
-As described in the previous example, you can use `Scripts/parse_kcat_values_GotEnzymes.ipynb` script to obtain the initial
+As described in the previous example, you can use `Scripts/i1_preprocessing/0_parse_kcat_values_GotEnzymes.ipynb` script to obtain the initial
 set of parameters. 
 
 ### Step 1: Organize the data
@@ -327,7 +274,9 @@ for csource, uptake_rxn in condition2uptake.items():
         filtered_condition2uptake[csource] = uptake_rxn
 ```
 This time, as we need to parse multiple datasets, we will use a more streamlined approach to build the ValidationData 
-objects for each condition:
+objects for each condition. Furthermore, as MFA data is not always that reliable, we want to make a distinction between
+the more accurate exchange rates which we can use for optimization of the fit, and the MFA data which we can use to see
+how well the parametrizer progresses:
 
 ```python
 # 1. Get the long flux dataframe and ensure all the reactions are present in the model
@@ -351,7 +300,8 @@ for csource in filtered_condition2uptake.keys():
 
         #define the reactions used to validate and plot. By default, both are set to all the reactions in the columns of valid_data_df
         validation_data._reactions_to_plot = RXNS_TO_VALIDATE
-        validation_data._reactions_to_validate = RXNS_TO_VALIDATE
+        validation_data._reactions_to_validate = [col for col in valid_data_df.columns if ('EX_' in col) and (col[-3:]!="_ub")]
+
         validation_data.translational_sector_config = {
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
@@ -374,7 +324,7 @@ for csource in filtered_condition2uptake.keys():
 In the case of glucose-limited growth in *E. coli* we actually know the relation between substrate uptake and the 
 translational sector, but we do not readily have this information for the other carbon sources. Lukily, the PAMparametrizer
 will automatically determine this relation, using the linear relation between growth rate and translational sector of *E.coli*.
-as a default.
+as a default. This relation will be saved in the `diagnostics` file.
 
 #### ii. Define the HyperParameters
 We do not have to change the HyperParameters object much compared to the run on a single carbon source. For easy 
@@ -440,8 +390,8 @@ When the the parametrization is finished, you can find 2 files in the `Results` 
 - `pam_parametrizer_diagnostics_csources.xlsx`
 - `pam_parametrizer_progress_csources.png`
 
-Again, the PAMparametrizer saves the `Best_Individuals`, `Computation_Time`, `Final_Errors`, and `translational_sector`
-to the diagnostics Excel file. This time, besides, the `Best_Individuals` and `Final_Errors`, the `translational_sector`
+Again, the PAMparametrizer saves the `Best_Individuals`, `Computation_Time`, `Final_Errors`, `translational_sector`,
+and `weights` to the diagnostics Excel file. This time, besides, the `Best_Individuals` and `Final_Errors`, the `translational_sector`
 sheets also contains valuable information. As we did not provide the parametrization of the translational sector to 
 the ValidationData objects, the pam parametrizer has calculated these parameters for us. This does not only result in an
 improved ActiveEnzymeSector, but also in an improved TranslationalProteinSector for each individual carbon source.
