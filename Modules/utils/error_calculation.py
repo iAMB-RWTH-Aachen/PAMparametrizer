@@ -37,6 +37,20 @@ def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataF
     return r_squared
 
 
+def calculate_smape_for_reaction(reaction_id: str, validation_data: pd.DataFrame,
+                                     substrate_uptake_id: str,
+                                      fluxes: pd.DataFrame) -> float:
+    substr_rxn = substrate_uptake_id + '_ub'
+    # Take the absolute value of substrate uptake to avoid issues with reaction directionality
+    validation_df = validation_data.copy()
+    validation_df[substr_rxn] = [round(abs(flux), 4) for flux in validation_df[substr_rxn]]
+    simulated_data = pd.DataFrame({substr_rxn: [round(abs(flux), 4) for flux in fluxes['substrate']],
+                                   'simulation': fluxes[reaction_id]})
+    ref_data_rxn = pd.merge(validation_df, simulated_data, on=substr_rxn, how='inner')
+    return calculate_symmetric_mean_absolute_percentage_error(ref_data_rxn[reaction_id], ref_data_rxn['simulation'])
+
+
+
 def custom_error(observed, simulated, lambda_factor=1.0):
     """
     Calculate custom error where error is 1 if distance between observed and simulated is 0,
@@ -58,4 +72,29 @@ def nanaverage(data:Union[list],weights:dict = None,axis:int = None) -> Iterable
     masked_data = np.ma.masked_array(data, np.isnan(data))
     average = np.ma.average(masked_data, axis=axis, weights=weights)
     return average
+
+
+def calculate_symmetric_mean_absolute_percentage_error(y_true:Iterable[float],
+                                                       y_pred:Iterable[float]) -> float:
+    """
+    Compute Symmetric Mean Absolute Percentage Error (sMAPE)
+
+    Parameters:
+        y_true (array-like): True values
+        y_pred (array-like): Predicted values
+
+    Returns:
+        float: sMAPE value
+    """
+    y_true = np.nan_to_num(np.array(y_true))
+    y_pred = np.nan_to_num(np.array(y_pred))
+
+    numerator = np.abs(y_true - y_pred)
+    denominator = (np.abs(y_true) + np.abs(y_pred)) / 2
+
+    # Avoid division by zero by replacing zero denominators with a small constant
+    denominator = np.where(denominator == 0, 1e-10, denominator)
+
+    smape_value = np.mean(numerator / denominator) * 100
+    return smape_value
 

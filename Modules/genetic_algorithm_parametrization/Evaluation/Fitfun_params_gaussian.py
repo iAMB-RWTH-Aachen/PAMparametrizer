@@ -14,7 +14,7 @@ from pathlib import Path
 import os
 from os.path import dirname, abspath
 from scipy.stats import linregress
-from typing import Union
+from typing import Union, Literal
 from ..core_parametrization_gaussian import MyFitness
 
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction
@@ -33,10 +33,16 @@ class FitnessEvaluation():
     KCAT_SIGMA = 1e2
     NUM_KCATS = 5
 
-    def __init__(self, model=None, translational_sector_config:dict = None,
-                 fixed_attr_list=[], processes=2, objective_id=str(),
-                 valid_data = dict(), sigma_denominator:int = 10, error_weights: dict = {},
-                 substrate_uptake_rates = {'EX_glc__D_e':[0.7, 11.3]}, substrate_uptake_id = 'EX_glc__D_e'):
+    def __init__(self, model=None,
+                 translational_sector_config:dict = None,
+                 fixed_attr_list=[],
+                 objective_id=str(),
+                 valid_data = dict(),
+                 sigma_denominator:int = 10,
+                 error_weights: dict = {},
+                 substrate_uptake_rates = {'EX_glc__D_e':[0.7, 11.3]},
+                 substrate_uptake_id = 'EX_glc__D_e',
+                 enzymes_to_evaluate: dict[Literal['reaction', 'kcat', 'sensitivity'], Union[str, dict, float]] = None):
         """Initialize fitness evaluation class for a genetic algorithm
         
         Args:
@@ -59,6 +65,8 @@ class FitnessEvaluation():
             substrate_uptake_rates: dict with substrate id, list with the substrate uptake rates to consider for
                     calculating the fitness (R^2 relative to the measurements at these substrate uptake rates)
             substrate_uptake_id: identifier of the substrate uptake rate as defined in the model
+            enzymes_to_evaluate: dictionary with enzyme-reaction-direction mapping as given to the genetic algorithm
+                    enz.id:{reaction, kcat, sensitivity}
 
         
         """
@@ -79,6 +87,8 @@ class FitnessEvaluation():
             self.substrate_uptake_rates[substr_uptake] = [round(rate, 6) for rate in substrate_uptake_rates[substr_uptake]]
 
         self.weights = error_weights
+        self.enzymes_to_evaluate = enzymes_to_evaluate
+
         # set the proper identifiers
         self.substrate_uptake_id = substrate_uptake_id
 
@@ -261,16 +271,11 @@ class FitnessEvaluation():
             :param int fitness: fitness of the current individual evaluated
         
         """
-        self._reset_translational_sector()#something is wrong with the copying, so we have to reset the tps to it's initial parameters
+        self._reset_translational_sector()
 
         # apply kcat changes and compute metabolic functionalities
-        reactions = [self.model.reactions.get_by_id(rxn) for rxn in individual.reactions]
-        # save old kcats to revert after error calculation
-        kcat_old = [self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients(
-            [reactions[i].forward_variable])[reactions[i].forward_variable]
-                    for i, enz_id in enumerate(individual.enzymes_to_eval)]
-
         self._change_kcat_values_for_individual(individual)
+
         # perform simulations and save results
         fluxes = {substr_uptake: pd.DataFrame(
             columns = ['substrate'] + self.reactions_with_data[substr_uptake]
@@ -298,14 +303,13 @@ class FitnessEvaluation():
                     print('infeasible for substrate id', substrate_uptake_id)
                     # make sure infeasibility decreases the error
                     fluxes_df = pd.DataFrame(columns=fluxes_df.columns)
-                    # revert kcat_changes
-                    self._change_kcat_values_for_individual(individual, kcat_old)
-                    continue
                 # calculate fitness (sum of simulation error to reactions with data)
                 else:
                     for rxn_id in fluxes_df.columns[1:]:
                         if rxn_id in self.model.reactions:
                             fluxes_df.iloc[-1, fluxes_df.columns.get_loc(rxn_id)] = self.model.reactions.get_by_id(rxn_id).flux
+
+            self._change_kcat_values_for_individual(individual, revert=True)
             error += [self._calculate_simulation_error(fluxes_df, substrate_uptake_id)]
 
             # reset substrate_uptake_rate
@@ -323,7 +327,7 @@ class FitnessEvaluation():
 
 
         #revert kcat_changes
-        self._change_kcat_values_for_individual(individual, kcat_old)
+        self._change_kcat_values_for_individual(individual, revert = True)
 
         param_fit = self.init_fitness()
         new_fitness = MyFitness()#weights = param_fit["weights"])
@@ -367,23 +371,41 @@ class FitnessEvaluation():
             return float(np.random.normal(loc=kcat, scale=stdev))
 
 
-    def _change_kcat_values_for_individual(self, individual, kcat_values: list = []):
-        if len(kcat_values) == 0:
+    def _change_kcat_values_for_individual(self, individual,
+                                           kcat_values:list = None,
+                                           revert:bool=False):
+        if kcat_values is None:
             kcat_values = individual.kcat_list
-        for i, enz_id in enumerate(individual.enzymes_to_eval):
-            rxn_id = individual.reactions[i]
-            if enz_id not in rxn_id:
-                rxn_id = f"CE_{rxn_id}_{enz_id}"
-            rxn = self.model.reactions.get_by_id(rxn_id)
-            dir = individual.directions[i]
-            if dir == 'b': var = rxn.reverse_variable
-            else: var = rxn.forward_variable
-            self.model.constraints[f'EC_{enz_id}_{dir}'].set_linear_coefficients({
-                var:(kcat_values[i])})
+
+        enz_to_evaluate = self.enzymes_to_evaluate
+        if not revert:
+            enz_to_evaluate = {enz_id:
+                {
+                'reaction':self.enzymes_to_evaluate[enz_id]['reaction'],
+                'kcats':{individual.directions[i]:kcat_values[i]}
+                } for i, enz_id in enumerate(individual.enzymes_to_eval)
+            }
+        for enz_id, enz_info in enz_to_evaluate.items():
+            self._change_kcat_value_in_model(enz_info['reaction'], enz_id, list(enz_info['kcats'].keys())[0], list(enz_info['kcats'].values())[0])
+
+    def _change_kcat_value_in_model(self, rxn_id:str,
+                                    enzyme_id:str,
+                                    direction:Literal['f', 'b'],
+                                    kcat:float) -> None:
+
+        if enzyme_id not in rxn_id:
+            rxn_id = f"CE_{rxn_id}_{enzyme_id}"
+        rxn = self.model.reactions.get_by_id(rxn_id)
+        if direction == 'b':
+            var = rxn.reverse_variable
+        else:
+            var = rxn.forward_variable
+        self.model.constraints[f'EC_{enzyme_id}_{direction}'].set_linear_coefficients({
+            var: (1/kcat)})
 
 
-
-    def _calculate_simulation_error(self, flux_df: pd.DataFrame, substrate_reaction:str):
+    def _calculate_simulation_error(self, flux_df: pd.DataFrame,
+                                    substrate_reaction:str):
         error = []
         weights = []
 
@@ -405,5 +427,5 @@ class FitnessEvaluation():
                 if rxn in self.weights.keys(): weights.append(self.weights[rxn])
                 else: weights.append(1)
         if len(error) == 0: return np.NaN
-
+        np.average(error, weights=weights)
         return np.average(error, weights = weights)

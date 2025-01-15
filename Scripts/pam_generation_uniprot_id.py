@@ -443,12 +443,12 @@ def filter_sublists(nested_list, target_string):
 def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
                      model:str = 'Models/yeast9.xml', config:Config = None,
                      total_protein: Union[bool, float] = 0.28697423725932236, active_enzymes: bool = True,
-                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True) -> PAModel:
     if config is None:
         config = set_up_yeast_config()
     yeast_pam = set_up_pam(pam_info_file, model, config,
                      total_protein, active_enzymes, translational_enzymes,
-                     unused_enzymes, sensitivity)
+                     unused_enzymes, sensitivity = sensitivity)
     if total_protein:
         #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
         #can assume include this section in the total protein constraint (no correction needed)
@@ -480,6 +480,20 @@ def set_up_yeast_config():
     config.OXYGEN_UPTAKE_RXNID]
     config.ENZYME_ID_REGEX = r'(Y[A-P][LR][0-9]{3}[CW])'
     return config
+
+def setup_pputida_pam(pam_info_file:str= os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250110.xlsx'),
+                     model:str = 'Models/iJN1463.xml',
+                     total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+    config = Config()
+    config.reset()
+    config.BIOMASS_REACTION = 'BIOMASS_KT2440_WT3'
+    pputida_pam = set_up_pam(pam_info_file, model, config,
+                     total_protein, active_enzymes, translational_enzymes,
+                     unused_enzymes, sensitivity = sensitivity)
+    return pputida_pam
 
 def get_rxn2kcat_protein2gene_dict(param_file):
     # create enzyme objects for each gene-associated reaction
@@ -542,19 +556,24 @@ def increase_kcats_in_parameter_file(kcat_increase_factor: int,
         unusedenz.to_excel(writer, sheet_name='UnusedEnzyme', index=False)
 
 
-if __name__ == '__main__':
-    pam = setup_yeast_pam(os.path.join(
-        'Results', '1_preprocessing',  'yeast9','proteinAllocationModel_yeast9_EnzymaticData_TurnUp_multi.xlsx'),
-        sensitivity=True)
-    # pam.change_total_protein_constraint(1)
-    pam.change_reaction_bounds('r_1714', -1e3,0)
-    pam.optimize()
-    print(pam.summary())
-    print(pam.enzyme_sensitivity_coefficients.sort_values('coefficient', ascending=False))
-    print(pam.capacity_sensitivity_coefficients.sort_values('coefficient', ascending=False))
 
-    # pam_info_file: str = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
-    # model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+
+if __name__ == '__main__':
+    # pam = setup_yeast_pam(os.path.join(
+    #     'Results', '1_preprocessing',  'yeast9','proteinAllocationModel_yeast9_EnzymaticData_TurnUp_multi.xlsx'),
+    #     sensitivity=True)
+    # # pam.change_total_protein_constraint(1)
+    # pam.change_reaction_bounds('r_1714', -1e3,0)
+    # pam.optimize()
+    # print(pam.summary())
+    # print(pam.enzyme_sensitivity_coefficients.sort_values('coefficient', ascending=False))
+    # print(pam.capacity_sensitivity_coefficients.sort_values('coefficient', ascending=False))
+
+    pam_info_file: str = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx')
+    model = cobra.io.read_sbml_model(os.path.join('Models', 'iML1515.xml'))
+
+    pam = set_up_pam(pam_info_file, model)
+    print(pam.catalytic_events.CE_ICYSDS.enzymes)
     # enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
 
     # create enzyme objects for each gene-associated reaction

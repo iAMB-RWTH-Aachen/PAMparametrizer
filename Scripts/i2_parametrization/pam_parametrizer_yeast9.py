@@ -116,7 +116,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                          'Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
                                      pam_info_file_path_out=pam_info_file_path_new)
 
-    yeast_pam = setup_yeast_pam(pam_info_file_path_new)
+    yeast_pam = setup_yeast_pam(pam_info_file_path_new, unused_enzymes=False)
     #force a bit of ethanol production
     # yeast_pam.change_reaction_bounds('r_1761', lower_bound=0.5, upper_bound=1e3)
 
@@ -133,9 +133,9 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
-    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, -2,
-                                              threshold_iteration= 5, c_sources = ['Glucose'],
-                                              kcat_increase_factor=0.5, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, -0.1,
+                                              threshold_iteration= 10, c_sources = ['Glucose'],
+                                              kcat_increase_factor=1, processes=2, gene_flow_events=2)#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

@@ -11,7 +11,9 @@ from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam as setup_pam_uniprot
+from Scripts.pam_generation_uniprot_id import setup_pputida_pam
+from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
+
 
 
 # import sys
@@ -28,9 +30,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
                          'Succinate': 'EX_succ_e', 'Benzoate': 'EX_bz_e',
                         'Fructose': 'EX_fru_e'}
     if csources is None: csources = list(condition2uptake.keys())
-    pam_info_file = os.path.join('Data', 'proteinAllocationModel_iJN1463_EnzymaticData_240807.xlsx')
-    model = 'iJN1463.xml'
-    model = setup_pam_uniprot(pam_info_file, model, total_protein=0.3)
+    model = setup_pputida_pam(sensitivity =False)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Pputida_phenotypes', 'pputida_phenotypes.xlsx')
@@ -41,7 +41,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
 
     # Load the data from the sheets
     exchanges = pd.read_excel(VALID_DATA_PATH, 'exchanges')
-    exchanges = exchanges[exchanges.Strain == "KT2440"].drop(['Strain', 'Reference', 'Info'], axis=1)
+    exchanges = exchanges[exchanges.Strain == "KT2440"].drop(['Strain', 'Reference', 'Info'], axis=1).dropna(axis=1, how='all')
 
     # Dictionary to map carbon sources to exchange reactions and fluxomics sheets
     # not fructose, because that is possibly mixotrophic growth
@@ -53,7 +53,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
 
     #make validation data objects
     validation_data_objects = []
-    for c_uptake_id in filtered_condition2uptake.values():
+    for substrate, c_uptake_id in filtered_condition2uptake.items():
         if c_uptake_id in exchanges.columns:
             #get all rows with uptake of this carbon source and drop all empty columns
             valid_data_df = exchanges[~exchanges[c_uptake_id].isnull()].dropna(axis=1, how='all')
@@ -63,13 +63,17 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
                 valid_data_df = pd.concat([fluxomics_data, valid_data_df])
             else:
                 valid_data_df = fluxomics_data
+        if (c_uptake_id not in fluxomics_csources.keys()) and (c_uptake_id not in exchanges.columns):
+            print('There are not exchange rates available for', substrate)
+            continue
         valid_data_df[c_uptake_id + '_ub'] = valid_data_df[c_uptake_id]
 
         validation_data = ValidationData(valid_data_df, c_uptake_id, [-20, -0.1])
         #validate only exchange rates and growth rate
-        validation_data._reactions_to_validate = [rxn for rxn in valid_data_df.columns if (("EX_" in rxn) & (not "_ub" in rxn))] + ['BIOMASS_KT2440_WT3']
-        validation_data._reactions_to_plot = [rxn for rxn in valid_data_df.columns if not "_ub" in rxn]
 
+        validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:] != "_ub"]
+        validation_data._reactions_to_validate = [col for col in valid_data_df.columns if
+                                                  ('EX_' in col) and (col[-3:] != "_ub")] + ['BIOMASS_KT2440_WT3']
 
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.translational_sector_config = {
@@ -85,10 +89,12 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
                           filename_extension:str,
-                          num_kcats_to_mutate:int = 20):
+                          num_kcats_to_mutate:int = 20,
+                          threshold_iteration:int = 10):
     hyperparams = HyperParameters
-    hyperparams.threshold_iteration = 10
+    hyperparams.threshold_iteration = threshold_iteration
     hyperparams.number_of_kcats_to_mutate = num_kcats_to_mutate
+    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_iML1515'
     hyperparams.filename_extension = filename_extension
     hyperparams.genetic_algorithm_filename_base += filename_extension
 
@@ -96,7 +102,7 @@ def set_up_hyperparameter(processes: int,
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
-    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_pputida_'
+    hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_iJN1463_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
 
@@ -121,19 +127,29 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
                            num_kcats_to_mutate: int =20,
-                           c_sources:list = ['Glucose']):
-    pam_info_file = os.path.join('Data', 'proteinAllocationModel_iJN1463_EnzymaticData_240807.xlsx')
-    model = 'iJN1463.xml'
-    config = Config()
-    config.reset()
-    config.BIOMASS_REACTION = 'BIOMASS_KT2440_WT3'
-    pputida_pam = setup_pam_uniprot(pam_info_file, model, config, total_protein=0.3)
+                           threshold_iteration:int =10,
+                           c_sources:list = ['Glucose'],
+                           kcat_increase_factor: int = 1):
+    if kcat_increase_factor != 1:
+        pam_info_file_path_out = os.path.join(
+            'Results', '2_parametrization', 'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx')
+
+        increase_kcats_in_parameter_file(kcat_increase_factor,
+                                         pam_info_file_path_ori=os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250110.xlsx'),
+                                         pam_info_file_path_out=pam_info_file_path_out)
+
+    pputida_pam = setup_pputida_pam()
     pputida_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
 
     validation_data = set_up_validation_data(c_sources)
-    hyperparameters = set_up_hyperparameter(processes, gene_flow_events, filename_extension, num_kcats_to_mutate)
-
+    hyperparameters = set_up_hyperparameter(processes,
+                                            gene_flow_events,
+                                            filename_extension,
+                                            num_kcats_to_mutate,
+                                            threshold_iteration)
     return PAMParametrizer(pamodel=pputida_pam,
                      validation_data=validation_data,
                      hyperparameters=hyperparameters,
@@ -143,7 +159,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glycerol', 'Glucose'])#, 'Succinate', 'Fructose','Octanoate','m-Xylene','Toluene','Benzoate'])
+                         c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     #
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

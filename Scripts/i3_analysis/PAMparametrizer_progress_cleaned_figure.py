@@ -7,7 +7,7 @@ import matplotlib.ticker as ticker
 from Scripts.i2_parametrization.pam_parametrizer_ecolicore import set_up_pamparametrizer as set_up_pamparametrizer_ecolicore
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
 
-
+FONTSIZE = 16
 RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
                    'EX_glc__D_e': 'Glucose uptake [$mmol_{glc}/g_{CDW}/h$]',
                    'EX_co2_e': '$CO_2$ secretion [$mmol_{CO_2}/g_{CDW}/h$]',
@@ -127,12 +127,45 @@ def recreate_progress_plot(best_individual_df, fig_file_path, core = True, retur
     plt.close(fig)
     if return_error_df: return error_df
 
+def create_empty_plot():
+    parametrizer =  set_up_pamparametrizer_ecoli(-12,-0.1)
+    parametrizer._init_results_objects()
+    substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,
+                                                        parametrizer.max_substrate_uptake_rate])['EX_glc__D_e']
+    substrate_rates = sorted(substrate_rates)
+    fig, axs = plot_valid_data(parametrizer, fontsize=FONTSIZE, core =False)
+    fig.set_size_inches(18.5, 10.5)
+    # print('Run reference simulations')
+    # # fluxes = run_simulations(pamodel, substrate_rates)
+    # fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
+    #                                                  substrate_rates=substrate_rates,
+    #                                                  sensitivity=False)
+    # fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
+    #                            parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
+    #                            iteration=0, color='black')
+    return fig, axs
+
 if __name__ == '__main__':
-
-
+    # fig, axs = create_empty_plot()
+    # plt.savefig(os.path.join('Results', 'empty_progress_plot_references.png'))
+    #
     result_file = os.path.join('Results', 'i2_parametrization', 'diagnostics','pam_parametrizer_diagnostics_5.xlsx')
     best_indiv_df = pd.read_excel(result_file, sheet_name='Best_Individuals')
-
+    #
     fig_file_path = os.path.join('Scripts', 'Results', 'i3_analysis','pam_parametrizer_progess_cleaned_iML1515_2.png')
     recreate_progress_plot(best_indiv_df, fig_file_path, core = False)
+    # result_dir = 'Results/data_reduction_results/diagnostics'
+    # for file in os.listdir(result_dir):
+    #     file_path = os.path.join(result_dir,file)
+    #     with pd.ExcelWriter(file_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+    #         to_improve = pd.read_excel(file_path, sheet_name='Final_Errors')
+    #         to_improve.drop_duplicates('run_id',keep='last', inplace=True)
+    #
+    #         # Find the last value in the 'run_id' column
+    #         last_run_id = to_improve['run_id'].iloc[-1]
+    #
+    #         # Filter rows where 'run_id' is less than or equal to the last value
+    #         filtered_df = to_improve[to_improve['run_id'] <= last_run_id]
+    #
+    #         filtered_df.to_excel(writer, sheet_name = 'Final_Errors', index=False)
 

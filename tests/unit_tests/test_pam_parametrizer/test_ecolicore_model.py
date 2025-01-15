@@ -89,7 +89,7 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     # Assert
     assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-3)
 
-
+#
 def test_pam_parametrizer_configures_translational_sector_correctly():
     # Arrange
     sut = set_up_pamparametrizer_iml1515(-11, -0.1)
@@ -131,7 +131,7 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     toolbox = ga._init_deap_toolbox()
     population = ga.ga.init_pop(toolbox, ga.population_size, True)
     individual = population[0]
-    individual.kcat_list = [1/(kcat*3600*1e-6)]
+    individual.kcat_list = [(kcat*3600*1e-6)]
 
     # Act
     sut._change_kcat_value_for_enzyme(enzyme_id=enzyme_id, kcat_dict=kcat_dict)
@@ -244,14 +244,16 @@ def calculate_simulation_error_with_parametrizer_for_model(pamodel, other_csourc
     fluxes, substrate_range = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates=substrate_rates)
 
+
+
     #save flux data
     # check if there is input data (only used in unit testing)
-    for simulation_result, substrate_rate in zip(fluxes, substrate_rates):
+    for simulation_result, substrate_rate in zip(fluxes, substrate_range.values()):
         parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
                                                                       bin_id='final',
                                                                       substrate_reaction_id='EX_glc__D_e',
-                                                                      substrate_uptake_rate=substrate_rate,
+                                                                      substrate_uptake_rate=substrate_rate[0],
                                                                       fluxes_abs=False)
 
-    return parametrizer.calculate_final_error(), parametrizer, substrate_range
+    return parametrizer.calculate_final_error(), parametrizer, substrate_range.keys()
 

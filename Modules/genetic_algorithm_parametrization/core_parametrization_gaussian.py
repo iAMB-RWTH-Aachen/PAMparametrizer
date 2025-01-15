@@ -21,7 +21,6 @@ from pathlib import Path
 import importlib
 import pandas as pd
 import json
-import inspect
 
 from multiprocessing import Pool
 
@@ -74,6 +73,12 @@ class GAPO():
                 self.enzymes_to_eval += [enzyme_id]
                 self.rxns += [values['reaction']]
                 self.sensitivity_list += [values['sensitivity']]
+
+        print('genetic_algorithm layout')
+        print(self.enzymes_to_eval)
+        print(self.directions)
+        print(self.kcat_list)
+        print(self.rxns)
 
 
         # Specify GA parameters
@@ -146,14 +151,15 @@ class GAPO():
         self.FitEval = self.fitness_class.FitnessEvaluation(
             model=self.model,
             translational_sector_config = translational_sector_config,
-            processes=processes,
             fixed_attr_list=fixed_attributes,
             valid_data = valid_data,
             error_weights = error_weights,
             sigma_denominator = sigma_denominator,
             objective_id = objective_id,
             substrate_uptake_rates = substrate_uptake_rates,
-            substrate_uptake_id = substrate_uptake_id)
+            substrate_uptake_id = substrate_uptake_id,
+            enzymes_to_evaluate = enzymes_to_eval
+        )
         
         self._init_deap_fitness() # initialize the fitness function
         self._init_deap_individual() # initialize deap individual representation

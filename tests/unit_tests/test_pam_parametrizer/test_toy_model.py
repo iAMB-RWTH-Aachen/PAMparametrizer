@@ -77,7 +77,7 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
 
     sut_ga.FitEval.substrate_uptake_rates['R1'] = sut_param.validation_data.get_by_id('R1').valid_data['R1_ub'].to_list()
     population = toolbox.population(n=3)
-    population[0].kcat_list = [1/1, 1/0.5 ,1/0.45]
+    population[0].kcat_list = [1, 0.5 ,0.45]
 
     # Act
     #pam parametrizer

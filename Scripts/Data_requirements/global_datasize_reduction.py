@@ -32,9 +32,10 @@ def run_parametrization_workflow(iteration, iterations,
 
     parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data = parametrizer.validation_data.get_by_id('EX_glc__D_e').valid_data.sample(nmrb_rows_to_sample)
 
-    #need to reset best individual and computational performance df
+    #need to reset best individual, computational performance, and final errors df
     parametrizer.parametrization_results.best_individuals = pd.DataFrame(columns=['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])
     parametrizer.parametrization_results.computational_time = pd.DataFrame(columns=['run_id', 'time_s', 'time_h'])
+    parametrizer.parametrization_results.final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
 
     parametrizer.run(binned='False')
 

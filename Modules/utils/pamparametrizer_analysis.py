@@ -1,36 +1,61 @@
 import pandas as pd
 import numpy as np
 import cobra
-
-from typing import Iterable
+import matplotlib.pyplot as plt
+import seaborn as sns
+from typing import Iterable, Union, Literal
+from scipy.stats import entropy
+from scipy.cluster.hierarchy import fcluster
+from sklearn.decomposition import PCA
 
 from PAModelpy import PAModel
 
 from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
 
-
+#######
+#SIMULATION TOOLS
+#######
 def get_results_from_simulations(pamodel: PAModel,
-                                 substrate_rates: Iterable[float],
-                                 substrate_id: str = 'EX_glc__D_e',
+                                 substrate_rates: Union[Iterable[float], Iterable[Iterable[float]]],
+                                 substrate_ids: Union[str, list[str]] = 'EX_glc__D_e',
                                  fluxes_to_save: list[str] = None,
                                  proteins_to_save:list[str] = None,
                                  transl_sector_config=True) -> dict[str, pd.DataFrame]:
 
-    _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector_config)
+    if not isinstance(substrate_ids, Iterable) and not isinstance(substrate_rates[0], Iterable):
+        substrate_ids = [substrate_ids]
+        substrate_rates = [substrate_rates]
+
     solution_information = _set_up_solution_info(fluxes_to_save, proteins_to_save)
 
-    for substrate in substrate_rates:
-        pamodel.change_reaction_bounds(rxn_id=substrate_id,
-                                       lower_bound=substrate, upper_bound=0)
-        print('Running simulations with ', substrate, 'mmol/g_cdw/h of substrate going into the system')
-        sol_pam = pamodel.optimize()
-        if pamodel.solver.status == 'optimal' and pamodel.objective.value > 0:
-            if fluxes_to_save is not None:
-                solution_information['fluxes'] = save_fluxes(sol_pam, pamodel, fluxes_to_save, substrate, solution_information['fluxes'])
-            if proteins_to_save is not None:
-                solution_information['proteins'] = save_proteins(pamodel, proteins_to_save, substrate, solution_information['proteins'])
+    for substrate_list, substrate_id in zip(substrate_rates, substrate_ids):
+        _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector_config)
 
-    return solution_information
+        for substrate in substrate_list:
+            pamodel.change_reaction_bounds(rxn_id=substrate_id,
+                                           lower_bound=substrate, upper_bound=0)
+            print(f'Running simulations with {round(substrate,2)} mmol/g_cdw/h of substrate ({substrate_id}) going into the system')
+            sol_pam = pamodel.optimize()
+            if pamodel.solver.status == 'optimal' and pamodel.objective.value > 0:
+                if fluxes_to_save is not None:
+                    solution_information['fluxes'] = save_fluxes(sol_pam,
+                                                                 pamodel,
+                                                                 fluxes_to_save,
+                                                                 substrate,
+                                                                 solution_information['fluxes'],
+                                                                 substrate_id)
+                if proteins_to_save is not None:
+                    solution_information['proteins'] = save_proteins(pamodel,
+                                                                     proteins_to_save,
+                                                                     substrate,
+                                                                     solution_information['proteins'],
+                                                                     substrate_id)
+                #reset model
+                pamodel.change_reaction_bounds(rxn_id=substrate_id,
+                                               lower_bound=0, upper_bound=1e3)
+
+    return solution_information #TODO seems not to save the fluxes correctly
+
 
 def get_results_from_simulations_fixed_mu(pamodel: PAModel,
                                           growth_rates: Iterable[float],
@@ -66,10 +91,10 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
         if pamodel.solver.status == 'optimal' and growth_rate > 0:
             if fluxes_to_save is not None:
                 solution_information['fluxes'] = save_fluxes(sol_pam, pamodel, fluxes_to_save, substrate_rate,
-                                                             solution_information['fluxes'], method)
+                                                             solution_information['fluxes'], substrate_id, method)
             if proteins_to_save is not None:
                 solution_information['proteins'] = save_proteins(pamodel, proteins_to_save, substrate_rate,
-                                                                 solution_information['proteins'], method)
+                                                                 solution_information['proteins'], substrate_id,method)
 
     return solution_information
 
@@ -90,10 +115,10 @@ def _set_up_solution_info(fluxes_to_save: list[str],
                           ) -> dict[str, pd.DataFrame]:
     solution_information = {}
     if fluxes_to_save is not None:
-        solution_information['fluxes'] = pd.DataFrame(columns=['substrate'] + fluxes_to_save)
+        solution_information['fluxes'] = pd.DataFrame(columns=[ 'substrate_id','substrate'] + fluxes_to_save)
     if proteins_to_save is not None:
         solution_information['proteins'] = pd.DataFrame(
-            columns=['enzyme_id', 'fraction', 'growth_rate', 'substrate_uptake'])
+            columns=['substrate_id','enzyme_id', 'fraction', 'growth_rate', 'substrate_uptake'])
     if method_ids is not None:
         for key, df in solution_information.items():
             df['method'] = []
@@ -106,8 +131,9 @@ def save_fluxes(solution: cobra.Solution,
                 fluxes_to_save: list[str],
                 substrate_rate: float,
                 flux_df: pd.DataFrame,
+                substrate_id:str,
                 method:str = None) -> pd.DataFrame:
-    solution_flux = [substrate_rate] + [solution[rxn] if rxn in pamodel.reactions else np.NaN for rxn in
+    solution_flux = [substrate_id, substrate_rate] + [solution[rxn] if rxn in pamodel.reactions else np.NaN for rxn in
                                    fluxes_to_save]
     if method is not None: solution_flux.append(method)
     flux_df.loc[len(flux_df)] = solution_flux
@@ -118,14 +144,296 @@ def save_proteins(pamodel:PAModel,
                 proteins_to_save: list[str],
                 substrate_rate: float,
                 protein_df: pd.DataFrame,
+                substrate_id:str,
                 method: str = None) -> pd.DataFrame:
     total_conc = 0
     for enzid in proteins_to_save:
         enzyme = pamodel.enzymes.get_by_id(enzid)
         conc = enzyme.concentration
         total_conc += conc
-        new_row = [enzid, conc, pamodel.reactions.get_by_id(pamodel.BIOMASS_REACTION).flux, substrate_rate]
+        new_row = [substrate_id,enzid, conc, pamodel.reactions.get_by_id(pamodel.BIOMASS_REACTION).flux, substrate_rate]
         if method is not None: new_row.append(method)
         protein_df.loc[len(protein_df)] = new_row
     return protein_df
 
+
+########
+#ANALYSIS OF KCATS AND ENZYMES
+########
+
+
+def calculate_kcat_differences(df_grouped: pd.DataFrame,
+                               rxn2kcat: dict[str, dict]) -> pd.DataFrame:
+    """
+    Calculate the changes in the kcat values for all simulation. Designed to be used in an apply method on a dataframe
+    grouped by the different alternative models of a single condition.
+
+    Args:
+        df_grouped: group of a grouped dataframe (by model), containing at leat the columns: 'run_id', 'enzyme_id', and 'kcat[s-1'
+
+    Return:
+        pd.DataFrame with changed kcat values (additional columns: 'previous kcat', 'kcat_change', 'absolute_kcat_change',
+        'relative_change', and 'absolute_relative_change'
+    """
+    group_sorted = df_grouped.sort_values('run_id')
+    group_sorted = group_sorted.groupby(
+        'enzyme_id', group_keys=False).apply(calculate_relative_change, rxn2kcat).reset_index(drop=True)
+    return group_sorted
+
+
+def calculate_relative_change(group:pd.DataFrame,
+                              rxn2kcat: dict[str,dict]) -> pd.DataFrame:
+    previous_kcat = get_previous_kcat_values(group, rxn2kcat)
+
+    group['previous_kcat'] = previous_kcat
+    group['kcat_change'] = group['kcat[s-1]'] - previous_kcat  # .abs()
+    group['absolute_kcat_change'] = group['kcat_change'].abs()
+
+    group['relative_change'] = group['kcat_change'] / previous_kcat  # .abs()
+    group['absolute_relative_change'] = group['relative_change'].abs()
+    group.replace([np.inf, -np.inf], 0, inplace=True)
+
+    return group
+
+
+def get_previous_kcat_values(group: pd.DataFrame,
+                             rxn2kcat:dict[str, dict]) -> float:
+    kcat_default = 33
+    previous_kcat = group['kcat[s-1]'].shift(1)
+    # if there is no previous kcat change, get it from original kcat dataset
+    for i in group.index:
+        if pd.isna(previous_kcat.loc[i]):
+            entry = group.loc[i]
+            if entry['enzyme_id'] not in rxn2kcat[entry['rxn_id']]:
+                original_kcat_value = kcat_default
+            else:
+                original_kcat_value = rxn2kcat[entry['rxn_id']][entry['enzyme_id']][entry['direction']]
+            previous_kcat.loc[i] = original_kcat_value
+    return previous_kcat
+
+#########
+#STATISTICS AND CLUSTERING
+########
+
+
+def get_clusters_from_clustermap(clustermap: sns.matrix.ClusterGrid,
+                                 df: pd.DataFrame,
+                                 nrow_clusters: int = 10,
+                                 ncol_clusters: int = 2):
+    df_clustered = df.copy()
+
+    # Extract row and column linkage
+    row_linkage = clustermap.dendrogram_row.linkage
+    col_linkage = clustermap.dendrogram_col.linkage
+
+    # Determine cluster membership using scipy's fcluster function
+    row_clusters = fcluster(row_linkage, t=nrow_clusters, criterion='maxclust')
+    col_clusters = fcluster(col_linkage, t=ncol_clusters, criterion='maxclust')
+
+    # Add cluster labels to your data
+    df_clustered['Row_Cluster'] = row_clusters
+
+    #     # Example output
+    #     print("Row Clusters:", max(row_clusters))
+    #     print(df_clustered[['Row_Cluster']])
+    #     for cluster in range(1,nrow_clusters+1):
+    #         clustered_kcats = df_clustered[df_clustered['Row_Cluster']==cluster]
+    #         print(len(clustered_kcats.Row_Cluster))
+    #         print('median', clustered_kcats.median())
+    #         print('mean', clustered_kcats.mean())
+    #         print('stdev', clustered_kcats.std())
+
+    #     print("\nColumn Clusters:")
+    col_clusters_dict = {clst: [] for clst in range(1, ncol_clusters + 1)}
+    for col, cluster in zip(df_clustered.columns, col_clusters):
+        col_clusters_dict[cluster].append(col)
+    #         print(f"{col}: Cluster {cluster}")
+    return df_clustered, col_clusters_dict
+
+
+def select_clustered_rows_by_variation(
+    clustered_data: pd.DataFrame,
+    column_clusters: dict[str,list],
+    per_cluster: bool = True,
+    select_highest: bool = True,
+    num_rows: int = 10,
+    metric: Literal['MAD', 'ENT', 'STD', 'CV'] = 'MAD'
+) -> pd.DataFrame:
+    """
+    Select rows from clustered data based on variation metrics across column clusters.
+
+    This function calculates variation metrics (e.g., MAD, entropy, CV, or standard deviation)
+    for rows across defined column clusters and selects rows with the highest or lowest variation
+    globally or within each row cluster.
+
+    Args:
+    -----------
+    clustered_data : pd.DataFrame
+        DataFrame containing the data with row clusters labeled under a 'Row_Cluster' column.
+        Other columns correspond to the features for which variation is computed.
+    column_clusters : dict
+        A dictionary where keys are column cluster identifiers and values are lists of column names
+        belonging to each column cluster.
+    per_cluster : bool, default=True
+        If `True`, selects rows with the highest or lowest variation within each row cluster.
+        If `False`, selects rows globally based on variation.
+    select_highest : bool, default=True
+        If `True`, selects rows with the highest variation. If `False`, selects rows with the lowest variation.
+    num_rows : int, default=10
+        Number of rows to select if `per_cluster` is `False`.
+    metric : {'MAD', 'ENT', 'STD', 'CV'}, default='MAD'
+        The metric to calculate variation:
+        - 'MAD': Median Absolute Deviation.
+        - 'ENT': Shannon Entropy.
+        - 'STD': Standard Deviation.
+        - 'CV': Coefficient of Variation.
+
+    Returns:
+    --------
+    pd.DataFrame
+        A DataFrame containing the selected rows with additional columns for variation metrics.
+
+    Notes:
+    ------
+    - Rows are normalized using z-score normalization before calculating variation metrics.
+    - If `per_cluster` is `True`, the function identifies the row with the highest/lowest variation
+      within each row cluster.
+
+    """
+
+    # Normalize rows using z-score normalization
+    normalized_data = row_wise_zscore_normalization(
+        clustered_data.drop(columns=['Row_Cluster'])
+    ).merge(
+        clustered_data[['Row_Cluster']],
+        left_index=True,
+        right_index=True
+    )
+
+    variation_df = _compute_variation_metrics_per_row(normalized_data, column_clusters)
+
+    # Combine variation metrics with the normalized data
+    data_with_variation = normalized_data.merge(
+        variation_df, left_index=True, right_on='Row_Index'
+    )
+
+    # Select rows based on the specified conditions
+    if per_cluster:
+        if select_highest:
+            selected_rows = data_with_variation.loc[
+                data_with_variation.groupby('Row_Cluster')[metric].idxmax()
+            ]
+        else:
+            selected_rows = data_with_variation.loc[
+                data_with_variation.groupby('Row_Cluster')[metric].idxmin()
+            ]
+    else:
+        selected_rows = data_with_variation.sort_values(
+            metric, ascending=not select_highest
+        ).head(num_rows)
+
+    return selected_rows
+
+def row_wise_zscore_normalization(df: pd.DataFrame):
+    return df.apply(lambda row: (row - row.mean()) / row.std(), axis=1)
+
+def _compute_variation_metrics_per_row(normalized_data: pd.DataFrame,
+                                       column_clusters: dict[str, list]) -> pd.DataFrame:
+    # Compute variation metrics
+    variation_metrics = []
+    for row_index, row in normalized_data.iterrows():
+        cluster_means = [
+            row[cols].mean() for cols in column_clusters.values()
+        ]
+        variation_metrics.append({
+            'Row_Index': row_index,
+            'MAD': np.median(np.abs(cluster_means - np.median(cluster_means))),
+            'ENT': entropy(cluster_means),
+            'CV': np.std(cluster_means) / np.mean(cluster_means) if np.mean(cluster_means) != 0 else np.nan,
+            'STD': np.std(cluster_means)
+        })
+
+    return pd.DataFrame(variation_metrics)
+
+#########
+#PLOTTING
+#########
+def plot_histogram_logspace(ax: plt.Axes, data:pd.DataFrame,
+                            color:Union[str,float],
+                            label: str, x_label:str, n_bins:int=50,
+                            relative:bool=False, ymax: float = None) -> None:
+    if not relative:
+        kwargs = {}
+        ax.set_yscale('log')
+        if not ymax: ymax = 1e3
+    else:
+        kwargs = {'weights': np.ones_like(data) / len(data)}
+        if not ymax: ymax = 0.35
+
+    hist, bins = np.histogram(data, bins=n_bins, **kwargs)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+
+    bin_heights, bin_borders, _ = ax.hist(data, bins=logbins, histtype='step',
+                                          stacked=True, fill=False, label=label, color=color, **kwargs)
+
+    ax.vlines(13.7, 0, ymax, linestyle='dotted')
+    ax.set_ylim([0, ymax])
+
+    ax.set_xlabel(x_label)
+    ax.set_xscale('log')
+
+    ax.set_xlim([1e-3, 1e9])
+
+def plot_PCA_graph(input_df, columns_to_analyse: list[str], hue:str, values:str):
+    # Pivot the data to have alternatives as rows and enzymes as columns
+    # This creates a wide matrix required for PCA
+    data_matrix = input_df.pivot_table(
+        index=columns_to_analyse,
+        columns=hue,
+        values=values,
+        aggfunc='mean',
+        fill_value=0
+    )
+
+    data_matrix.reset_index(names=columns_to_analyse, inplace=True)
+    mapping_to_analyse = dict()
+    for col in columns_to_analyse:
+        mapping_to_analyse[col] = data_matrix[col]
+
+    data_for_pca = data_matrix.drop(columns=columns_to_analyse)
+
+    # Apply PCA
+    pca = PCA(n_components=2)
+    reduced_data = pca.fit_transform(data_for_pca)
+    explained_variance = pca.explained_variance_ratio_
+    print(f"PCA explained variance: {explained_variance}")
+
+    # Create a DataFrame for plotting
+    reduced_df = pd.DataFrame(reduced_data, columns=['PC1', 'PC2'])
+
+    for col, col_series in mapping_to_analyse.items():
+        reduced_df[col] = col_series
+
+    # Merge back descriptions for coloring
+    mapping = input_df[columns_to_analyse+[hue]].drop_duplicates()
+    reduced_df = pd.merge(reduced_df, mapping, on=columns_to_analyse, how='left')
+
+    # Plot the reduced data
+    plt.figure(figsize=(12, 8))
+    sns.scatterplot(
+        x='PC1', y='PC2', hue='COG description', data=reduced_df, palette='tab20', s=100, alpha=0.8
+    )
+
+    # Add titles and labels
+    plt.title('PCA of Enzyme Changes per Alternative', fontsize=16)
+    plt.xlabel(f'Principal Component 1 ({round(explained_variance[0], 3) * 100}%)', fontsize=12)
+    plt.ylabel(f'Principal Component 2 ({round(explained_variance[1], 3) * 100}%)', fontsize=12)
+
+    # Position the legend outside the plot
+    plt.legend(
+        bbox_to_anchor=(1.05, 0.5),  # Position the legend to the right-hand side, centered vertically
+        loc='center left',  # Align it to the left of the bounding box
+        title=hue
+    )
+    plt.tight_layout()
+    plt.show()

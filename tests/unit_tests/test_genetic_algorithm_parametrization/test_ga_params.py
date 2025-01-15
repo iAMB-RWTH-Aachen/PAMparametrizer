@@ -116,7 +116,7 @@ def test_genetic_algorithm_adjust_kcat_correctly():
     for rxn_id, constraint_id in zip(reaction_names, constraint_names):
         rxn = model.reactions.get_by_id(rxn_id)
         coeff = model.constraints[constraint_id].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
-        kcats_after_ga_adjustment.append(coeff)
+        kcats_after_ga_adjustment.append(1/coeff)
         # kcats_after_ga_adjustment += [1/coeff/(3600*1e-6)]#unit conversion
 
     # Assert
@@ -137,10 +137,10 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
 
     new_kcats = [5,0.1,0.25]
     new_kcats_other = [10, 10, 10]
-    population[0].kcat_list = [1/kcat for kcat in new_kcats]
+    population[0].kcat_list = new_kcats
     #also check if other individual is not affected by changing the kcat values
     other_individual = population[2]
-    other_individual.kcat_list = [1/kcat for kcat in new_kcats_other]
+    other_individual.kcat_list = new_kcats_other
 
     # adjust for toy pam altered kcat_values to calculate reference fitness
     kcats = [1, 0.5, 5, 0.1, 0.25, 1.5]
@@ -158,7 +158,7 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     #1e-6 is solver feasibility tolerance
     assert individual_to_evaluate.fitness is not other_individual.fitness
     assert fitness_other_indiv_simulated != fitness_simulated
-    assert new_kcats == [1/ kcat for kcat in individual_to_evaluate.kcat_list]
+    assert new_kcats == individual_to_evaluate.kcat_list
     assert fitness_validation == pytest.approx(fitness_simulated, abs=1e-6)
 
 def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
@@ -169,7 +169,7 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     kcat_lists = [[5,0.1,0.25],[1,0.5,0.45],[0.1,0.1,0.1],[1,1,1], [3,3,3]]
     for individual, kcat_list in zip(population, kcat_lists):
         # individual.kcat_list = [kcat/(3600*1e-6) for kcat in kcat_list]
-        individual.kcat_list = [1/kcat for kcat in kcat_list]
+        individual.kcat_list = kcat_list
 
     #calculate actual fitnesses (expected result)
     expected_fitnesses = []
@@ -215,6 +215,7 @@ def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources
     expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
                                                                                            other_substrate_reaction,
                                                                                            substrate_uptake_rates)
+    print(expected_flux_results, reactions_to_validate)
     # Change the validation data object in the genetic algorithm
     sut.FitEval.valid_data = {**sut.FitEval.valid_data, **{other_substrate_reaction:expected_flux_results}}
     sut.FitEval.substrate_uptake_rates[other_substrate_reaction] = substrate_uptake_rates
@@ -225,7 +226,7 @@ def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources
     # Set up a population for comparison
     toolbox = sut._init_deap_toolbox()
     population = toolbox.population(n=3)
-    population[0].kcat_list = [1 / kcat for kcat in new_kcats]
+    population[0].kcat_list = new_kcats
 
     # Act
     fitnesses_from_ga = [fit._wsum() for fit in map(toolbox.evaluate, population)]

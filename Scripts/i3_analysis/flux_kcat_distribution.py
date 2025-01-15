@@ -5,12 +5,15 @@ import numpy as np
 import pandas as pd
 import os
 
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam
+from PAModelpy.utils import set_up_pam
 
-SECTOR_PARAM_FILE = os.path.join('Data','proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')
+PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx')
+SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_241209_multi.xlsx')
+MODEL_FILE = os.path.join('Models', 'iML1515.xml')
+SUBSTRATE_ID = 'EX_glc__D_e'
+
 RESULT_KCAT_HISTOGRAM_PATH = os.path.join('Results', '3_analysis', 'aes_histogram_iML1515_241012.png')
 RESULT_KCAT_JOYPLOT_PATH = os.path.join('Results', '3_analysis', 'aes_joyplot_iML1515_241012.png')
-
 RESULT_FLUX_HISTOGRAM_PATH = os.path.join('Results', '3_analysis', 'flux_histogram_iML1515_241012.png')
 
 def gaussian(x, mean, amplitude, standard_deviation):
@@ -117,14 +120,16 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     for label, data_file_path in zip(label_names, data_file_paths):
         print('------------------------------------------------------------------------')
         print('Analyzing flux distribution of model', label, '\n')
-        model = set_up_ecoli_pam(pam_info_file=data_file_path, sensitivity=False)
-        model.change_reaction_bounds('EX_glc__D_e', -11,0)
+        model = set_up_pam(pam_info_file=data_file_path,
+                           model=MODEL_FILE,
+                           sensitivity=False)
+        model.change_reaction_bounds(SUBSTRATE_ID, -11,0)
         solution = model.optimize()
 
         fluxes = [abs(flux) for flux in solution.fluxes.values if flux!=0]
         print(
             f'Model {label} has:\n \ta growth rate of:\t\t{model.objective.value} h-1 with 11 mmol_glc/gCDW/h \n '
-            f'\tMedian fluxes:\t\t\t{np.median(fluxes)} mmol/CgDW/h\n\tMean fluxes:\t\t\t{np.mean(fluxes)} mmol/gCDW/h')
+            f'\tMedian fluxes:\t\t\t{np.median(fluxes)} mmol/gCDW/h\n\tMean fluxes:\t\t\t{np.mean(fluxes)} mmol/gCDW/h')
 
         hist, bins = np.histogram(fluxes, bins=n_bins)
         logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
@@ -152,25 +157,25 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     plt.savefig(result_fig_file)
 
 if __name__ == '__main__':
-    other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
-                               'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
-
+    # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
+    #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
+    other_files = list()
     for file_nmbr in range(1,7):
         suffix = f'iML1515_{file_nmbr}'
 
         other_files += [os.path.join('Results', '3_analysis', 'parameter_files',
-                               f'proteinAllocationModel_EnzymaticData_{suffix}.xlsx')]
+                               f'proteinAllocationModel_EnzymaticData_{suffix}_1.xlsx')]
 
-    create_flux_histogram_old_vs_new([os.path.join('Data','proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+    create_flux_histogram_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names = ['GotEnzymes', 'After preprocessing']\
-                                                   + [f'alternative {i}' for i in range(1,8)])
-    create_kcat_histogram_old_vs_new([os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+                                                   + [f'alternative {i}' for i in range(1,7)])
+    create_kcat_histogram_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in range(1,8)])
+                                                 + [f'alternative {i}' for i in range(1,7)])
 
-    create_kcat_joyplot_old_vs_new([os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+    create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in range(1,8)])
+                                                 + [f'alternative {i}' for i in range(1,7)])
