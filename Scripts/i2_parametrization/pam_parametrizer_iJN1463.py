@@ -137,7 +137,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
         increase_kcats_in_parameter_file(kcat_increase_factor,
                                          pam_info_file_path_ori=os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250110.xlsx'),
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250117.xlsx'),
                                          pam_info_file_path_out=pam_info_file_path_out)
 
     pputida_pam = setup_pputida_pam()
