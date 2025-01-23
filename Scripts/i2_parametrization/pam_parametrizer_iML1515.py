@@ -65,6 +65,7 @@ def get_validation_data_df_other_csources(condition2uptake: dict,
 def set_up_valid_data_glucose(file_path: str) -> ValidationData:
     valid_data_df = pd.read_excel(file_path, sheet_name='Yields')
     valid_data_df = valid_data_df.rename(columns={config.GLUCOSE_EXCHANGE_RXNID: config.GLUCOSE_EXCHANGE_RXNID + '_ub'})
+    valid_data_df = valid_data_df[valid_data_df.Strain == 'MG1655']
     # valid_data_df = valid_data_df[(valid_data_df.Reference != 'Folsom 2015') & (
     #             valid_data_df.Reference != 'Fischer 2003')]  # valid_data_df.Reference != 'Folsom 2015') &
     validation_data = ValidationData(valid_data_df, config.GLUCOSE_EXCHANGE_RXNID, [MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE])

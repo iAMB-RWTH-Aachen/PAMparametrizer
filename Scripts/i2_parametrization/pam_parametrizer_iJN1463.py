@@ -48,7 +48,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
     fluxomics_csources = {}
     for rxn_id, sheet_name in zip(["EX_bz_e", "EX_glc__D_e"],["fluxomics_benzoate","fluxomics_glucose"]):
         df = pd.read_excel(VALID_DATA_PATH, sheet_name)
-        df = df[df.Strain == "KT2440"]
+        df = df[df.Strain == "KT2440"].drop('Strain', axis=1)
         fluxomics_csources[rxn_id] = df
 
     #make validation data objects

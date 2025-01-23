@@ -319,7 +319,6 @@ class FitnessEvaluation():
             else:
                 self.model.change_reaction_bounds(substrate_uptake_id,
                                               lower_bound=-1e6, upper_bound=0)
-
         #average fitness:
         fitness = float(np.nanmean(error))
         individual.r_squared = fitness
@@ -386,7 +385,10 @@ class FitnessEvaluation():
                 } for i, enz_id in enumerate(individual.enzymes_to_eval)
             }
         for enz_id, enz_info in enz_to_evaluate.items():
-            self._change_kcat_value_in_model(enz_info['reaction'], enz_id, list(enz_info['kcats'].keys())[0], list(enz_info['kcats'].values())[0])
+            self._change_kcat_value_in_model(enz_info['reaction'],
+                                             enz_id,
+                                             list(enz_info['kcats'].keys())[0],
+                                             list(enz_info['kcats'].values())[0])
 
     def _change_kcat_value_in_model(self, rxn_id:str,
                                     enzyme_id:str,

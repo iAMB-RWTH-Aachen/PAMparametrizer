@@ -277,15 +277,13 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     kcats_expected = [[row['id'], row['direction'], row['rxn_id'], row['value']] for i, row in best_individual_kcat_df.iterrows()]
     # Act
     sut.reparametrize_pam()
-
     # Assert
     for kcat_info in kcats_expected:
         enzyme_id, direction, rxn_id, kcat_expected = kcat_info[0], kcat_info[1], kcat_info[2], kcat_info[3]
         model_kcat_dict = sut._pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id.split("_")[1]])
         if direction in model_kcat_dict.keys():
-            kcat_test = (model_kcat_dict[direction]*3600*1e-6)
+            kcat_test = (model_kcat_dict[direction]*3600*1e-6) #model units: 1/h *1e6 unit correction, returned ga units: 1/s
             assert kcat_expected == pytest.approx(kcat_test, abs=1e-6)
-
     # remove the produced files
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 

@@ -568,17 +568,18 @@ class PAMParametrizer():
         # error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
         # if best_indiv_error < error_threshold and best_indiv_error>0:
         #     return
+        print(best_individual_kcat_df)
         for i, row in best_individual_kcat_df.iterrows():
-            # current value is coefficient calculated as follows:
-            # coeff = 1 / (kcat * 3600 * 1e-6) #3600 to convert to /h to /s *1e-6 to make calculations more accurate
+            # Genetic algorithm returns kcats as the coefficients used in the model (with unit corrections; 1/h*1e6)
+            # change_kcat function from model needs kcats in 1/s
+            # kcat_model = kcat_coeff / 3600 * 1e6 #3600 to convert to /h to /s 1/1e-6 to 'uncorrect' the units
             # need to convert the coefficient to the actual kcat
-            new_kcat = row["value"] / (3600 * 1e-6)
+            new_kcat = row["value"] /3600 * 1e6
             direction = row["direction"]
 
             self._change_kcat_value_for_enzyme(enzyme_id= row["id"], kcat_dict = {row["rxn_id"]:
                                                                            {direction: new_kcat}
                                                                        })
-
 
     def save_diagnostics(self, computational_time: float,
                          results_filename:str = None) -> None:
@@ -797,7 +798,7 @@ class PAMParametrizer():
         """
 
         results_filename = self.hyperparameters.genetic_algorithm_filename_base + filename_extension
-
+        print(enzymes_to_evaluate)
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
@@ -1031,6 +1032,9 @@ class PAMParametrizer():
 
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
+            #kcat as returned from the model is in 1/s
+            #genetic algorithm interacts with the kcats as coefficients which are in 1/h*1e-6 (1e-6 for unit correction)
+            #unit conversion: [1/s] -> *3600 * 1e-6 -> [1/h]1e-6
             enzyme_dict["kcats"] = {dir: (kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
             enzymes_to_evaluate[enzyme_id] = enzyme_dict
         return enzymes_to_evaluate

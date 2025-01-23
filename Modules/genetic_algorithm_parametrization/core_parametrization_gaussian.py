@@ -607,7 +607,7 @@ class GAPO():
             })
         # sort frame
         best_ind_frame = best_ind_frame.sort_values(by="id", axis=0, ascending=True)
-        
+        print(best_ind_frame)
         # write attributes list
         attributes_frame = pd.DataFrame({
                 "id": [attr['id'] for attr in individual_attr_list],
