@@ -495,6 +495,21 @@ def setup_pputida_pam(pam_info_file:str= os.path.join(
                      unused_enzymes, sensitivity = sensitivity)
     return pputida_pam
 
+
+def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250127.xlsx'),
+                     model:str = 'Models/iCGB21FR.xml',
+                     total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+    config = Config()
+    config.reset()
+    config.BIOMASS_REACTION = 'Growth'
+    pputida_pam = set_up_pam(pam_info_file, model, config,
+                     total_protein, active_enzymes, translational_enzymes,
+                     unused_enzymes, sensitivity = sensitivity)
+    return pputida_pam
+
 def get_rxn2kcat_protein2gene_dict(param_file):
     # create enzyme objects for each gene-associated reaction
     ecoli_pam = set_up_ecoli_pam(param_file, sensitivity=False)

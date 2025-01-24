@@ -156,6 +156,66 @@ def save_proteins(pamodel:PAModel,
         protein_df.loc[len(protein_df)] = new_row
     return protein_df
 
+def calculate_error_for_reactions(validation_df: pd.DataFrame,
+                                   flux_df: pd.DataFrame,
+                                  rxns_to_validate: list) -> float:
+    # calculate error for different exchange rates
+    error = []
+    for rxn, substrate_id in zip(rxns_to_validate, flux_df.substrate_id):
+        # only select the rows which are filled with data
+        validation_data = validation_df.dropna(axis=0, subset=rxn)
+        try: validation_data = validation_data.loc[substrate_id]
+        except: pass
+        # if there are no reference data points, continue to the next reaction
+        if len(validation_data) == 0:
+            continue
+        r_squared = calculate_r_squared_for_reaction(rxn, validation_df, substrate_id,
+                                                           flux_df[flux_df.substrate_id == substrate_id])
+        error += [r_squared]
+    return error
+
+def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataFrame,
+                                     substrate_uptake_id: str,
+                                      fluxes: pd.DataFrame) -> float:
+    substr_rxn = substrate_uptake_id
+    # Take the absolute value of substrate uptake to avoid issues with reaction directionality
+    validation_data[substr_rxn] = [round(abs(flux),4) for flux in validation_data[substr_rxn]]
+    simulated_data = pd.DataFrame({substr_rxn: [round(abs(flux),4) for flux in fluxes['substrate']],
+                                   'simulation': fluxes[reaction_id]})
+    ref_data_rxn = pd.merge(validation_data,simulated_data,on=substr_rxn, how='inner')
+    # error: squared difference
+    ref_data_rxn = ref_data_rxn.assign(error=lambda x: (x[reaction_id] - x['simulation']) ** 2)
+
+    # calculate R^2:
+    data_average = np.nanmean(validation_data[reaction_id])
+    residual_ss = np.nansum(ref_data_rxn.error)
+    total_ss = np.nansum([(data - data_average) ** 2 for data in ref_data_rxn[reaction_id]])
+    # calculating r_squared is only feasible of the numerator and the denomenator are both nonzero
+    if (residual_ss == 0) | (total_ss == 0):
+        r_squared = 0
+    else:
+        r_squared = 1 - residual_ss / total_ss
+    return r_squared
+
+def calculate_difference_simulation_experiment(validation_df:pd.DataFrame,
+                                               flux_df:pd.DataFrame,
+                                               rxns_to_validate:list[str],
+                                               substr_rxn:str):
+    differences = []
+    for rxn in rxns_to_validate:
+        # only select the rows which are filled with data
+        validation_data = validation_df.dropna(axis=0, subset=rxn)
+        # if there are no reference data points, continue to the next reaction
+        if len(validation_data) == 0:
+            continue
+        validation_data[substr_rxn] = [round(abs(flux),4) for flux in validation_data[substr_rxn]]
+        simulated_data = pd.DataFrame({substr_rxn: [round(abs(flux_df['substrate']),4)],
+                                   'simulation': flux_df[rxn]})
+        ref_data_rxn = pd.merge(validation_data,simulated_data,on=substr_rxn, how='inner')
+        # error: squared difference
+        differences += [row[rxn] - row['simulation'] if not np.isnan(row.simulation) else row[rxn] for i,row in ref_data_rxn.iterrows()]
+    return differences
+
 
 ########
 #ANALYSIS OF KCATS AND ENZYMES

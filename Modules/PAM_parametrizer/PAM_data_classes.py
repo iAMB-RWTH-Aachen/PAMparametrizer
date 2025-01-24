@@ -174,6 +174,8 @@ class FluxResults:
                 self.fluxes_df.iloc[-1, self.fluxes_df.columns.get_loc(rxn_id)] = flux
 
     def add_error_to_error_df(self, bin_id:Union[int, str], error: float):
+        print(self.error_df)
+        print(error)
         self.error_df.loc[len(self.error_df)] = [bin_id] + error
 
     def remove_simulations_from_flux_df(self, bin_id)-> None:

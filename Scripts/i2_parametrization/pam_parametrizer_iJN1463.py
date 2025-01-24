@@ -157,10 +157,22 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      max_substrate_uptake_rate=max_substrate_uptake_rate,
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
+def run_parametrizations(n_iterations:int=5) -> None:
+    for i in range(1, n_iterations+1):
+        print('Working on iteration number', i, 'out of ',n_iterations)
+        print('------------------------------------------------------------------------------------------------')
+        pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+                                                  filename_extension = f'iJN1463_{i}',
+                                                  c_sources=['Glycerol', 'Glucose', 'Succinate', 'Fructose', 'm-Xylene',
+                                                             'Toluene', 'Benzoate', 'Octanoate'])
+        #
+        pam_parametrizer.run(remove_subruns=True, binned='False')
+
 if __name__ == "__main__":
-    pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                         c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
-    #
-    pam_parametrizer.run(remove_subruns=True, binned = 'False')
+    # pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+    #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
+    # #
+    # pam_parametrizer.run(remove_subruns=True, binned = 'False')
+    run_parametrizations()
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515

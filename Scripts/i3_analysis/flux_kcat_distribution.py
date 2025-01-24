@@ -159,23 +159,24 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
 if __name__ == '__main__':
     # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
+    NUM_ALT_MODELS = 10
     other_files = list()
-    for file_nmbr in range(1,7):
+    for file_nmbr in range(1,NUM_ALT_MODELS+1):
         suffix = f'iML1515_{file_nmbr}'
 
         other_files += [os.path.join('Results', '3_analysis', 'parameter_files',
-                               f'proteinAllocationModel_EnzymaticData_{suffix}_1.xlsx')]
+                               f'proteinAllocationModel_EnzymaticData_{suffix}.xlsx')]
 
     create_flux_histogram_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names = ['GotEnzymes', 'After preprocessing']\
-                                                   + [f'alternative {i}' for i in range(1,7)])
+                                                   + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])
     create_kcat_histogram_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in range(1,7)])
+                                                 + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])
 
     create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in range(1,7)])
+                                                 + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])

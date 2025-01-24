@@ -43,7 +43,7 @@ class PAMParametrizer():
         self.pamodel_no_sensitivity = pamodel.copy(copy_with_pickle = True)
         self.pamodel_no_sensitivity.sensitivity = False
 
-        #change total protein constraint to equality constraint for better fitting
+        #change total protein constraint to equality constraint for better fittinh
         self._set_total_protein_constraint_to_equality()
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
@@ -140,7 +140,7 @@ class PAMParametrizer():
             self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
 
             if self._error_is_converging() and (self.iteration+1 <= self.hyperparameters.threshold_iteration):
-                self.hyperparameters.number_of_kcats_to_mutate = len(self._pamodel.enzyme_variables)
+                self.hyperparameters.number_of_kcats_to_mutate = len(self._pamodel.enzymes)
                 print("Pick random enzymes to mutate because error is converging")
                 self.iteration +=1
                 files_to_remove = self.perform_iteration_without_bins()
@@ -252,7 +252,7 @@ class PAMParametrizer():
                 fluxes, substrate_rates = self.run_simulations_to_plot(substrate_uptake_id,
                                                                        substrate_rates=substrate_rates_for_error)
 
-                for simulation_result, substrate_rate in zip(fluxes,substrate_rates.keys()):
+                for simulation_result, substrate_rate in zip(fluxes,substrate_rates):
                     self.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
                                                                           bin_id="final",
                                                                           substrate_reaction_id= substrate_uptake_id,
@@ -437,6 +437,7 @@ class PAMParametrizer():
                                                          validation_df=validation_df,
                                                          reactions_to_validate= reactions_to_validate,
                                                          bin_id="final"))]
+
             #remove the simulations from the result dataframe
             self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,"final")
         final_error = np.nanmean(error)
@@ -514,7 +515,7 @@ class PAMParametrizer():
             if valid_data.sampled_valid_data is not None:
                 substrate_rates[valid_data.id] = valid_data.sampled_valid_data[valid_data.id+"_ub"]
             translation_configs[valid_data.id] = valid_data.translational_sector_config
-        print(enzymes_to_evaluate)
+
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
                                             enzymes_to_evaluate=enzymes_to_evaluate,
                                             translational_sector_config=translation_configs,
@@ -568,18 +569,17 @@ class PAMParametrizer():
         # error_threshold = self.final_error*(1-self.error_fraction_to_deviate_between_runs)
         # if best_indiv_error < error_threshold and best_indiv_error>0:
         #     return
-        print(best_individual_kcat_df)
         for i, row in best_individual_kcat_df.iterrows():
-            # Genetic algorithm returns kcats as the coefficients used in the model (with unit corrections; 1/h*1e6)
-            # change_kcat function from model needs kcats in 1/s
-            # kcat_model = kcat_coeff / 3600 * 1e6 #3600 to convert to /h to /s 1/1e-6 to 'uncorrect' the units
+            # current value is coefficient calculated as follows:
+            # coeff = 1 / (kcat * 3600 * 1e-6) #3600 to convert to /h to /s *1e-6 to make calculations more accurate
             # need to convert the coefficient to the actual kcat
-            new_kcat = row["value"] /3600 * 1e6
+            new_kcat = 1 / (row["value"] * 3600 * 1e-6)
             direction = row["direction"]
 
             self._change_kcat_value_for_enzyme(enzyme_id= row["id"], kcat_dict = {row["rxn_id"]:
                                                                            {direction: new_kcat}
                                                                        })
+
 
     def save_diagnostics(self, computational_time: float,
                          results_filename:str = None) -> None:
@@ -798,7 +798,7 @@ class PAMParametrizer():
         """
 
         results_filename = self.hyperparameters.genetic_algorithm_filename_base + filename_extension
-        print(enzymes_to_evaluate)
+
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
@@ -970,10 +970,12 @@ class PAMParametrizer():
     def _calculate_error_for_reactions(self, substrate_uptake_id:str,
                                        validation_df: pd.DataFrame,
                                        reactions_to_validate: list,
-                                        bin_id: Union[float, int] = None) -> list[float]:
+                                        bin_id: Union[float, int] = None) -> float:
         # calculate error for different exchange rates
         error = []
         flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
+
+
         if len(flux_df) == 0:  # means model is infeasible
             return -1
         # check if we want to calculate the error for a single bin
@@ -1032,10 +1034,7 @@ class PAMParametrizer():
 
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
-            #kcat as returned from the model is in 1/s
-            #genetic algorithm interacts with the kcats as coefficients which are in 1/h*1e-6 (1e-6 for unit correction)
-            #unit conversion: [1/s] -> *3600 * 1e-6 -> [1/h]1e-6
-            enzyme_dict["kcats"] = {dir: (kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
+            enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
             enzymes_to_evaluate[enzyme_id] = enzyme_dict
         return enzymes_to_evaluate
 
@@ -1201,18 +1200,19 @@ class PAMParametrizer():
                 fluxes_dict[substrate_id] = fluxes
                 substrate_range_dict[substrate_id] = substrate_range
 
+
         alpha = 1
         #only plot detailed info for the 'main' substrate
         if len(substrate_range_dict)!=0: #only plot if the model is feasible
             for r, ax in zip(self.validation_data.get_by_id(self.substrate_uptake_id)._reactions_to_plot, axs.flatten()[:-1]):
                 # plot data
-                line = ax.plot(substrate_range_dict[self.substrate_uptake_id].values(), [abs(f[r]) for f in fluxes_dict[self.substrate_uptake_id]], linewidth=2.5,
+                line = ax.plot(substrate_range_dict[self.substrate_uptake_id], [abs(f[r]) for f in fluxes_dict[self.substrate_uptake_id]], linewidth=2.5,
                                zorder=5, color=color, alpha=alpha)
         # Plot a flux comparison to experimental data for the other fluxes
         for substr_id, fluxes in fluxes_dict.items():
             valid_data = self.validation_data.get_by_id(substr_id)
             if substr_id != self.substrate_uptake_id and valid_data.sampled_valid_data is not None:
-                feas_substrate_rates = substrate_range_dict[substr_id].keys()
+                feas_substrate_rates = substrate_range_dict[substr_id]
                 feas_sampled_data = valid_data.valid_data[
                     valid_data.valid_data[substr_id + "_ub"].isin(feas_substrate_rates)
                 ]
@@ -1237,13 +1237,12 @@ class PAMParametrizer():
     def run_simulations_to_plot(self, substrate_uptake_id:str,
                                 substrate_rates: Union[np.array, list, pd.Series] = None,
                                 save_fluxes_esc:bool = False,
-                                sensitivity: bool = True) -> Tuple[list, dict[float, float]]:
+                                sensitivity: bool = True) -> Tuple[list, list]:
         fluxes = list()
-        substrate_range = dict()
+        substrate_range = list()
 
         if sensitivity:
             pamodel = self._pamodel
-
         else:
             pamodel = self.pamodel_no_sensitivity
 
@@ -1264,11 +1263,12 @@ class PAMParametrizer():
             # solve the model
             sol_pam = pamodel.optimize()
             if pamodel.solver.status == "optimal" and pamodel.objective.value != 0:
-                substrate_range[abs(substrate)] = [abs(pamodel.reactions.get_by_id(substrate_uptake_id).flux)]
+                substrate_range += [abs(substrate)]
                 fluxes.append(sol_pam.fluxes)
                 if save_fluxes_esc and sensitivity: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
                                                                          substrate_uptake_reaction=substrate_uptake_id,
                                                                          bin_id= "no bins")
+
 
             # reset substrate_uptake_rate
             if substrate<0:
@@ -1277,12 +1277,5 @@ class PAMParametrizer():
             else:
                 pamodel.change_reaction_bounds(substrate_uptake_id,
                                               lower_bound=-1e6, upper_bound=0)
-
-            # if substrate >= 0:
-            #     self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
-            #                                         lower_bound=lb, upper_bound=0)
-            # else:
-            #     self.pamodel.change_reaction_bounds(rxn_id=substrate_uptake_id,
-            #                                         lower_bound=0, upper_bound=ub)
 
         return fluxes, substrate_range
