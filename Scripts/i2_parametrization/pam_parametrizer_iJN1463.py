@@ -43,6 +43,9 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
     exchanges = pd.read_excel(VALID_DATA_PATH, 'exchanges')
     exchanges = exchanges[exchanges.Strain == "KT2440"].drop(['Strain', 'Reference', 'Info'], axis=1).dropna(axis=1, how='all')
 
+    # get netto glucose uptake
+    exchanges['EX_glc__D_e'] = exchanges['EX_glc__D_e'] + exchanges['EX_glcn_e'] + exchanges['EX_25dkglcn_e']
+
     # Dictionary to map carbon sources to exchange reactions and fluxomics sheets
     # not fructose, because that is possibly mixotrophic growth
     fluxomics_csources = {}
@@ -64,11 +67,11 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
             else:
                 valid_data_df = fluxomics_data
         if (c_uptake_id not in fluxomics_csources.keys()) and (c_uptake_id not in exchanges.columns):
-            print('There are not exchange rates available for', substrate)
+            print('There are no exchange rates available for', substrate)
             continue
         valid_data_df[c_uptake_id + '_ub'] = valid_data_df[c_uptake_id]
 
-        validation_data = ValidationData(valid_data_df, c_uptake_id, [-20, -0.1])
+        validation_data = ValidationData(valid_data_df, c_uptake_id, [valid_data_df[c_uptake_id].min()-1, -0.1])
         #validate only exchange rates and growth rate
 
         validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:] != "_ub"]
@@ -141,6 +144,11 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                          pam_info_file_path_out=pam_info_file_path_out)
 
     pputida_pam = setup_pputida_pam()
+    #close off all exchanges not necessary for medium, as pputida doesn't exchange anything
+    for exchange in pputida_pam.exchanges:
+        if exchange.id not in pputida_pam.medium:
+            pputida_pam.change_reaction_bounds(exchange.id, 0,0)
+
     pputida_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
 

@@ -32,11 +32,13 @@ def calculate_distribution_statistics(bin_heigths: list[float],
 def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      label_names:list[str],
                                      result_fig_file: str = RESULT_KCAT_HISTOGRAM_PATH,
-                                     cumulative: bool = False):
+                                     cumulative: bool = False,
+                                     other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'},
+                                     legend = True):
     fig, ax = plt.subplots()
     n_bins = 50
     i = 0
-    cmap = plt.get_cmap("viridis")
+    cmap = plt.get_cmap("coolwarm")
 
     for label, data_file_path in zip(label_names, data_file_paths):
         aes_parameter_df = pd.read_excel(data_file_path, sheet_name='ActiveEnzymes')
@@ -48,10 +50,13 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         hist, bins = np.histogram(kcat_values, bins=n_bins)
         logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
 
-        color = to_hex(cmap(i / (len(data_file_paths))))
+        if label in other_colors.keys():
+            color = other_colors[label]
+        else:
+            i += 1
+            color = to_hex(cmap(i/ (len(data_file_paths)-len(other_colors))))
         bin_heights, bin_borders, _ = ax.hist(kcat_values, bins = logbins, histtype='step',
                                               stacked=True, fill=False, label= label, color=color, cumulative=cumulative)
-        i+=1
         calculate_distribution_statistics(bin_heights, bin_borders)
 
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
@@ -60,8 +65,8 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     plt.ylabel('Frequency')
     plt.xscale('log')
     plt.xlabel('Kcat value [s-1]')
-
-    plt.legend()
+    if legend:
+        plt.legend()
     plt.tight_layout()
     plt.savefig(result_fig_file)
 
@@ -85,7 +90,7 @@ def create_kcat_joyplot_old_vs_new(data_file_paths: list[pd.DataFrame],
 
     # Create the ridgeline plot
     sns.set_theme(style="whitegrid")
-    g = sns.FacetGrid(combined_df, row="Dataset", hue="Dataset", aspect=15, height=0.6, palette="viridis")
+    g = sns.FacetGrid(combined_df, row="Dataset", hue="Dataset", aspect=15, height=0.6, palette="coolwarm")
 
     # Add KDE plots
     g.map(sns.kdeplot, "Log_Kcat", fill=True, alpha=0.7, linewidth=1.5)
@@ -115,7 +120,7 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     fig, ax = plt.subplots()
     n_bins = 50
     i = 0
-    cmap = plt.get_cmap("viridis")
+    cmap = plt.get_cmap("coolwarm")
 
     for label, data_file_path in zip(label_names, data_file_paths):
         print('------------------------------------------------------------------------')
@@ -167,16 +172,17 @@ if __name__ == '__main__':
         other_files += [os.path.join('Results', '3_analysis', 'parameter_files',
                                f'proteinAllocationModel_EnzymaticData_{suffix}.xlsx')]
 
-    create_flux_histogram_old_vs_new([PARAM_FILE_OLD,
-                                      SECTOR_PARAM_FILE] + other_files,
-                                     label_names = ['GotEnzymes', 'After preprocessing']\
-                                                   + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])
+    # create_flux_histogram_old_vs_new([PARAM_FILE_OLD,
+    #                                   SECTOR_PARAM_FILE] + other_files,
+    #                                  label_names = ['GotEnzymes', 'After preprocessing']\
+    #                                                + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])
     create_kcat_histogram_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])
+                                                 + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
+                                     legend = False)
 
-    create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
-                                      SECTOR_PARAM_FILE] + other_files,
-                                     label_names=['GotEnzymes', 'After preprocessing'] \
-                                                 + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])
+    # create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
+    #                                   SECTOR_PARAM_FILE] + other_files,
+    #                                  label_names=['GotEnzymes', 'After preprocessing'] \
+    #                                              + [f'Alternative {i}' for i in range(1,NUM_ALT_MODELS+1)])

@@ -20,7 +20,7 @@ def get_results_from_simulations(pamodel: PAModel,
                                  substrate_ids: Union[str, list[str]] = 'EX_glc__D_e',
                                  fluxes_to_save: list[str] = None,
                                  proteins_to_save:list[str] = None,
-                                 transl_sector_config=True) -> dict[str, pd.DataFrame]:
+                                 transl_sector_config: Union[dict[str, dict], bool]=True) -> dict[str, pd.DataFrame]:
 
     if not isinstance(substrate_ids, Iterable) and not isinstance(substrate_rates[0], Iterable):
         substrate_ids = [substrate_ids]
@@ -29,7 +29,11 @@ def get_results_from_simulations(pamodel: PAModel,
     solution_information = _set_up_solution_info(fluxes_to_save, proteins_to_save)
 
     for substrate_list, substrate_id in zip(substrate_rates, substrate_ids):
-        _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector_config)
+        transl_sector = transl_sector_config
+        if isinstance(transl_sector_config, dict):
+            if substrate_id not in transl_sector_config: continue
+            transl_sector = transl_sector_config[substrate_id]
+        _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector)
 
         for substrate in substrate_list:
             pamodel.change_reaction_bounds(rxn_id=substrate_id,
@@ -100,11 +104,12 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
 
 def _set_up_pamodel_for_simulations(pamodel:PAModel,
                                    substrate_id: str,
-                                   transl_sector_config:bool) -> None:
-    if transl_sector_config:
+                                   transl_sector_config:Union[bool, dict[str, float]]) -> None:
+    if not isinstance(transl_sector_config, dict) and transl_sector_config:
         transl_sector_config = {'slope': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                                 'intercept': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]}
 
+    if transl_sector_config is not False:
         change_translational_sector_with_config_dict(pamodel=pamodel,
                                                      transl_sector_config = transl_sector_config,
                                                      substrate_uptake_id = substrate_id)

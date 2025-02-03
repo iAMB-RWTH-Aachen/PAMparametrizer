@@ -1,4 +1,4 @@
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -108,7 +108,7 @@ def compute_final_error_on_full_dataset_for_all_experiments(base_file_path: str,
     return final_errors
 
 def plot_progression_of_errors(final_errors: pd.DataFrame,
-                               metrics: str ='rsquared',
+                               metrics: Literal['smape', 'r_squared'] ='rsquared',
                                fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'error_per_reaction_num_datapoints.png'),
                                fontsize:int = 16
                                ) -> None:
@@ -162,6 +162,7 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
                fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+    # plt.ylim([40,100])
     plt.tight_layout()
     #
     plt.savefig(fig_file_path)
@@ -173,5 +174,5 @@ if __name__ == '__main__':
     #                                                                        num_replicates=8)
     # final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
-    plot_progression_of_errors(final_errors)
+    plot_progression_of_errors(final_errors, metrics = 'smape')
 

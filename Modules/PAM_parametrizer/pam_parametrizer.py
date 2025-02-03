@@ -1206,23 +1206,21 @@ class PAMParametrizer():
         if len(substrate_range_dict)!=0: #only plot if the model is feasible
             for r, ax in zip(self.validation_data.get_by_id(self.substrate_uptake_id)._reactions_to_plot, axs.flatten()[:-1]):
                 # plot data
-                line = ax.plot(substrate_range_dict[self.substrate_uptake_id], [abs(f[r]) for f in fluxes_dict[self.substrate_uptake_id]], linewidth=2.5,
+                line = ax.plot(substrate_range_dict[self.substrate_uptake_id].values(),
+                               [abs(f[r]) for f in fluxes_dict[self.substrate_uptake_id]], linewidth=2.5,
                                zorder=5, color=color, alpha=alpha)
         # Plot a flux comparison to experimental data for the other fluxes
         for substr_id, fluxes in fluxes_dict.items():
             valid_data = self.validation_data.get_by_id(substr_id)
             if substr_id != self.substrate_uptake_id and valid_data.sampled_valid_data is not None:
-                feas_substrate_rates = substrate_range_dict[substr_id]
-                feas_sampled_data = valid_data.valid_data[
-                    valid_data.valid_data[substr_id + "_ub"].isin(feas_substrate_rates)
-                ]
+                feas_substrate_rates = substrate_range_dict[substr_id].keys()
+                feas_sampled_data = valid_data.valid_data#[
+                    #valid_data.valid_data[substr_id + "_ub"].isin(feas_substrate_rates)
+                #]
                 for reaction in valid_data._reactions_to_plot:
                     exp_measurements = feas_sampled_data[reaction]
                     simulations = [f[reaction] for f in fluxes]
-                    try: #sometimes it breaks here
-                        axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
-                    except:
-                        pass
+                    axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
 
         # Add colorbar
         if self.iteration == 1:
@@ -1237,9 +1235,9 @@ class PAMParametrizer():
     def run_simulations_to_plot(self, substrate_uptake_id:str,
                                 substrate_rates: Union[np.array, list, pd.Series] = None,
                                 save_fluxes_esc:bool = False,
-                                sensitivity: bool = True) -> Tuple[list, list]:
+                                sensitivity: bool = True) -> Tuple[list, dict[float,float]]:
         fluxes = list()
-        substrate_range = list()
+        substrate_range = dict()
 
         if sensitivity:
             pamodel = self._pamodel
@@ -1263,7 +1261,8 @@ class PAMParametrizer():
             # solve the model
             sol_pam = pamodel.optimize()
             if pamodel.solver.status == "optimal" and pamodel.objective.value != 0:
-                substrate_range += [abs(substrate)]
+                # substrate_range += [abs(substrate)]
+                substrate_range[abs(substrate)] = [abs(pamodel.reactions.get_by_id(substrate_uptake_id).flux)]
                 fluxes.append(sol_pam.fluxes)
                 if save_fluxes_esc and sensitivity: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
                                                                          substrate_uptake_reaction=substrate_uptake_id,

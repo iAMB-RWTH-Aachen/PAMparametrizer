@@ -13,10 +13,9 @@ from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
 
 def recreate_progress_plot(best_indiv_files:list[str],
                            labels:list[str],
-                           fig_file_path:str
+                           fig_file_path:str,
+                           legend:bool = True
                            ):
-    ECOLI_MODEL_PATH = os.path.join('Models', 'iML1515.xml')
-
     FIGWIDTH = 12
     FIGHEIGHT = 12
     FONTSIZE = 20
@@ -53,8 +52,9 @@ def recreate_progress_plot(best_indiv_files:list[str],
 
     fig.set_figwidth(FIGWIDTH)
     fig.set_figheight(FIGHEIGHT)
-    fig.legend(lines, labels, loc='upper left', bbox_to_anchor=(0.1, 0.99), frameon=False,
-               fontsize=FONTSIZE - 5)
+    if legend:
+        fig.legend(lines, labels, loc='upper left', bbox_to_anchor=(0.1, 0.99), frameon=False,
+                   fontsize=FONTSIZE - 5)
     fig.tight_layout()
     plt.savefig(fig_file_path)
     plt.close(fig)
@@ -121,10 +121,10 @@ if __name__ == '__main__':
     PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                    f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                       range(1, 11)]
-    labels =  [f'alternative {i}' for i in range(1,11)]
+    labels =  [f'Alternative {i}' for i in range(1,11)]
     fig_file_path = os.path.join('Results', '3_analysis', 'pam-parametrizer_alternatives_cleaned_figure.png')
 
     alternative_param_files = PAM_KCAT_FILES
-    recreate_progress_plot(alternative_param_files,  labels, fig_file_path)
+    recreate_progress_plot(alternative_param_files,  labels, fig_file_path, legend = True)
     # visualize_progress_plot([os.path.join('Results', '3_analysis', 'parameter_files',
     #                                f'proteinAllocationModel_EnzymaticData_iML1515_1.xlsx')], ['1'], 'Results/test.png')

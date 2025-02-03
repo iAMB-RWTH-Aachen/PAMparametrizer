@@ -15,22 +15,27 @@ RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
                    'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]'}
 
 
-def plot_simulation(fig, axs, fluxes: pd.DataFrame, substrate_rates:list, reactions_to_plot:list,
-                    iteration:int = 0, color: int = None, max_iteration:int = 2, label:str=None) -> plt.Figure:
+def plot_simulation(fig, axs,
+                    fluxes: pd.DataFrame, substrate_rates:list,
+                    reactions_to_plot:list,
+                    iteration:int = 0,
+                    color: int = None,
+                    max_iteration:int = 2,
+                    label:str=None) -> plt.Figure:
     if color is None:
         # adjust color to visualize progress
         # get viridis color palette
-        cmap = plt.get_cmap('viridis')
+        cmap = plt.get_cmap('coolwarm')
         color = to_hex(cmap(iteration / (max_iteration+1)))
 
     if label is None:
         label = 'Iteration ' + str(iteration)
     if iteration == 0:
-        label = 'Reference'
+        label = 'After preprocessing'
 
     for r, ax in zip(reactions_to_plot, axs.flatten()):
         # plot data
-        line = ax.plot(substrate_rates[:-1], [abs(f[r]) for f in fluxes], linewidth=10,
+        line = ax.plot(substrate_rates[:-1], [abs(f[r]) for f in fluxes], linewidth=5,
                        zorder=5, color=color, label = label)
 
     fig.canvas.draw()
