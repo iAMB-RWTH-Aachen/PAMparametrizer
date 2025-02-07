@@ -130,11 +130,11 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            c_sources:list = ['Glucose'],
                            kcat_increase_factor: int = 1):
     pam_info_file_path_out = os.path.join(
-        'Results','2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_241209_multi.xlsx')
+        'Results','2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
     increase_kcats_in_parameter_file(kcat_increase_factor,
                                      pam_info_file_path_ori= os.path.join(
-                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx'),
+                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250207.xlsx'),
                                      pam_info_file_path_out=pam_info_file_path_out)
 
 
