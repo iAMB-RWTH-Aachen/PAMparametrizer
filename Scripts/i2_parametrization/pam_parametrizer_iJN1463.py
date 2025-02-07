@@ -75,8 +75,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
         #validate only exchange rates and growth rate
 
         validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:] != "_ub"]
-        validation_data._reactions_to_validate = [col for col in valid_data_df.columns if
-                                                  ('EX_' in col) and (col[-3:] != "_ub")] + ['BIOMASS_KT2440_WT3']
+        validation_data._reactions_to_validate = ['BIOMASS_KT2440_WT3']
 
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.translational_sector_config = {
@@ -84,7 +83,7 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
             }
 
-            validation_data._reactions_to_plot = ['BIOMASS_KT2440_WT3', 'EDD','MDH', 'EX_glcn_e', 'EX_25dkglcn_e']
+            validation_data._reactions_to_plot = ['BIOMASS_KT2440_WT3', 'EDD','MDH']
         validation_data_objects.append(validation_data)
 
     return validation_data_objects
