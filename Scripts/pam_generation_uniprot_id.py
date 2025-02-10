@@ -498,8 +498,8 @@ def setup_pputida_pam(pam_info_file:str= os.path.join(
 
 def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250127.xlsx'),
-                     model:str = 'Models/iCGB21FR.xml',
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250210.xlsx'),
+                     model:str = 'Models/iCGB21FR_annotated.xml',
                      total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
     config = Config()
