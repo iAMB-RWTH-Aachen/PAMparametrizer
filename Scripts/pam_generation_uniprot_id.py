@@ -505,10 +505,10 @@ def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
     config = Config()
     config.reset()
     config.BIOMASS_REACTION = 'Growth'
-    pputida_pam = set_up_pam(pam_info_file, model, config,
+    cglutanicum_pam = set_up_pam(pam_info_file, model, config,
                      total_protein, active_enzymes, translational_enzymes,
                      unused_enzymes, sensitivity = sensitivity)
-    return pputida_pam
+    return cglutanicum_pam
 
 def get_rxn2kcat_protein2gene_dict(param_file):
     # create enzyme objects for each gene-associated reaction

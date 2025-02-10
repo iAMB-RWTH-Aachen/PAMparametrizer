@@ -4,13 +4,8 @@ import numpy as np
 from typing import Tuple
 import warnings
 
-from PAM_Parametrization.Scripts.pam_generation_uniprot_id import setup_cglutanicum_pam
-
 warnings.filterwarnings("ignore")
 
-
-
-from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
