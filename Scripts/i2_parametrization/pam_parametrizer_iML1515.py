@@ -142,7 +142,8 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     ecoli_pam = set_up_pam(pam_info_file = pam_info_file_path_out, model = os.path.join('Models', 'iML1515.xml'))
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
-    validation_data = set_up_validation_data(c_sources)
+    validation_data = set_up_validation_data(c_sources,
+                                             pam_info_file=pam_info_file)
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
                                             filename_extension, num_kcats_to_mutate,
                                             threshold_iteration)
