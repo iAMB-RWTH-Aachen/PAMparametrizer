@@ -17,11 +17,21 @@ def parse_arguments():
     parser.add_argument("--model",
                         help="which model to use can be 'ecolicore', 'ecoli' or 'toy'",
                         type=str)
-    parser.add_argument("--configuration", help="Binning configuration of the parameterization workflow can be 'all', 'before' or 'False'", type=str)
-    parser.add_argument("--iterations", help="Number of parametrization runs to perform for calculating mean error", type=int)
-    parser.add_argument("--hyper_processes", help="Number of parallel workers for parametrization workflow", type=int)
+    parser.add_argument("--pam_info_file",
+                        help="path to the file containing information about the parameters to build the pam",
+                        type=str)
+    parser.add_argument("--configuration",
+                        help="Binning configuration of the parameterization workflow can be 'all', 'before' or 'False'",
+                        type=str)
+    parser.add_argument("--iterations",
+                        help="Number of parametrization runs to perform for calculating mean error",
+                        type=int)
+    parser.add_argument("--hyper_processes",
+                        help="Number of parallel workers for parametrization workflow",
+                        type=int)
     parser.add_argument("--hyper_gfe",
-                        help="Number of gene flow events, i.e. merging of multiple populations independently evolved on parallel workers", type=int)
+                        help="Number of gene flow events, i.e. merging of multiple populations independently evolved on parallel workers",
+                        type=int)
 
     args = parser.parse_args()
     return args
@@ -68,6 +78,7 @@ def run_parametrization_workflow(iteration, iterations,
                                  processes,
                                  gene_flow_events, num_kcats_to_mutate,
                                  best_individual_df, computational_performance_df,
+                                 pam_info_file: str,
                                  min_substrate_uptake = -11, max_substrate_uptake = -0.1):
     print('\n\n###################################################################################')
     print('starting with iteration number ', iteration, ' out of ', iterations, ' iterations\n')
@@ -75,7 +86,9 @@ def run_parametrization_workflow(iteration, iterations,
         print('Working on iteration number', iteration, 'out of ',iterations)
         print('Configuration of the parametrizations workflow: ', configuration)
         print('------------------------------------------------------------------------------------------------')
-        parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake, processes=processes,
+        parametrizer = set_up_pamparametrizer(min_substrate_uptake, max_substrate_uptake,
+                                              pam_info_file = pam_info_file,
+                                              processes=processes,
                                               gene_flow_events=gene_flow_events,
                                               filename_extension= str(iteration)+'_1',
                                               num_kcats_to_mutate = num_kcats_to_mutate,
@@ -96,7 +109,7 @@ def run_parametrization_workflow(iteration, iterations,
             parametrizer.pamodel = pamodel_copy
 
         results_file_path = os.path.join('Results', 'i2_parametrization', 'diagnostics',
-                                         f'pam_parametrizer_diagnostics_{str(iteration)}_1.xlsx')
+                                         f'pam_parametrizer_diagnostics_{str(iteration)}.xlsx')
         best_individual_df, computational_performance_df =  save_pam_parametrizer_results_to_df(iteration,configuration,
                                                    best_individual_df,computational_performance_df,
                                                    results_file_path)
@@ -107,6 +120,7 @@ def analyse_parametrizer_performance():
     max_substrate = -0.1
 
     args = parse_arguments()
+    pam_info_file =  args.pam_info_file
     iterations = args.iterations
     configuration = args.configuration
     processes = args.hyper_processes
@@ -114,6 +128,8 @@ def analyse_parametrizer_performance():
 
     if iterations is None:
         iterations = 5
+    if pam_info_file is None:
+        pam_info_file = os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250214.xlsx')
     if configuration is None:
         configurations = ['False', 'all', 'before']
     else:
@@ -143,19 +159,14 @@ def analyse_parametrizer_performance():
                                  configurations, set_up_pamparametrizer,
                                  processes,
                                  gene_flow_events, 10,
-                                 best_individual_df, computational_performance_df,min_substrate_uptake=min_substrate,
+                                 best_individual_df, computational_performance_df,
+                                pam_info_file, min_substrate_uptake=min_substrate,
                                  max_substrate_uptake=max_substrate)
 
     # 2. Calculate mean error and stdev for each method and for a single iteration
     error_per_iteration_config = get_statistics_from_df(best_individual_df,
                                                         group_by=['iteration', 'binned'],
                                                         columns=['ga_error', 'r_squared'])
-    # error_per_config = get_statistics_from_df(best_individual_df,
-    #                                           group_by=['binned'],
-    #                                           columns=['ga_error', 'r_squared'])
-    # computational_performance_per_config = get_statistics_from_df(computational_performance_df,
-    #                                                               group_by=['binned'],
-    #                                                               columns=['time_s'])
     # 3. save the results to excel
     with pd.ExcelWriter(RESULT_FILE_PATH) as writer:
         # Write each DataFrame to a specific sheet
