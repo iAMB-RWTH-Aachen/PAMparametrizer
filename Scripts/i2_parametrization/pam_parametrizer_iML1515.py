@@ -1,6 +1,6 @@
 import os
+import sys
 import pandas as pd
-import numpy as np
 from typing import Tuple
 import warnings
 warnings.filterwarnings("ignore")
@@ -17,12 +17,12 @@ config = Config()
 config.reset()
 RXNS_TO_VALIDATE = [config.ACETATE_EXCRETION_RXNID,  config.OXYGEN_UPTAKE_RXNID, config.BIOMASS_REACTION, config.CO2_EXHANGE_RXNID]
 
-def set_up_validation_data(csources: list) -> list[ValidationData]:
+def set_up_validation_data(csources: list,
+                           pam_info_file: str) -> list[ValidationData]:
     condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate': 'EX_ac_e', 'Pyruvate': 'EX_pyr_e',
                         'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e',
                         'Fructose': 'EX_fru_e'}
-    model = set_up_pam(pam_info_file =os.path.join('Results','1_preprocessing',
-                                                                'proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx'),
+    model = set_up_pam(pam_info_file = pam_info_file,
                        model = os.path.join('Models', 'iML1515.xml'))
     model_reactions = [rxn.id for rxn in model.reactions]
 
@@ -122,6 +122,8 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
+                           pam_info_file: str = os.path.join(
+                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250211.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iML1515',
@@ -133,8 +135,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
         'Results','2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
     increase_kcats_in_parameter_file(kcat_increase_factor,
-                                     pam_info_file_path_ori= os.path.join(
-                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250207.xlsx'),
+                                     pam_info_file_path_ori= pam_info_file,
                                      pam_info_file_path_out=pam_info_file_path_out)
 
 
@@ -154,7 +155,10 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
+    pam_info_file = sys.argv[1]
+
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+                                              pam_info_file= pam_info_file,
                                               filename_extension= 'iML1515_randomized',
                                               c_sources = ['Glucose'],
                                               kcat_increase_factor= 3,

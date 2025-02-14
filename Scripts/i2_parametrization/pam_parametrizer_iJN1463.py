@@ -1,7 +1,6 @@
 import os
+import sys
 import pandas as pd
-import numpy as np
-from typing import Tuple
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -125,6 +124,9 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate):
     return result_df
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
+                           pam_info_file: str = os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
@@ -137,12 +139,10 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
             'Results', '2_parametrization', 'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx')
 
         increase_kcats_in_parameter_file(kcat_increase_factor,
-                                         pam_info_file_path_ori=os.path.join(
-                                             'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250207.xlsx'),
+                                         pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
-    pputida_pam = setup_pputida_pam()
+    pputida_pam = setup_pputida_pam(pam_info_file)
     #close off all exchanges not necessary for medium, as pputida doesn't exchange anything
     for exchange in pputida_pam.exchanges:
         if exchange.id not in pputida_pam.medium:
@@ -164,11 +164,16 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      max_substrate_uptake_rate=max_substrate_uptake_rate,
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
-def run_parametrizations(n_iterations:int=5) -> None:
+def run_parametrizations(n_iterations:int=5,
+                         pam_info_file: str = os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx')
+                         ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
         print('------------------------------------------------------------------------------------------------')
         pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+                                                  pam_info_file = pam_info_file,
                                                   filename_extension = f'iJN1463_{i}',
                                                   c_sources=['Glycerol', 'Glucose', 'Succinate', 'Fructose', 'm-Xylene',
                                                              'Toluene', 'Benzoate', 'Octanoate'])
@@ -180,6 +185,8 @@ if __name__ == "__main__":
     #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
-    run_parametrizations()
+
+    pam_info_file = sys.argv[1]
+    run_parametrizations(pam_info_file=pam_info_file)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515
