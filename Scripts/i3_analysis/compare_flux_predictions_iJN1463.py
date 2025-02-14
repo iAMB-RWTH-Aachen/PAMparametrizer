@@ -79,9 +79,9 @@ def plot_simulations_vs_experiments(simulation_results: pd.DataFrame, validation
 
 if __name__ == '__main__':
     RESULT_FIGURE_FILE_PATH = os.path.join('Results', '3_analysis', 'flux_comparison_iJN1463.png')
-    NUM_MODELS = 2
+    NUM_MODELS = 3
     DIAGNOSTIC_FILES = [os.path.join(
-        'Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_iJN1463_{i}.xlsx')
+        'Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_iJN1463_nettglc_{i}.xlsx')
         for i in range(1, NUM_MODELS+1)
     ]
     fig, axs = plt.subplots(ncols=2,nrows=NUM_MODELS+1,figsize = [7,10])
