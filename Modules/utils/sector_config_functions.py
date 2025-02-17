@@ -1,5 +1,5 @@
+from typing import Iterable
 from scipy.stats import linregress
-# import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -21,10 +21,51 @@ def reset_translational_sector(pamodel, slope, intercept, new_id = None):
     pamodel.add_sectors([transl_sector])
     return pamodel
 
-def get_model_simulations_vs_sector(pamodel, sub_uptake_rxn, rxn_id_to_relate_to,
-                                    substrate_range, intercept, slope,
-                                    sector_name ='translational_protein',
-                                    to_save:str=None):
+def get_model_simulations_vs_sector(pamodel:PAModel,
+                                    sub_uptake_rxn:str,
+                                    rxn_id_to_relate_to:str,
+                                    substrate_range: Iterable,
+                                    intercept:float, slope: float,
+                                    sector_name:str ='translational_protein',
+                                    to_save:str=None) -> pd.DataFrame:
+    """
+        Runs model simulations and evaluates the relationship between a specified reaction
+        and a sector variable.
+
+        This function simulates the metabolic model over a range of substrate uptake values
+        and calculates the sector variable using a linear relationship with a specified reaction.
+        The results are returned as a DataFrame.
+
+        Args:
+            pamodel (PAModel): The metabolic model to be simulated.
+            sub_uptake_rxn (str): The reaction ID for substrate uptake.
+            rxn_id_to_relate_to (str): The reaction ID to which the sector variable
+                should be related.
+            substrate_range: The range of substrate uptake values to simulate.
+            intercept (float): The intercept of the linear relationship used to compute
+                the sector variable. For the default the units should be in g/gDW/h
+            slope (float): The slope of the linear relationship used to compute
+                the sector variable. For the default the units should be in g/gDW
+            sector_name (str, optional): The name of the sector variable. Defaults to 'translational_protein'.
+            to_save (str, optional): An additional column to include in the output DataFrame. Defaults to None.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the simulation results with relevant columns
+            based on the specified reaction and sector variable.
+
+        Example:
+            ```python
+            results = get_model_simulations_vs_sector(
+                pamodel=my_model,
+                sub_uptake_rxn="EX_glc__D_e",
+                rxn_id_to_relate_to="BIOMASS_Ecoli",
+                substrate_range=np.linspace(0, 10, 50),
+                intercept=1.0,
+                slope=0.5,
+                sector_name="translational_protein"
+            )
+            ```
+        """
     # run the model
     simulations_transl_vs_subst = run_simulations(pamodel, substrate_range, sub_uptake_rxn)
     if sub_uptake_rxn == rxn_id_to_relate_to:
@@ -96,12 +137,6 @@ def plot_translational_protein_vs_mu(literature, results,
     ax.set_xlabel('Growth rate (h$^{-1}$)', fontsize=12)
     ax.set_ylabel('Translational protein sector (g$_{translationalprotein}$/g$_{protein}$)', fontsize=12)
 
-    # # Adding annotations for intercept and slope
-    # ax.annotate(f"Intercept: {round(interc * 1000) / 1000} $g_{{tprot}}/mmol_{{s}}$",
-    #             xy=(0.34, 0.5), xycoords='axes fraction', fontsize=10, ha='left')
-    # ax.annotate(f"Slope: {round(slope * 1000) / 1000} $g_{{tprot}}/mmol_{{s}}/h$",
-    #             xy=(0.30, 0.47), xycoords='axes fraction', fontsize=10, ha='left')
-
     # Adding a legend and setting the layout
     ax.legend()
     # ax.grid(True)
@@ -133,17 +168,6 @@ def plot_unused_protein_vs_mu(results, biomass_rxn):
 
     plt.show()
 
-
-    # fig = go.Figure()
-    # fig.add_trace(go.Scatter(x=results[biomass_rxn],
-    #                          y=results['unused_protein'],
-    #                          mode='lines', line=dict(width=5)))
-    # fig.update_xaxes(title_text='Growth rate ($h^{-1}$)', range =[0,1])
-    # fig.update_yaxes(title_text='Unused enzyme sector ($g_{unusedprotein}/g_{CDW}$)', range =[0,0.2])
-    #
-    # fig.update_traces(marker_size=10)
-    # fig.update_layout(font=dict(size=12), title='Glucose limitation')
-    # fig.show()
 
 def change_translational_sector_with_config_dict(pamodel:PAModel,
                                                  transl_sector_config:dict,
