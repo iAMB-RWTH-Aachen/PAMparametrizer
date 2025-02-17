@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
                                               pam_info_file= pam_info_file,
-                                              filename_extension= 'iML1515_randomized',
+                                              filename_extension= 'iML1515',
                                               c_sources = ['Glucose'],
                                               kcat_increase_factor= 3,
                                               threshold_iteration= 8)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])

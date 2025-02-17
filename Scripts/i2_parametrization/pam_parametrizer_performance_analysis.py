@@ -107,7 +107,7 @@ def run_parametrization_workflow(iteration, iterations,
         if len(configurations)>1:
             parametrizer.pamodel = pamodel_copy
 
-        results_file_path = os.path.join('Results', 'i2_parametrization', 'diagnostics',
+        results_file_path = os.path.join('Results', '2_parametrization', 'diagnostics',
                                          f'pam_parametrizer_diagnostics_{str(iteration)}.xlsx')
         best_individual_df, computational_performance_df =  save_pam_parametrizer_results_to_df(iteration,configuration,
                                                    best_individual_df,computational_performance_df,
