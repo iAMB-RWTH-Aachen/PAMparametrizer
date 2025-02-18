@@ -89,7 +89,7 @@ def run_parametrization_workflow(iteration, iterations,
                                               pam_info_file = pam_info_file,
                                               processes=processes,
                                               gene_flow_events=gene_flow_events,
-                                              filename_extension= str(iteration)+'_1',
+                                              filename_extension= str(iteration),
                                               num_kcats_to_mutate = num_kcats_to_mutate,
                                               c_sources = ['Glucose'],
                                               kcat_increase_factor=3#, 'Glycerol', 'Acetate']
