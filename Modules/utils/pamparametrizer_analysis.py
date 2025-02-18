@@ -3,7 +3,7 @@ import numpy as np
 import cobra
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Iterable, Union, Literal
+from typing import Iterable, Union, Literal, Dict, List
 from scipy.stats import entropy
 from scipy.cluster.hierarchy import fcluster
 from sklearn.decomposition import PCA
@@ -275,6 +275,62 @@ def get_previous_kcat_values(group: pd.DataFrame,
                 original_kcat_value = rxn2kcat[entry['rxn_id']][entry['enzyme_id']][entry['direction']]
             previous_kcat.loc[i] = original_kcat_value
     return previous_kcat
+
+
+# Function to compute summarized concentrations based on GPR mapping
+def convert_peptide_to_enzyme_concentrations(df: pd.DataFrame,
+                                             gpr_mapping: Dict[str, List[str]],
+                                             concentration_columns: List[str]) -> pd.DataFrame:
+    """
+    Convert peptide concentrations to enzyme concentrations by taking enzyme complexes into account.
+    Summarizes enzyme concentrations based on Gene-Protein-Reaction (GPR) relationships.
+
+    Given a dataframe containing peptide concentrations and a mapping of enzymes to their peptide components,
+    this function calculates enzyme concentrations as follows:
+      - **Homomeric enzymes** retain their original concentrations.
+      - **Enzyme complexes** take the minimum concentration of all participating peptides.
+
+    Args:
+        df (pd.DataFrame): A dataframe containing peptide concentrations with columns:
+            - 'peptide_id': Peptide identifiers.
+        gpr_mapping (dict): A dictionary mapping enzyme identifiers (keys) to lists of peptide entries (values).
+        concentration_columns (list): A list of the names of the columns which contain the concentration values
+
+    Returns:
+        pd.DataFrame: A summarized dataframe with enzyme concentrations, containing:
+            - 'enzyme_id': Enzyme identifier.
+            - columns specified in concentration_columns with the corrected concentrations
+    """
+    summarized_data = []
+    for enzyme, peptides in gpr_mapping.items():
+        # Filter the dataframe for the peptides in the current enzyme complex or isozyme
+        subset = df[df['peptide_id'].isin(peptides)].copy()
+        if subset.empty:
+            continue  # Skip if no peptides found in the dataframe
+
+        # Homomer: Single peptide enzyme, keep original values
+        if len(peptides) == 1:
+            summarized_values = subset[concentration_columns].values[0]
+        # Enzyme Complex: Take the minimum concentration across peptides
+        else:
+            summarized_values = subset[concentration_columns].min().values
+
+        summarized_data.append([enzyme] + summarized_values.tolist())
+
+    summarized_df = pd.DataFrame(summarized_data, columns=['enzyme_id']+concentration_columns)
+
+    return summarized_df
+
+
+def parse_enzyme_complex_id(enzyme_id: str):
+    """Convert an enzyme complex id to a list of peptide identifiers while ignoring the default enzyme ids"""
+    if 'Enzyme_' in enzyme_id:
+        sorted_enzyme_id = [enzyme_id.replace('Enzyme_', '')]
+    else:
+        # make sure the enzyme complex is in the right order, otherwise match will fail
+        sorted_enzyme_id = sorted(enzyme_id.split('_'))
+    return sorted_enzyme_id
+
 
 #########
 #STATISTICS AND CLUSTERING
