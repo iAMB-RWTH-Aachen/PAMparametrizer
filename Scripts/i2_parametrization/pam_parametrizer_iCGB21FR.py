@@ -1,4 +1,6 @@
 import os
+import sys
+
 import pandas as pd
 import numpy as np
 from typing import Tuple
@@ -20,13 +22,14 @@ from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -25
 
-def set_up_validation_data(csources: list=None) -> list[ValidationData]:
+def set_up_validation_data(pam_info_file: str,
+                            csources: list=None) -> list[ValidationData]:
     condition2uptake = {'Gluconate': 'EX_glcn_e',
                         'Glucose': 'EX_glc__D_e',
                        'Succinate': 'EX_succ_e',
                         'Fructose': 'EX_fru_e'}
     if csources is None: csources = list(condition2uptake.keys())
-    model = setup_cglutanicum_pam(sensitivity =False)
+    model = setup_cglutanicum_pam(pam_info_file, sensitivity =False)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Cglutanicum_phenotypes', 'cglutanicum_phenotypes.xlsx')
@@ -85,6 +88,9 @@ def set_up_hyperparameter(processes: int,
     return hyperparams
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
+                           pam_info_file: str = os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250211.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iCGB21FR',
@@ -97,21 +103,16 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
             'Results', '2_parametrization', 'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx')
 
         increase_kcats_in_parameter_file(kcat_increase_factor,
-                                         pam_info_file_path_ori=os.path.join(
-                                             'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250210.xlsx'),
+                                         pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
-    pam = setup_cglutanicum_pam()
-    #close off all exchanges not necessary for medium, as pputida doesn't exchange anything
-    for exchange in pam.exchanges:
-        if exchange.id not in pam.medium:
-            pam.change_reaction_bounds(exchange.id, 0,0)
+    pam = setup_cglutanicum_pam(pam_info_file)
 
     pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
-
-    validation_data = set_up_validation_data(c_sources)
+    validation_data = set_up_validation_data(pam_info_file = pam_info_file,
+                                             csources=c_sources
+                                             )
     hyperparameters = set_up_hyperparameter(processes,
                                             gene_flow_events,
                                             filename_extension,
@@ -124,21 +125,31 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      max_substrate_uptake_rate=max_substrate_uptake_rate,
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
-def run_parametrizations(n_iterations:int=5) -> None:
+def run_parametrizations(n_iterations:int=5,
+                         pam_info_file:str = os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250211.xlsx')
+                         ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
         print('------------------------------------------------------------------------------------------------')
         pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+                                                  pam_info_file=pam_info_file,
                                                   filename_extension = f'iCGB21FR_{i}',
                                                   c_sources=['Glucose', 'Succinate', 'Fructose', 'Gluconate'])
         #
         pam_parametrizer.run(remove_subruns=True, binned='False')
 
 if __name__ == "__main__":
+    pam_info_file = os.path.join('Results', '1_preprocessing',
+                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250217.xlsx')
+    if len(sys.argv)>1:
+        pam_info_file = sys.argv[1]
+
     # pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
     #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
-    run_parametrizations(1)
+    run_parametrizations(1, pam_info_file)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515

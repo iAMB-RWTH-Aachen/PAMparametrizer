@@ -498,16 +498,21 @@ def setup_pputida_pam(pam_info_file:str= os.path.join(
 
 def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250210.xlsx'),
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250214.xlsx'),
                      model:str = 'Models/iCGB21FR_annotated.xml',
                      total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
     config = Config()
     config.reset()
     config.BIOMASS_REACTION = 'Growth'
-    cglutanicum_pam = set_up_pam(pam_info_file, model, config,
-                     total_protein, active_enzymes, translational_enzymes,
-                     unused_enzymes, sensitivity = sensitivity)
+    cglutanicum_pam = set_up_pam(pam_info_file,
+                                 model = model,
+                                 config = config,
+                                 total_protein = total_protein,
+                                 active_enzymes = active_enzymes,
+                                 translational_enzymes = translational_enzymes,
+                                 unused_enzymes = unused_enzymes,
+                                 sensitivity = sensitivity)
     return cglutanicum_pam
 
 def get_rxn2kcat_protein2gene_dict(param_file):
