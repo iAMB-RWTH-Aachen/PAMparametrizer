@@ -1,6 +1,5 @@
 import cobra
 import pandas as pd
-import numpy as np
 import os
 from typing import Union
 import json
@@ -9,7 +8,7 @@ import json
 from PAModelpy.PAModel import PAModel
 from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector, CustomSector
 from PAModelpy.configuration import Config
-from PAModelpy.utils.pam_generation import set_up_pam, parse_enzyme_db, parse_reaction2protein
+from PAModelpy.utils.pam_generation import set_up_pam, parse_reaction2protein
 from cobra.io.sbml import read_sbml_model
 
 'Function library for making Protein Allocation Models as described in the publication'
@@ -231,6 +230,19 @@ def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
                                  unused_enzymes = unused_enzymes,
                                  sensitivity = sensitivity)
     return cglutanicum_pam
+
+def parse_enzyme_db(enzyme_db: pd.DataFrame) -> None:
+    try:
+        enzyme_db = enzyme_db.drop(['kegg_id', 'Reactants', 'Products', 'EC', 'Length'],axis=1).pivot_table(
+                          index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
+                          columns='direction',
+                          values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b':'kcat_b'}, axis=1)
+    except:
+        enzyme_db = enzyme_db.pivot_table(
+            index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
+            columns='direction',
+            values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b': 'kcat_b'}, axis=1)
+    return enzyme_db
 
 def get_rxn2kcat_protein2gene_dict(param_file):
     # create enzyme objects for each gene-associated reaction
