@@ -1,7 +1,9 @@
 import os
 import sys
 import pandas as pd
+import numpy as np
 import warnings
+from typing import List
 warnings.filterwarnings("ignore")
 
 
@@ -14,22 +16,24 @@ from Scripts.pam_generation_uniprot_id import setup_pputida_pam
 from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
 
 
-
-# import sys
-# sys.stdout = open('output.txt','wt')
-
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -20
 config = Config()
 config.reset()
 
-def set_up_validation_data(csources: list=None) -> list[ValidationData]:
+def set_up_validation_data(csources: List[str] = None,
+                           pam_info_file: str = os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx')
+                           ) -> list[ValidationData]:
+
     condition2uptake = {'Glycerol': 'EX_glyc_e', 'Glucose': 'EX_glc__D_e',
                         'Octanoate': 'EX_octa_e', 'Toluene': 'TOLtex', 'm-Xylene': 'M_Xylt1',
                          'Succinate': 'EX_succ_e', 'Benzoate': 'EX_bz_e',
                         'Fructose': 'EX_fru_e'}
     if csources is None: csources = list(condition2uptake.keys())
-    model = setup_pputida_pam(sensitivity =False)
+    model = setup_pputida_pam(pam_info_file,
+                              sensitivity =False)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Pputida_phenotypes', 'pputida_phenotypes.xlsx')
@@ -43,7 +47,8 @@ def set_up_validation_data(csources: list=None) -> list[ValidationData]:
     exchanges = exchanges[exchanges.Strain == "KT2440"].drop(['Strain', 'Reference', 'Info'], axis=1).dropna(axis=1, how='all')
 
     # get netto glucose uptake
-    exchanges['EX_glc__D_e'] = exchanges['EX_glc__D_e'] + exchanges['EX_glcn_e'] + exchanges['EX_25dkglcn_e']
+    # exchanges['EX_glc__D_e'] = exchanges[['EX_glc__D_e', 'EX_glcn_e', 'EX_25dkglcn_e']].sum(axis=1).replace(0, np.nan)
+
 
     # Dictionary to map carbon sources to exchange reactions and fluxomics sheets
     # not fructose, because that is possibly mixotrophic growth
@@ -151,7 +156,8 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     pputida_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
 
-    validation_data = set_up_validation_data(c_sources)
+    validation_data = set_up_validation_data(c_sources,
+                                             pam_info_file = pam_info_file)
     hyperparameters = set_up_hyperparameter(processes,
                                             gene_flow_events,
                                             filename_extension,
@@ -185,8 +191,11 @@ if __name__ == "__main__":
     #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
-
-    pam_info_file = sys.argv[1]
+    pam_info_file = os.path.join('Results', '1_preprocessing',
+                                 'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx')
+    if len(sys.argv)>1:
+        pam_info_file = sys.argv[1]
+    # set_up_validation_data(pam_info_file=pam_info_file)
     run_parametrizations(pam_info_file=pam_info_file)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515
