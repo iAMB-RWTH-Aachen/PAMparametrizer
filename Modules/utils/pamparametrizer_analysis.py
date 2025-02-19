@@ -277,49 +277,96 @@ def get_previous_kcat_values(group: pd.DataFrame,
     return previous_kcat
 
 
-# Function to compute summarized concentrations based on GPR mapping
-def convert_peptide_to_enzyme_concentrations(df: pd.DataFrame,
-                                             gpr_mapping: Dict[str, List[str]],
+def convert_peptide_to_enzyme_concentrations(peptide_df: pd.DataFrame,
+                                             enzyme_db:pd.DataFrame,
                                              concentration_columns: List[str]) -> pd.DataFrame:
     """
-    Convert peptide concentrations to enzyme concentrations by taking enzyme complexes into account.
-    Summarizes enzyme concentrations based on Gene-Protein-Reaction (GPR) relationships.
+    Computes the enzyme concentration for each reaction-enzyme relation, considering enzyme complexes and isozymes.
 
-    Given a dataframe containing peptide concentrations and a mapping of enzymes to their peptide components,
-    this function calculates enzyme concentrations as follows:
-      - **Homomeric enzymes** retain their original concentrations.
-      - **Enzyme complexes** take the minimum concentration of all participating peptides.
+    The function classifies each enzyme-reaction pair into:
+    - **Homomeric Enzyme**: A single enzyme with no isozymes.
+    - **Enzyme Complex**: A functional unit composed of multiple enzyme subunits.
+    - **Isozyme**: Different enzymes catalyzing the same reaction.
+
+    Concentration Calculation Rules:
+    - Homomeric enzymes retain their original concentration.
+    - Enzyme complexes take the minimum concentration of all participating peptides.
+    - Isozymes take the sum of the concentration of all enzymes contributing to the reaction.
 
     Args:
-        df (pd.DataFrame): A dataframe containing peptide concentrations with columns:
-            - 'peptide_id': Peptide identifiers.
-        gpr_mapping (dict): A dictionary mapping enzyme identifiers (keys) to lists of peptide entries (values).
-        concentration_columns (list): A list of the names of the columns which contain the concentration values
+        peptide_df (pd.DataFrame): DataFrame containing enzyme-specific peptide concentrations.
+            Must include:
+            - `enzyme_id` (str): The unique identifier for the enzyme.
+            - At least one of the columns in `concentration_columns` containing enzyme concentrations.
+
+        enzyme_db (pd.DataFrame): DataFrame containing enzyme-reaction associations.
+            Must include:
+            - `rxn_id` (str): The reaction identifier.
+            - `enzyme_id` (str): The enzyme(s) catalyzing the reaction (single ID or complex in "_"-joined format).
+
+        concentration_columns (list of str): List of column names in `peptide_df` for which concentrations should be computed.
 
     Returns:
-        pd.DataFrame: A summarized dataframe with enzyme concentrations, containing:
-            - 'enzyme_id': Enzyme identifier.
-            - columns specified in concentration_columns with the corrected concentrations
+        pd.DataFrame: A DataFrame containing:
+            - `rxn_id` (str): Reaction identifier.
+            - `enzyme_id` (str): Enzyme ID(s) associated with the reaction.
+            - Computed concentration columns based on `concentration_columns`.
+            - `enzyme_type` (str): Classification as "Homomer", "Complex", or "Isozyme".
     """
-    summarized_data = []
-    for enzyme, peptides in gpr_mapping.items():
-        # Filter the dataframe for the peptides in the current enzyme complex or isozyme
-        subset = df[df['peptide_id'].isin(peptides)].copy()
-        if subset.empty:
-            continue  # Skip if no peptides found in the dataframe
 
-        # Homomer: Single peptide enzyme, keep original values
-        if len(peptides) == 1:
-            summarized_values = subset[concentration_columns].values[0]
-        # Enzyme Complex: Take the minimum concentration across peptides
-        else:
-            summarized_values = subset[concentration_columns].min().values
+    # Create a dictionary for quick lookups of concentrations for each enzyme_id
+    peptide_concentration = {col: peptide_df.set_index("enzyme_id")[col].to_dict() for col in concentration_columns}
 
-        summarized_data.append([enzyme] + summarized_values.tolist())
+    # Identify isozymes ('or' relationship in gene-protein-reaction association (gpr))
+    isozyme_reactions = enzyme_db["rxn_id"][enzyme_db.GPR.str.contains('or')]
+    isozymes_set = set(isozyme_reactions)  # Reactions with multiple enzymes
 
-    summarized_df = pd.DataFrame(summarized_data, columns=['enzyme_id']+concentration_columns)
+    # Store results
+    results = []
 
-    return summarized_df
+    # Process each reaction as a group
+    for rxn_id, group in enzyme_db.groupby("rxn_id"):
+        enzyme_entries = group["enzyme_id"].tolist()
+        enzyme_sets = [eid.split("_") for eid in enzyme_entries]  # Handle enzyme complexes
+
+        # Track classification and concentration storage
+        enzyme_type = "Homomer"  # Default assumption
+        # Store concentration data per enzyme
+        concentration_data = {col: {} for col in concentration_columns}
+
+        if len(enzyme_entries) > 1:  # More than one enzyme for the reaction → Potential Isozyme
+            enzyme_type = "Isozyme"
+
+            # Sum concentrations for all isozymes
+            for col in concentration_columns:
+                total_conc = sum(
+                    min(peptide_concentration[col].get(e, 0) for e in enzymes) for enzymes in enzyme_sets
+                )
+                # Assign the same summed concentration to all participating enzymes
+                for enzyme in enzyme_entries:
+                    concentration_data[col][enzyme] = total_conc
+
+
+        else:  # Single enzyme (homomer or complex)
+            for enzyme, enzyme_ids in zip(enzyme_entries, enzyme_sets):
+                enzyme_type = "Homomer" if len(enzyme_ids) == 1 else "Complex"
+
+                for col in concentration_columns:
+                    concentration_data[col][enzyme] = (
+                        min(peptide_concentration[col].get(e, 0) for e in enzyme_ids)
+                        if len(enzyme_ids) > 1 else peptide_concentration[col].get(enzyme, 0)
+                    )
+        # Store result for this reaction
+        # Append row for each enzyme
+        for enzyme in enzyme_entries:
+            results.append({
+                "rxn_id": rxn_id,
+                "enzyme_id": enzyme,
+                **{col: concentration_data[col][enzyme] for col in concentration_columns},
+                "enzyme_type": enzyme_type
+            })
+
+    return pd.DataFrame(results)
 
 
 def parse_enzyme_complex_id(enzyme_id: str):
