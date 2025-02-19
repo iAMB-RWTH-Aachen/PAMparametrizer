@@ -317,10 +317,6 @@ def convert_peptide_to_enzyme_concentrations(peptide_df: pd.DataFrame,
     # Create a dictionary for quick lookups of concentrations for each enzyme_id
     peptide_concentration = {col: peptide_df.set_index("enzyme_id")[col].to_dict() for col in concentration_columns}
 
-    # Identify isozymes ('or' relationship in gene-protein-reaction association (gpr))
-    isozyme_reactions = enzyme_db["rxn_id"][enzyme_db.GPR.str.contains('or')]
-    isozymes_set = set(isozyme_reactions)  # Reactions with multiple enzymes
-
     # Store results
     results = []
 
