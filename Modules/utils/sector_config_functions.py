@@ -102,7 +102,7 @@ def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> 
 def plot_translational_protein_vs_mu(literature, results,
                                      protein_fraction, measured_protein_fraction,
                                      oxygen_results=None, oxygen_rxn_id=None, return_fig = False,
-                                     configuration = None, literature_label = 'Schmidt et al (2016',
+                                     configuration = None, literature_label = 'Schmidt et al (2016)',
                                      model_label = 'new iML1515 PAM'):
 
     if configuration is None:
