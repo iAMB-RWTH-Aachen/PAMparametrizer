@@ -39,7 +39,7 @@ def set_up_validation_data(pam_info_file: str,
             filtered_condition2uptake[csource] = uptake_rxn
 
     # Load the data from the sheets
-    exchanges = pd.read_excel(VALID_DATA_PATH, 'Aerobic').drop(['medium','doi','Notes'], axis=1)
+    exchanges = pd.read_excel(VALID_DATA_PATH, 'Aerobic').drop(['medium','doi','Notes'], axis=1).replace(0,np.nan)
 
     #make validation data objects
     validation_data_objects = []
@@ -53,10 +53,12 @@ def set_up_validation_data(pam_info_file: str,
         valid_data_df[c_uptake_id + '_ub'] = valid_data_df[c_uptake_id]
 
         validation_data = ValidationData(valid_data_df, c_uptake_id, [valid_data_df[c_uptake_id].min()-1, -0.1])
-        #validate only exchange rates and growth rate
 
+        #validate only exchange rates and growth rate
         validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:] != "_ub"]
         validation_data._reactions_to_validate = ['Growth']
+
+        print(validation_data)
 
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.translational_sector_config = {
