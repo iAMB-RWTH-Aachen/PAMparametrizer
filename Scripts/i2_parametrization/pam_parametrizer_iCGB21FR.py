@@ -39,7 +39,7 @@ def set_up_validation_data(pam_info_file: str,
             filtered_condition2uptake[csource] = uptake_rxn
 
     # Load the data from the sheets
-    exchanges = pd.read_excel(VALID_DATA_PATH, 'Aerobic')
+    exchanges = pd.read_excel(VALID_DATA_PATH, 'Aerobic').drop(['medium','doi','Notes'], axis=1)
 
     #make validation data objects
     validation_data_objects = []
