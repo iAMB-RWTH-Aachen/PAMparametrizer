@@ -8,6 +8,7 @@ from scipy.stats import entropy
 from scipy.cluster.hierarchy import fcluster
 from sklearn.decomposition import PCA
 
+import PAModelpy
 from PAModelpy import PAModel
 
 from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
@@ -374,6 +375,56 @@ def parse_enzyme_complex_id(enzyme_id: str):
         sorted_enzyme_id = sorted(enzyme_id.split('_'))
     return sorted_enzyme_id
 
+
+def normalize_simulated_protein_concentrations(df: pd.DataFrame,
+                                enzyme_db: pd.DataFrame,
+                                ue_sector: PAModelpy.UnusedEnzymeSector):
+    """Normalizes protein fractions in a simulation dataset.
+
+    This function processes simulation results by normalizing protein concentrations.
+    It accounts for unused enzyme fractions and converts enzyme-level simulated concentration into
+    enzyme-level fractions. The final concentration values are normalized based
+    on the total protein concentration in the system, taking unused proteins into account.
+
+    Args:
+        df (pd.DataFrame):
+            The simulation dataframe containing columns:
+            - 'method' (str): The simulation method identifier.
+            - 'fraction' (float): Protein fraction values.
+            - 'growth_rate' (float): Growth rate for each condition.
+        enzyme_db (pd.DataFrame):
+            The enzyme database mapping peptides to their corresponding enzymes.
+        ue_sector (UnusedEnzymeSector):
+            An object representing the unused enzyme sector, containing attributes:
+            - `ups_mu` (float): Scaling factor based on growth rate.
+            - `ups_0` (list[float]): Baseline unused enzyme concentration.
+
+    Returns:
+        pd.DataFrame: A dataframe with normalized enzyme concentrations, containing:
+        - 'enzyme_id' (str): The enzyme identifier.
+        - 'normalized_fraction' (float): The normalized protein fraction.
+        - 'method' (str): The simulation method.
+        - 'enzyme_type' (str): if the enzyme is an isozyme, homomer or complex
+    """
+
+    df = df.dropna(how='any')
+
+    peptide_simulated_df_list = []  # Store results in a list
+
+    for method, simulation_df in df.groupby('method'):
+        # unused enzymes should be added to the total sum to be comparable to 'in vivo' data
+        unused_enzyme_sum = simulation_df.growth_rate.iloc[0] * ue_sector.ups_mu + ue_sector.ups_0[0]
+        total_conc = simulation_df.fraction.sum() * 1e6 + unused_enzyme_sum
+
+        # sum the concentrations of isozymes
+        simulation_df = convert_peptide_to_enzyme_concentrations(simulation_df, enzyme_db, ['fraction'])
+
+        simulation_df['normalized_fraction'] = simulation_df['fraction'] * 1e6 / total_conc
+        simulation_df['method'] = method
+
+        peptide_simulated_df_list.append(simulation_df[['enzyme_id', 'normalized_fraction', 'method', 'enzyme_type']])
+
+    return pd.concat(peptide_simulated_df_list, ignore_index=True)
 
 #########
 #STATISTICS AND CLUSTERING
