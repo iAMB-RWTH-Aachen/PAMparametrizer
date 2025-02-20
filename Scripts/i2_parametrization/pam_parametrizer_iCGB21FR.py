@@ -20,7 +20,6 @@ from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
 # sys.stdout = open('output.txt','wt')
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
-MIN_SUBSTRATE_UPTAKE_RATE = -25
 
 def set_up_validation_data(pam_info_file: str,
                             csources: list=None) -> list[ValidationData]:
@@ -58,8 +57,6 @@ def set_up_validation_data(pam_info_file: str,
         validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:] != "_ub"]
         validation_data._reactions_to_validate = ['Growth']
 
-        print(validation_data)
-
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.translational_sector_config = {
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
@@ -89,7 +86,7 @@ def set_up_hyperparameter(processes: int,
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
 
-def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
+def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
                                              'proteinAllocationModel_iCGB21FR_EnzymaticData_250211.xlsx'),
@@ -115,6 +112,9 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     validation_data = set_up_validation_data(pam_info_file = pam_info_file,
                                              csources=c_sources
                                              )
+    #get the min substrate uptake rate from the validation data
+    for vd in validation_data:
+        if vd.id == 'EX_glc__D_e': min_substrate_uptake_rate = vd.valid_data.EX_glc__D_e.sort_values(ascending=False)[0]
     hyperparameters = set_up_hyperparameter(processes,
                                             gene_flow_events,
                                             filename_extension,
@@ -135,7 +135,7 @@ def run_parametrizations(n_iterations:int=5,
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
         print('------------------------------------------------------------------------------------------------')
-        pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
+        pam_parametrizer = set_up_pamparametrizer(MAX_SUBSTRATE_UPTAKE_RATE,
                                                   pam_info_file=pam_info_file,
                                                   filename_extension = f'iCGB21FR_{i}',
                                                   c_sources=['Glucose', 'Succinate', 'Fructose', 'Gluconate'])
@@ -144,7 +144,7 @@ def run_parametrizations(n_iterations:int=5,
 
 if __name__ == "__main__":
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250217.xlsx')
+                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250220.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
 
