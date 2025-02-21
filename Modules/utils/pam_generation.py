@@ -44,11 +44,11 @@ def get_rxn2kcat_protein2gene_dict(param_file_path:str, model_file_path: str
                                      **{enzyme_complex_id: enzyme_dict}}
     return new_rxn2prot, protein2gene
 
-def _extract_reaction_id_from_catalytic_reaction_id(input_str: str) -> str:
+def _extract_reaction_id_from_catalytic_reaction_id(input_str: str,
+                                                    default_enzyme_id_pattern: str = r'E[0-9][0-9]*|Enzyme_*') -> str:
     # Define the regex pattern for protein IDs, obtained from UniProtKB, 2024-08-07
     # https://www.uniprot.org/help/accession_numbers
     protein_id_pattern = r'(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})'
-    default_enzyme_id_pattern:str = r'E[0-9][0-9]*'
 
     # Remove the 'CE_' prefix if it exists
     if input_str.startswith('CE_'):
