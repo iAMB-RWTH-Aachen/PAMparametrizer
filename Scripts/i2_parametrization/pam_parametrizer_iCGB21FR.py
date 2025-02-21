@@ -54,8 +54,8 @@ def set_up_validation_data(pam_info_file: str,
         validation_data = ValidationData(valid_data_df, c_uptake_id, [valid_data_df[c_uptake_id].min()-1, -0.1])
 
         #validate only exchange rates and growth rate
-        validation_data._reactions_to_plot = [data for data in valid_data_df.columns if data[-3:] != "_ub"]
-        validation_data._reactions_to_validate = ['Growth']
+        validation_data._reactions_to_plot = [data for data in valid_data_df.columns if (data[-3:] != "_ub" and data!=c_uptake_id)]
+        validation_data._reactions_to_validate = ['Growth', 'EX_co2_e']
 
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.translational_sector_config = {
@@ -82,6 +82,7 @@ def set_up_hyperparameter(processes: int,
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 5
+    hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'Growth': 7, 'EX_co2_e':2}
     hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_iCGB21FR_'
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     return hyperparams
