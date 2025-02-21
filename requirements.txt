@@ -1,8 +1,8 @@
 PAModelpy
-matplotlib==3.8.4
+matplotlib==3.8.1
 deap==1.4.1
-gurobipy==11.0.1
-scipy==1.13.0
+gurobipy==9.5.2
+scipy==1.13.1
 pytest==8.2.0
 seaborn==0.13.2
 scikit-learn==1.4.2
