@@ -18,13 +18,17 @@ def create_pamodel_from_diagnostics_file(file_path:str, model: PAModel)-> PAMode
             model.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
     return model
 
-def get_rxn2kcat_protein2gene_dict(param_file_path:str, model_file_path: str
+def get_rxn2kcat_protein2gene_dict(param_file_path:str,
+                                   model_file_path: str
                                    ) -> Tuple[
-    dict[str, dict[str,dict[Literal['f', 'b', 'molmass', 'protein_reaction_association'], float]]],
+    dict[str, dict[str,dict[
+        Literal['f', 'b', 'molmass', 'protein_reaction_association'
+        ], float]
+    ]],
     dict[str,str]]:
     # create enzyme objects for each gene-associated reaction
     pam = set_up_pam(param_file_path, model_file_path, sensitivity=False)
-    enzyme_db = pd.read_excel(param_file_path, sheet_name='ActiveEnzymes').iloc[:, 1:]
+    enzyme_db = pd.read_excel(param_file_path, sheet_name='ActiveEnzymes')
     rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, pam)
 
     ae_sector = pam.sectors.ActiveEnzymeSector

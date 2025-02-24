@@ -2,10 +2,12 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 
-from typing import Tuple
+from typing import Tuple, Callable
 
 from PAModelpy.utils.pam_generation import set_up_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
+from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
+
 from Scripts.i3_analysis.PAMparametrizer_progress_cleaned_figure import plot_valid_data, plot_simulation
 from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
 
@@ -61,7 +63,8 @@ def recreate_progress_plot(best_indiv_files:list[str],
 
 def visualize_progress_plot(alternative_param_files:list[str],
                            labels:list[str],
-                           fig_file_path:str
+                           fig_file_path:str,
+                            set_up_parametrizer: Callable = set_up_pamparametrizer
                            ):
     FIGWIDTH = 12
     FIGHEIGHT = 12
@@ -69,8 +72,9 @@ def visualize_progress_plot(alternative_param_files:list[str],
 
     j=0
 
-    parametrizer, substrate_rates = set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates()
+    parametrizer, substrate_rates = set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer)
     fig, axs = plot_valid_data(parametrizer, fontsize=FONTSIZE)
+    pam = parametrizer._pamodel.copy(copy_with_pickle = True)
     print('Run reference simulations')
     # fluxes = run_simulations(pamodel, substrate_rates)
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
@@ -84,8 +88,7 @@ def visualize_progress_plot(alternative_param_files:list[str],
         j +=1
         print('\nAlternative ', label, ' from file ', file)
 
-        ecoli_pam = set_up_pam(file, 'Models/iML1515.xml')
-        parametrizer.pamodel = ecoli_pam
+        parametrizer.pamodel = pam.copy(copy_with_pickle=True)
 
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,
@@ -105,7 +108,7 @@ def visualize_progress_plot(alternative_param_files:list[str],
     plt.savefig(fig_file_path)
     plt.close(fig)
 
-def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
+def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: Callable) -> Tuple:
     parametrizer = set_up_pamparametrizer(-12, -0.1, kcat_increase_factor=3)
     parametrizer._init_results_objects()
     substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,
@@ -113,18 +116,35 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
     substrate_rates = sorted(substrate_rates)
     return parametrizer, substrate_rates
 
-if __name__ == '__main__':
-    PAM_DATA_FILE_PATH = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730_multi.xlsx')
+def main_ecoli():
+    PAM_DATA_FILE_PATH = os.path.join('Results', '2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
     # PAM_KCAT_FILES = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                                f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
     #                   range(1, 11)]
     PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                    f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                       range(1, 11)]
-    labels =  [f'Alternative {i}' for i in range(1,11)]
+    labels = [f'Alternative {i}' for i in range(1, 11)]
     fig_file_path = os.path.join('Results', '3_analysis', 'pam-parametrizer_alternatives_cleaned_figure.png')
 
     alternative_param_files = PAM_KCAT_FILES
-    recreate_progress_plot(alternative_param_files,  labels, fig_file_path, legend = True)
-    # visualize_progress_plot([os.path.join('Results', '3_analysis', 'parameter_files',
-    #                                f'proteinAllocationModel_EnzymaticData_iML1515_1.xlsx')], ['1'], 'Results/test.png')
+    recreate_progress_plot(alternative_param_files, labels, fig_file_path, legend=True)
+
+def main_mcecoli():
+    PAM_DATA_FILE_PATH = os.path.join('Results', '2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
+    # PAM_KCAT_FILES = [os.path.join('Results', '3_analysis', 'parameter_files',
+    #                                f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
+    #                   range(1, 11)]
+    PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
+                                   f'pam_parametrizer_diagnostics_mcML1515_1.xlsx')]
+    labels = [f'Alternative 1' ]
+    fig_file_path = os.path.join('Results', '3_analysis', 'pam-parametrizer_alternatives_cleaned_figure_mcpam.png')
+
+    alternative_param_files = PAM_KCAT_FILES
+    recreate_progress_plot(alternative_param_files,
+                           labels, fig_file_path,
+                           legend=True,
+                           setup_parametrizer = set_up_pamparametrizer_mcpam)
+
+if __name__ == '__main__':
+    main_mcecoli()
