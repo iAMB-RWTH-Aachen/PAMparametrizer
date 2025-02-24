@@ -156,7 +156,11 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
-    pam_info_file = sys.argv[1]
+    pam_info_file = os.path.join(
+        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250219.xlsx')
+
+    if len(sys.argv)>1:
+        pam_info_file = sys.argv[1]
 
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
                                               pam_info_file= pam_info_file,
