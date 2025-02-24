@@ -8,6 +8,8 @@ from typing import Callable
 # from Scripts.i2_parametrization.pam_parametrizer_ecolicore import set_up_pamparametrizer as set_up_pamparametrizer_ecolicore
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as set_up_pamparametrizer_putida
+from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
+
 
 
 FONTSIZE = 16
@@ -42,7 +44,7 @@ def plot_simulation(fig, axs,
 
     for r, ax in zip(reactions_to_plot, axs.flatten()):
         # plot data
-        line = ax.plot(substrate_rates[:-1], [abs(f[r]) for f in fluxes], linewidth=5,
+        line = ax.plot(substrate_rates, [abs(f[r]) for f in fluxes], linewidth=5,
                        zorder=5, color=color, label = label)
 
     fig.canvas.draw()
@@ -55,7 +57,6 @@ def plot_valid_data(parametrizer, fontsize:int = 12, core = False):
     # plot flux changes with glucose uptake
     fig, axs = plt.subplots(2,2, dpi=100)
     valid_data = parametrizer.validation_data.get_by_id(parametrizer.substrate_uptake_id)
-    print(valid_data.valid_data)
     for r, ax in zip(valid_data._reactions_to_validate, axs.flatten()):
         # plot data
         x = [abs(glc) for glc in valid_data.valid_data[parametrizer.substrate_uptake_id + '_ub']]
@@ -102,8 +103,9 @@ def recreate_progress_plot(best_individual_df:pd.DataFrame,
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates = substrate_rates,
                                                                    sensitivity = False)
+
     fig, axs = plot_simulation(fig, axs, fluxes,
-                               [abs(rate) for rate in substrate_rates]+[0],
+                               [abs(rate) for rate in substrate_rates],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                iteration=0, color='black')
 
@@ -114,10 +116,10 @@ def recreate_progress_plot(best_individual_df:pd.DataFrame,
             kcat_dict = {row['rxn_id']: {row['direction']: row['kcat[s-1]']}}
             parametrizer.pamodel_no_sensitivity.change_kcat_value(enzyme_id=row['enzyme_id'], kcats=kcat_dict)
         # fluxes = run_simulations(pamodel, substrate_rates)
-        fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
+        fluxes, substrate_flux = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,
                                                                        sensitivity=False)
-        fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates]+[0],
+        fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                    parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                    iteration=j + 1, max_iteration=len(groups))
         for flux, rate in zip(fluxes, substrate_rates):
@@ -185,9 +187,6 @@ def main_ecoli():
     #         filtered_df.to_excel(writer, sheet_name = 'Final_Errors', index=False)
 
 def main_putida():
-    # fig, axs = create_empty_plot()
-    # plt.savefig(os.path.join('Results', 'empty_progress_plot_references.png'))
-    #
     result_file = os.path.join('Results', '2_parametrization', 'diagnostics', 'pam_parametrizer_diagnostics_iJN1463_1.xlsx')
 
     best_indiv_df = pd.read_excel(result_file, sheet_name='Best_Individuals')
@@ -196,22 +195,18 @@ def main_putida():
     recreate_progress_plot(best_indiv_df,
                            fig_file_path,
                            set_up_parametrizer=set_up_pamparametrizer_putida)
-    # result_dir = 'Results/data_reduction_results/diagnostics'
-    # for file in os.listdir(result_dir):
-    #     file_path = os.path.join(result_dir,file)
-    #     with pd.ExcelWriter(file_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-    #         to_improve = pd.read_excel(file_path, sheet_name='Final_Errors')
-    #         to_improve.drop_duplicates('run_id',keep='last', inplace=True)
-    #
-    #         # Find the last value in the 'run_id' column
-    #         last_run_id = to_improve['run_id'].iloc[-1]
-    #
-    #         # Filter rows where 'run_id' is less than or equal to the last value
-    #         filtered_df = to_improve[to_improve['run_id'] <= last_run_id]
-    #
-    #         filtered_df.to_excel(writer, sheet_name = 'Final_Errors', index=False)
 
+def main_mcecoli():
+    result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
+                               'pam_parametrizer_diagnostics_mciML1515_1.xlsx')
+
+    best_indiv_df = pd.read_excel(result_file, sheet_name='Best_Individuals')
+    #
+    fig_file_path = os.path.join('Results', '3_analysis', 'pam_parametrizer_progess_cleaned_mcpam.png')
+    recreate_progress_plot(best_indiv_df,
+                           fig_file_path,
+                           set_up_parametrizer=set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
-    main_putida()
+    main_ecoli()
 
