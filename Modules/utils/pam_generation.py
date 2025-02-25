@@ -1,8 +1,9 @@
 import pandas as pd
 from typing import Tuple, Literal
 import re
+import os
 
-from PAModelpy.PAModel import PAModel
+from PAModelpy import PAModel
 from PAModelpy.utils.pam_generation import set_up_pam, parse_reaction2protein, _order_enzyme_complex_id
 
 DEFAULT_MOLMASS = 39959.4825 #kDa
@@ -11,6 +12,23 @@ DEFAULT_KCAT = 11 #s-1
 def create_pamodel_from_diagnostics_file(file_path:str,
                                          model: PAModel,
                                          sheet_name: str = 'Best_Individuals')-> PAModel:
+    """
+    Modifies a Protein Allocation Model using information about turnover numbers from a diagnostics file (result from PAMparametrizer)
+
+    Args:
+        file_path (str): path to the diagnostics xlsx file. The file should at least have the following columns:
+            - run_id: the iteration of the PAMparametrizer
+            - rxn_id: the id of the reaction to modify. This can be the catalytic reaction id (CE_<rxn_id>_<enzyme_id>)
+            - enzyme_id: the id of the enzyme to modify
+            - direction: 'f' or 'b', determines the directionality of the reaction
+            - kcat[s-1]: the new kcat value in 1/s
+        model (PAModel): the PAM to adjust
+        sheet_name (str): name of the sheet with the information about the modifications
+
+    Returns:
+        PAModel: with adjusted parameters
+
+    """
     best_individual_df = pd.read_excel(file_path, sheet_name=sheet_name)
     for _, group in best_individual_df.groupby('run_id'):
         for _, row in group.iterrows():
@@ -77,3 +95,79 @@ def _get_rxn2kcat_as_series(rxn2kcat: dict[str, dict],
                 if len(direction) == 1:
                     kcats[f"{rxn}_{enz}_{direction}"] = kcat
     return pd.Series(kcats, name = name)
+
+
+def search_index_in_parameter_file(df:pd.DataFrame,
+                                   protein:str,
+                                   reaction:str,
+                                   direction:str) -> pd.Index:
+    """
+    Get the index of an enzyme-reaction-direction relationship in a dataframe containing information of on the parameters
+    """
+    all_protein_rows = df[df.enzyme_id == protein]
+    all_rxn_and_protein_rows = all_protein_rows[all_protein_rows.rxn_id == reaction]
+    the_row = all_rxn_and_protein_rows[all_rxn_and_protein_rows.direction == direction]
+    return the_row.index
+
+def create_new_aes_parameter_file(old_param_file:str,
+                                  diagnostics_file_path:str,
+                                  new_aes_file: str,
+                                  diagnostics_sheet_name: str = 'Best_Individuals') -> None:
+    """
+    Updates the 'ActiveEnzymes' sheet in a parameter file with new kcat values
+    based on the results from the PAMparametrizer and saves the modified file.
+
+    This function reads an existing parameter file and updates the kcat values
+    in the 'ActiveEnzymes' sheet based on the best parameterization results
+    from a diagnostics file. The updated file is then saved to a new location, as defined in the new_aes_file.
+
+    Args:
+        old_param_file (str): Path to the existing parameter file (Excel format).
+        diagnostics_file_path (str): Path to the diagnostics file containing
+            the best kcat parameterizations (Excel format).
+        new_aes_file (str): Path where the updated parameter file will be saved.
+        diagnostics_sheet_name (str): name of the sheet where the information on the new parameters is stored.
+            Implemented to enable easy testing.
+
+    Returns:
+        None: The function writes the updated parameter file to the specified location.
+
+    Raises:
+        FileNotFoundError: If `old_param_file` or `diagnostics_file_path` do not exist.
+    """
+
+    # Check if input files exist
+    if not os.path.isfile(old_param_file):
+        raise FileNotFoundError(f"Parameter file not found: {old_param_file}")
+    if not os.path.isfile(diagnostics_file_path):
+        raise FileNotFoundError(f"Diagnostics file not found: {diagnostics_file_path}")
+
+    parameter_files = pd.read_excel(old_param_file, sheet_name=None)
+    aes_parameter_file = parameter_files['ActiveEnzymes']
+
+    parametrization_results = pd.read_excel(
+        diagnostics_file_path, sheet_name=diagnostics_sheet_name).drop_duplicates(
+        ['rxn_id', 'direction', 'enzyme_id'], keep='last') #the last one refers to the last modification of the kcat value
+
+    # extract reaction id from catalytic event id
+    parametrization_results['rxn_id'] = [_extract_reaction_id_from_catalytic_reaction_id(rid) for rid in
+                                         parametrization_results['rxn_id']]
+
+    for index, row in parametrization_results.iterrows():
+        aes_index = search_index_in_parameter_file(aes_parameter_file, row.enzyme_id, row.rxn_id, row.direction)
+        aes_parameter_file.loc[aes_index, 'kcat_values'] = row['kcat[s-1]']
+
+    write_mode = 'w'
+    kwargs = {}
+
+    #make sure the file is either replaced or created
+    if os.path.isfile(new_aes_file):
+        write_mode = 'a'
+        kwargs = {'if_sheet_exists': 'replace'}
+
+    with pd.ExcelWriter(new_aes_file,
+            mode=write_mode, engine='openpyxl', **kwargs) as writer:
+        aes_parameter_file.to_excel(writer, sheet_name='ActiveEnzymes', index=False)
+        for sheet, df in parameter_files.items():
+            if sheet != 'ActiveEnzymes':
+                df.to_excel(writer, sheet_name = sheet, index=False)
