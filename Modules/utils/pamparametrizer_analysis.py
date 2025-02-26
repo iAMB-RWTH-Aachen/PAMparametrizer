@@ -3,7 +3,7 @@ import numpy as np
 import cobra
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Iterable, Union, Literal, Dict, List
+from typing import Iterable, Union, Literal, Dict, List, Tuple, Callable
 from scipy.stats import entropy
 from scipy.cluster.hierarchy import fcluster
 from sklearn.decomposition import PCA
@@ -12,6 +12,23 @@ import PAModelpy
 from PAModelpy import PAModel
 
 from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
+
+#######
+#SETUP METHODS
+#######
+
+def set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: Callable,
+                                                           parametrizer_kwargs:Dict[str, Union] = {'max_substrate_uptake_rate': -0.1},
+                                                           substrate_uptake_id: str = 'EX_glc__D_e') -> Tuple:
+    parametrizer = set_up_parametrizer(**parametrizer_kwargs)
+    parametrizer._init_results_objects()
+    substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,
+                                                        parametrizer.max_substrate_uptake_rate])[substrate_uptake_id]
+    substrate_rates = sorted(substrate_rates)
+    return parametrizer, substrate_rates
+
+
+
 
 #######
 #SIMULATION TOOLS
