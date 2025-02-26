@@ -18,7 +18,7 @@ from Modules.utils.sector_config_functions import change_translational_sector_wi
 #######
 
 def set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: Callable,
-                                                           parametrizer_kwargs:Dict[str, Union] = {'max_substrate_uptake_rate': -0.1},
+                                                           parametrizer_kwargs:Dict = {'max_substrate_uptake_rate': -0.1},
                                                            substrate_uptake_id: str = 'EX_glc__D_e') -> Tuple:
     parametrizer = set_up_parametrizer(**parametrizer_kwargs)
     parametrizer._init_results_objects()

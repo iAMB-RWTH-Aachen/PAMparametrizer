@@ -43,7 +43,7 @@ def plot_simulation(fig, axs,
     fig.canvas.flush_events()
     return fig, axs
 
-def plot_valid_data(parametrizer, fontsize:int = 12, core = False):
+def plot_valid_data(parametrizer, fontsize:int = 12):
     RXN_NAME_MAPPER[parametrizer.pamodel.BIOMASS_REACTION] = 'Growth rate [$h^{-1}$]'
 
     # plot flux changes with glucose uptake
