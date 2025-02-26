@@ -8,8 +8,9 @@ from PAModelpy.utils.pam_generation import set_up_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
 from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
 
-from Scripts.i3_analysis.PAMparametrizer_progress_cleaned_figure import plot_valid_data, plot_simulation
 from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
+from Modules.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
+from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation
 
 
 
@@ -108,12 +109,13 @@ def visualize_progress_plot(alternative_param_files:list[str],
     plt.savefig(fig_file_path)
     plt.close(fig)
 
-def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: Callable) -> Tuple:
-    parametrizer = set_up_pamparametrizer(-12, -0.1, kcat_increase_factor=3)
-    parametrizer._init_results_objects()
-    substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,
-                                                        parametrizer.max_substrate_uptake_rate])['EX_glc__D_e']
-    substrate_rates = sorted(substrate_rates)
+def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
+    kwargs = {'min_substrate_uptake_rate':-12,
+              'max_substrate_uptake_rate': -0.1,
+              'kcat_increase_factor': 3}
+    return set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_pamparametrizer,
+                                                           kwargs)
+
     return parametrizer, substrate_rates
 
 def main_ecoli():
