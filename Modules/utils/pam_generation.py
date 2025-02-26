@@ -1,10 +1,15 @@
 import pandas as pd
-from typing import Tuple, Literal
 import re
 import os
+from typing import Union, Tuple, Literal
+from cobra.io.sbml import read_sbml_model
 
+# load PAMpy modules
 from PAModelpy import PAModel
 from PAModelpy.utils.pam_generation import set_up_pam, parse_reaction2protein, _order_enzyme_complex_id
+from PAModelpy.EnzymeSectors import ActiveEnzymeSector, UnusedEnzymeSector, TransEnzymeSector, CustomSector
+from PAModelpy.configuration import Config
+
 
 DEFAULT_MOLMASS = 39959.4825 #kDa
 DEFAULT_KCAT = 11 #s-1
@@ -171,3 +176,87 @@ def create_new_aes_parameter_file(old_param_file:str,
         for sheet, df in parameter_files.items():
             if sheet != 'ActiveEnzymes':
                 df.to_excel(writer, sheet_name = sheet, index=False)
+
+
+
+def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
+                     model:str = 'Models/yeast9.xml', config:Config = None,
+                     total_protein: Union[bool, float] = 0.28697423725932236, active_enzymes: bool = True,
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True) -> PAModel:
+    if config is None:
+        config = set_up_yeast_config()
+    yeast_pam = set_up_pam(pam_info_file, model, config,
+                     total_protein, active_enzymes, translational_enzymes,
+                     unused_enzymes, sensitivity = sensitivity)
+    if total_protein:
+        #the data we used to calibrate the model includes also housekeeping proteins in the UP section. Thus we
+        #can assume include this section in the total protein constraint (no correction needed)
+        protein_growth_relation = CustomSector(
+            id_list= ['r_2111'], #biomass formation
+            name='total_protein_growth_relation',
+            cps_0=[0],
+            cps_s=[-0.45431074007034344],
+            mol_mass=1e6
+        )
+        yeast_pam.add_sector(protein_growth_relation)
+    return yeast_pam
+
+
+def set_up_yeast_config():
+    config = Config()
+    config.TOTAL_PROTEIN_CONSTRAINT_ID = "TotalProteinConstraint"
+    config.P_TOT_DEFAULT = 0.388  # g_protein/g_cdw
+    config.CO2_EXHANGE_RXNID = "r_1672"
+    config.GLUCOSE_EXCHANGE_RXNID = "r_1714"
+    config.BIOMASS_REACTION = "r_2111"
+    config.OXYGEN_UPTAKE_RXNID = "r_1992"
+    config.ACETATE_EXCRETION_RXNID = "r_1634"
+    config.PHYS_RXN_IDS = [
+    config.BIOMASS_REACTION,
+    config.GLUCOSE_EXCHANGE_RXNID,
+    config.ACETATE_EXCRETION_RXNID,
+    config.CO2_EXHANGE_RXNID,
+    config.OXYGEN_UPTAKE_RXNID]
+    config.ENZYME_ID_REGEX = r'(Y[A-P][LR][0-9]{3}[CW])'
+    return config
+
+def setup_pputida_pam(pam_info_file:str= os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250117.xlsx'),
+                     model:str = 'Models/iJN1463.xml',
+                     total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+    config = Config()
+    config.reset()
+    config.BIOMASS_REACTION = 'BIOMASS_KT2440_WT3'
+    #make sure default enzyme ids for locus tags without enzyme name are parsed correctly
+    config.ENZYME_ID_REGEX += r'|Enzyme_*|Enzyme_PP_[0-9]+'
+    pputida_pam = set_up_pam(pam_info_file, model, config,
+                     total_protein, active_enzymes, translational_enzymes,
+                     unused_enzymes, sensitivity = sensitivity)
+    return pputida_pam
+
+
+def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
+                                             'Results', '1_preprocessing',
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250214.xlsx'),
+                     model:str = 'Models/iCGB21FR_annotated_copyable.xml',
+                     total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
+                    translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):
+    config = Config()
+    config.reset()
+    config.BIOMASS_REACTION = 'Growth'
+
+    model = read_sbml_model(model)
+    #change medium to CGXII by removing 3,4-Dihydroxybenzoate
+    model.reactions.get_by_id('EX_34dhbz_e').lower_bound = 0
+
+    cglutanicum_pam = set_up_pam(pam_info_file,
+                                 model = model,
+                                 config = config,
+                                 total_protein = total_protein,
+                                 active_enzymes = active_enzymes,
+                                 translational_enzymes = translational_enzymes,
+                                 unused_enzymes = unused_enzymes,
+                                 sensitivity = sensitivity)
+    return cglutanicum_pam
