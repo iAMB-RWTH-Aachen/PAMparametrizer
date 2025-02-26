@@ -15,7 +15,10 @@ from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationRe
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
 from Modules.utils.sampling_functions import adaptive_sampling
-from Modules.utils.sector_config_functions import get_model_simulations_vs_sector, perform_linear_regression, change_translational_sector_with_config_dict
+from Modules.utils.pam_generation import _extract_reaction_id_from_catalytic_reaction_id
+from Modules.utils.sector_config_functions import (get_model_simulations_vs_sector,
+                                                   perform_linear_regression,
+                                                   change_translational_sector_with_config_dict)
 
 
 class PAMParametrizer():
@@ -1030,7 +1033,9 @@ class PAMParametrizer():
                 rxn_id = f"CE_{rxn_id}_{enzyme_id}"
             # sometimes the catalytic event without a relation to the enzyme id is given. Need to connect it to the right catalytic reaction
             elif rxn_id not in self._pamodel.reactions:
-                rxn_id = f"{rxn_id}_{enzyme_id}"
+                #need to make sure part of the enzyme id is not association with the catalytic reaction ids (sometimes happens for enzyme complexes)
+                rxn_id = _extract_reaction_id_from_catalytic_reaction_id(rxn_id)
+                rxn_id = f"CE_{rxn_id}_{enzyme_id}"
 
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
