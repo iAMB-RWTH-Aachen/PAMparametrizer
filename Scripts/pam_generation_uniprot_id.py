@@ -204,6 +204,8 @@ def setup_pputida_pam(pam_info_file:str= os.path.join(
     config = Config()
     config.reset()
     config.BIOMASS_REACTION = 'BIOMASS_KT2440_WT3'
+    #make sure default enzyme ids for locus tags without enzyme name are parsed correctly
+    config.ENZYME_ID_REGEX +=r'|Enzyme_*|Enzyme_PP_[0-9]+'
     pputida_pam = set_up_pam(pam_info_file, model, config,
                      total_protein, active_enzymes, translational_enzymes,
                      unused_enzymes, sensitivity = sensitivity)
@@ -221,6 +223,9 @@ def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
     config.BIOMASS_REACTION = 'Growth'
 
     model = read_sbml_model(model)
+    #change medium to CGXII by removing 3,4-Dihydroxybenzoate
+    model.reactions.get_by_id('EX_34dhbz_e').lower_bound = 0
+
     cglutanicum_pam = set_up_pam(pam_info_file,
                                  model = model,
                                  config = config,
