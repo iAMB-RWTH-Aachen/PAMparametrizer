@@ -825,7 +825,9 @@ class PAMParametrizer():
 
     def _get_validation_data_to_validate(self, valid_data:ValidationData) -> pd.DataFrame:
         if valid_data.sampled_valid_data is not None:
-            columns_to_sample = valid_data._reactions_to_validate + [valid_data.id + "_ub"]
+            columns_to_sample = ([rxn for rxn in valid_data._reactions_to_validate
+                                 if rxn in valid_data.sampled_valid_data]  #need to make sure there is data available
+                                 + [valid_data.id + "_ub"]) #also check the predicted substrate uptake rate
             return valid_data.sampled_valid_data[columns_to_sample]
 
     def _init_validation_df(self, bin_information:list = None, substrate_uptake_ids: list = None) -> dict:
