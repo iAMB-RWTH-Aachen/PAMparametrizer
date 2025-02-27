@@ -24,6 +24,7 @@ def set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: 
     parametrizer._init_results_objects()
     substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,
                                                         parametrizer.max_substrate_uptake_rate])[substrate_uptake_id]
+    substrate_rates = list(set(substrate_rates)) #make sure there are no duplicates
     substrate_rates = sorted(substrate_rates)
     return parametrizer, substrate_rates
 
