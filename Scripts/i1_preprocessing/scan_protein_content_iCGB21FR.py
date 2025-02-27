@@ -12,7 +12,9 @@ from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_si
 FIGWIDTH = 12
 FIGHEIGHT = 12
 FONTSIZE = 20
-F_ACTIVE_PROTEINS = 0.5
+F_ACTIVE_PROTEINS = 0.5#g_p/g_CDW
+MAX_GROWTH_ALE = 0.94#1/h; EVO5 strain from Graf et al 2019, growth rate obtained from Matamouros et al (2023)
+UNUSED_PROTEIN_INTERCEPT = 0.37 #g_unusedprotein/g_protein; 37% (Bruggeman et al (2020)) of all the proteins which can be measured in E.coli
 
 def main():
     DATA_FILE_PATH = os.path.join('Data', 'Cglutanicum_phenotypes',
@@ -40,6 +42,8 @@ def main():
                                iteration=0, color='black', label = 'original')
 
     for i, total_protein in enumerate(total_protein_range):
+        metabolic_protein_fraction = total_protein*F_ACTIVE_PROTEINS
+
         #translational_sector
         slope, intercept = perform_linear_regression(x=df_proteomics['growth_rate'][df_proteomics['growth_rate'] < 0.4],
                                                      y=df_proteomics['ribosomal_protein_fraction'][
@@ -48,11 +52,24 @@ def main():
 
         parametrizer.pamodel_no_sensitivity.change_sector_parameters(trans_sector, slope,
                                          intercept , lin_rxn_id='Growth')
-        parametrizer.pamodel_no_sensitivity.change_total_protein_constraint(total_protein*F_ACTIVE_PROTEINS)
+        #unused enzymes sector
+        trans_sector = parametrizer.pamodel_no_sensitivity.sectors.get_by_id('UnusedEnzymeSector')
+        parametrizer.pamodel_no_sensitivity.change_sector_parameters(
+            trans_sector,
+            slope=UNUSED_PROTEIN_INTERCEPT * metabolic_protein_fraction / MAX_GROWTH_ALE,
+            intercept=UNUSED_PROTEIN_INTERCEPT * metabolic_protein_fraction,
+            lin_rxn_id='Growth'
+        )
 
+        #total protein
+        parametrizer.pamodel_no_sensitivity.change_total_protein_constraint(metabolic_protein_fraction)
+
+        #run simulations
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                          substrate_rates=substrate_rates,
                                                          sensitivity=False)
+
+        #visualize
         fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                    parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                    iteration=i, max_iteration=len(total_protein_range), label = round(total_protein,2))
