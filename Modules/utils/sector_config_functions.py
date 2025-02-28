@@ -172,7 +172,7 @@ def plot_unused_protein_vs_mu(results, biomass_rxn):
 def change_translational_sector_with_config_dict(pamodel:PAModel,
                                                  transl_sector_config:dict,
                                                  substrate_uptake_id:str) -> None:
-    pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
+    # pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
 
     pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),
                                               slope=transl_sector_config['slope'],
