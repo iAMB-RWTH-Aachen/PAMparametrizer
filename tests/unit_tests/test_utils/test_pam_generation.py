@@ -1,7 +1,9 @@
 import os
-from Modules.utils.pam_generation import create_new_aes_parameter_file, _extract_reaction_id_from_catalytic_reaction_id
-import tempfile
 import pandas as pd
+import tempfile
+import pytest
+from Modules.utils.pam_generation import (create_new_aes_parameter_file,
+                                          _extract_reaction_id_from_catalytic_reaction_id)
 
 
 def test_if_create_aes_parameter_file_generates_file():
@@ -40,6 +42,19 @@ def test_if_creat_aes_parameter_file_corectly_sets_up_file():
 
     #cleanup temporary files
     temp_dir.cleanup()
+
+@pytest.mark.parametrize('input_rxn, expected_output', [
+    ('PEAMNO2pp', 'PEAMNO2pp' ),
+    ('CE_PEAMNO2pp_Enzyme_PP_3462_P0A181_Q88H99_Q88HA1', 'PEAMNO2pp'),
+    ('CE_PEAMNO2pp', 'PEAMNO2pp')
+])
+def test_extract_reaction_id_from_catalytic_reaction_id_gives_right_output(input_rxn:str,
+                                                                           expected_output:str):
+    # Act
+    rxn_id = _extract_reaction_id_from_catalytic_reaction_id(input_rxn)
+
+    assert rxn_id == expected_output
+
 
 ########################################################################################################################
 # HELPER FUNCTIONS

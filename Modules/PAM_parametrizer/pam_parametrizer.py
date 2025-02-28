@@ -435,6 +435,8 @@ class PAMParametrizer():
             substrate_uptake_id = valid_data.id
             reactions_to_validate = valid_data._reactions_to_validate
             validation_df = self._get_validation_data_to_validate(valid_data)
+            print(valid_data.sampled_valid_data)
+            print(validation_df)
 
             error += [nanaverage(self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
                                                          validation_df=validation_df,
@@ -1028,16 +1030,8 @@ class PAMParametrizer():
             enzyme_dict = {}
             enzyme_dict["sensitivity"] = row["mean"]
             #create the connection to the catalytic reaction related to the enzyme
-            if (
-                    ("CE_" not in rxn_id)
-                    and (not rxn_id in self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat.keys())
-            ):
-                rxn_id = f"CE_{rxn_id}_{enzyme_id}"
-            # sometimes the catalytic event without a relation to the enzyme id is given. Need to connect it to the right catalytic reaction
-            elif rxn_id not in self._pamodel.reactions:
-                #need to make sure part of the enzyme id is not association with the catalytic reaction ids (sometimes happens for enzyme complexes)
-                rxn_id = _extract_reaction_id_from_catalytic_reaction_id(rxn_id)
-                rxn_id = f"CE_{rxn_id}_{enzyme_id}"
+            rxn_id = _extract_reaction_id_from_catalytic_reaction_id(rxn_id) #make sure the actual reaction id is used
+            rxn_id = f"CE_{rxn_id}_{enzyme_id}"
 
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
@@ -1274,7 +1268,6 @@ class PAMParametrizer():
                 if save_fluxes_esc and sensitivity: self.save_pamodel_simulation_results(substrate_uptake_rate=substrate,
                                                                          substrate_uptake_reaction=substrate_uptake_id,
                                                                          bin_id= "no bins")
-
 
             # reset substrate_uptake_rate
             if substrate<0:
