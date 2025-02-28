@@ -18,7 +18,7 @@ def perform_simulation_experiments(model: PAModel,
     fluxes_to_save = set()
     for vd in validation_data_list:
         substrate_ids += [vd.id]
-        fluxes_to_save.update(vd.valid_data.columns)
+        fluxes_to_save.update([col for col in vd.valid_data.columns if 'ub' not in col])
         substrate_rates.append(list(vd.valid_data[vd.id+'_ub']))
 
     return get_results_from_simulations(model,
@@ -53,7 +53,8 @@ def plot_growth_rate_vs_experiments(simulation_results: pd.DataFrame,
     return axs
 
 
-def plot_simulations_vs_experiments(simulation_results: pd.DataFrame, validation_data: DictList,
+def plot_simulations_vs_experiments(simulation_results: pd.DataFrame,
+                                    validation_data: DictList,
                                     axs: plt.Axes = None, fontsize:int = 16):
     if axs is None:
         fig, axs = plt.subplot()
@@ -68,8 +69,8 @@ def plot_simulations_vs_experiments(simulation_results: pd.DataFrame, validation
         if len(results) == 0:
             continue
         validation = vd.valid_data.sort_values([vd.id+'_ub'])
-        for rxn in results.columns[2:]:
-            if rxn in validation.columns and rxn in results.columns:
+        for rxn in validation.columns:
+            if rxn in results.columns and '_ub' not in rxn:
                 axs.scatter(validation[rxn].abs(), results[rxn].abs(), color = cmap[vd.id], label=vd.id)
 
     axs.set_xlabel('simulated fluxes (mmol/gCDW/h)', fontsize = fontsize)
@@ -79,28 +80,32 @@ def plot_simulations_vs_experiments(simulation_results: pd.DataFrame, validation
 
 if __name__ == '__main__':
     RESULT_FIGURE_FILE_PATH = os.path.join('Results', '3_analysis', 'flux_comparison_iJN1463.png')
-    NUM_MODELS = 3
+    NUM_MODELS = 1
     DIAGNOSTIC_FILES = [os.path.join(
-        'Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_iJN1463_nettglc_{i}.xlsx')
+        'Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_iJN1463_{i}.xlsx')
         for i in range(1, NUM_MODELS+1)
     ]
     fig, axs = plt.subplots(ncols=2,nrows=NUM_MODELS+1,figsize = [7,10])
 
     fontsize = 15
-
-    pam = setup_pputida_pam(sensitivity = False)
+    pam_info_file = os.path.join(
+        'Results', '1_preprocessing','proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx')
+    pam = setup_pputida_pam(pam_info_file,
+        sensitivity = False)
     pam.change_reaction_bounds('EX_glc__D_e', 0,1e3)
-    validation_data = set_up_validation_data()
+    validation_data = set_up_validation_data(pam_info_file = pam_info_file)
     for i, file in enumerate(DIAGNOSTIC_FILES):
         new_pam = create_pamodel_from_diagnostics_file(file, pam.copy(copy_with_pickle=True))
         translational_sector = pd.read_excel(file, sheet_name='translational_sector').set_index('substrate_uptake_id').T.to_dict()
         simulation_results = perform_simulation_experiments(pam, validation_data, translational_sector)
-        plot_growth_rate_vs_experiments(simulation_results, validation_data,axs[i,0], model = i+1, fontsize = fontsize)
-        plot_simulations_vs_experiments(simulation_results, validation_data, axs[i,1],fontsize = fontsize)
+        plot_growth_rate_vs_experiments(simulation_results, validation_data, axs[i,0],
+                                        model = i+1, fontsize = fontsize)
+        plot_simulations_vs_experiments(simulation_results, validation_data, axs[i,1],
+                                        fontsize = fontsize)
 
 
     pam = setup_pputida_pam(os.path.join(
-        'Results', '1_preprocessing','proteinAllocationModel_iJN1463_EnzymaticData_250117.xlsx'),
+        'Results', '1_preprocessing','proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx'),
         sensitivity = False
     )
     simulation_results = perform_simulation_experiments(pam, validation_data, translational_sector)
