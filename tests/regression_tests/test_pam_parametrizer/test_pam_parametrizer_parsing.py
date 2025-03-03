@@ -6,6 +6,7 @@ from typing import List
 
 from cobra import Reaction
 from PAModelpy.utils.pam_generation import parse_reaction2protein
+from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer
 from tests.pam_parametrizer_mock import PAMParametrizerMock
 
 @pytest.mark.parametrize('sheet_name, rxns2test', [
@@ -39,3 +40,20 @@ def test_enzymes_to_evaluate_are_parsed_correctly(sheet_name:str, rxns2test: Lis
         rxn_in_e2evaluate += [any([any([rxn in rdict['reaction'] for rdict in edict])
                                    for edict in enzymes_to_evaluate.values()])]
     assert all(rxn_in_e2evaluate)
+
+def test_iJN1463_parametrization_when_error_is_converging():
+    # Arrange
+    sut = set_up_pamparametrizer(-10,-9)
+    sut.hyperparameters.number_of_kcats_to_mutate = len(sut._pamodel.enzymes)
+    #use dummy ESC results
+
+    esc_results_df = pd.read_excel(os.path.join('tests', 'data','mock_enzyme_sensitivities.xlsx'),
+                                   sheet_name='pseudomonasids')
+
+    # Act
+    enzymes_to_evaluate = sut._determine_enzymes_to_evaluate_for_all_bins(
+        esc_results_df,
+        nmbr_kcats_to_pick=sut.hyperparameters.number_of_kcats_to_mutate)
+
+    # Assert
+    assert len(enzymes_to_evaluate) == len(sut._pamodel.enzymes)

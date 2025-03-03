@@ -1,12 +1,11 @@
 import pandas as pd
-import os
 
 import pytest
 from Scripts.i2_parametrization.pam_parametrizer_toy_model import set_up_pamparametrizer
 from Scripts.pam_generation import setup_toy_pam
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import (evaluate_toy_model_fitness,
                                                                                     get_toy_model_simulations_other_csource)
-from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
+from tests.pam_parametrizer_mock import PAMParametrizerMock
 from tests.unit_tests.test_pam_parametrizer.test_pam_parametrizer import save_simulated_fluxes_in_pamparametrizer_for_different_carbon_sources
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import GeneticAlgorithmMock
 

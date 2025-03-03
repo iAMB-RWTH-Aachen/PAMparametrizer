@@ -3,7 +3,6 @@ import time
 import PAModelpy.PAModel
 import pandas as pd
 import numpy as np
-from sklearn.metrics import silhouette_score
 import os
 from typing import Callable
 
@@ -13,7 +12,7 @@ from Modules.utils import calculate_r_squared_for_reaction
 from Scripts.pam_generation import setup_toy_pam
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import (evaluate_toy_model_fitness,
                                                                                     get_toy_model_simulations_other_csource)
-from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
+from tests.pam_parametrizer_mock import PAMParametrizerMock
 
 
 

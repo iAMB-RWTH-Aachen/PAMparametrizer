@@ -1,5 +1,5 @@
 import os
-from tests.unit_tests.test_pam_parametrizer.pam_parametrizer_mock import PAMParametrizerMock
+from tests.pam_parametrizer_mock import PAMParametrizerMock
 
 
 def test_pam_parametrizer_plots_validation_data():
