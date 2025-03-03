@@ -38,7 +38,7 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 class GAPO():
     
     def __init__(self, model=None,
-                 enzymes_to_eval: dict = {},  #dict of enz.id:{reaction, kcat, sensitivity}
+                 enzymes_to_eval: dict = {},  #dict of enz.id:[{reaction, kcat, sensitivity}]
                  translational_sector_config: dict = None, # dict of substrate_uptake_id: {slope, intercept} of configuration of translational sector
                  fitness_class = "Fitfun_params_uniform",
                  mutation_probability=0.5, mutation_rate=0.05, population_size=30,
@@ -67,13 +67,14 @@ class GAPO():
         self.directions = list()
         self.sensitivity_list = list()
         self.enzymes_to_eval = list()
-        for enzyme_id, values in enzymes_to_eval.items():
-            for direction, kcat in values['kcats'].items():
-                self.kcat_list += [kcat]
-                self.directions += [direction]
-                self.enzymes_to_eval += [enzyme_id]
-                self.rxns += [values['reaction']]
-                self.sensitivity_list += [values['sensitivity']]
+        for enzyme_id, rxninfo in enzymes_to_eval.items():
+            for values in rxninfo:
+                for direction, kcat in values['kcats'].items():
+                    self.kcat_list += [kcat]
+                    self.directions += [direction]
+                    self.enzymes_to_eval += [enzyme_id]
+                    self.rxns += [values['reaction']]
+                    self.sensitivity_list += [values['sensitivity']]
 
 
         # Specify GA parameters

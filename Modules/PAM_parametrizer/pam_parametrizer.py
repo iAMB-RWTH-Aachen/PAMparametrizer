@@ -10,6 +10,8 @@ from PAModelpy.PAModel import PAModel
 import pandas as pd
 import re
 from cobra import DictList
+from collections import defaultdict
+from typing import List, Dict, Literal
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
@@ -763,7 +765,12 @@ class PAMParametrizer():
 
 
     def _init_genetic_algorithm(self, substrate_uptake_rates: dict,
-                                enzymes_to_evaluate: dict,
+                                enzymes_to_evaluate: Dict[str,
+                                List[
+                                    Dict[Literal['reaction', 'kcats', 'sensitivity'],
+                                    Union[str, dict,float]
+                                    ]
+                                ]],
                                 translational_sector_config: dict,
                                 filename_extension:str) -> GAPOGauss:
         """
@@ -782,11 +789,11 @@ class PAMParametrizer():
             enzymes_to_evaluate (dict): Dictionary with required information about which enzyme parameters should be optimized.
                 Format:
                 {
-                    'enzyme_id': {
+                    'enzyme_id': [{
                         'reaction': 'reaction_id',
                         'kcats': {'f':kcat_value_forward, 'b':kcat_value_reverse},
                         'sensitivity': esc_value
-                    }
+                    }]
                 }
             translational_sector_config (dict of dict): Dictionary with the slope and intercept of the translational
                 sector configuration for each substrate.
@@ -1023,7 +1030,7 @@ class PAMParametrizer():
                     }
                 }
         """
-        enzymes_to_evaluate = {}
+        enzymes_to_evaluate = defaultdict(list)
         for index, row in esc_topn_df.iterrows():
             enzyme_id = row["enzyme_id"]
             rxn_id = row["rxn_id"]
@@ -1034,10 +1041,11 @@ class PAMParametrizer():
             rxn_id = f"CE_{rxn_id}_{enzyme_id}"
 
             enzyme_dict["reaction"] = rxn_id
+            print(rxn_id, enzyme_id, self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat)
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
             enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
-            enzymes_to_evaluate[enzyme_id] = enzyme_dict
-        return enzymes_to_evaluate
+            enzymes_to_evaluate[enzyme_id].append(enzyme_dict)
+        return dict(enzymes_to_evaluate)
 
     def _get_genetic_algorithm_json_files(self, subset:str = ""):
         filename_base = self.hyperparameters.genetic_algorithm_filename_base
