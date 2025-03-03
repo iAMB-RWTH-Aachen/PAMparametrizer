@@ -19,7 +19,9 @@ def setup_ecolicore_pam(total_protein:bool = True,
                          unused_enzymes:bool = True,
                          sensitivity:bool =True):
     # Setting the relative paths
-    PAM_DATA_FILE_PATH = os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx')
+    PAM_DATA_FILE_PATH = os.path.join('Results',
+                                      '1_preprocessing',
+                                      'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
 
     config = Config()
     config.reset()
@@ -84,7 +86,9 @@ def setup_ecolicore_pam(total_protein:bool = True,
                        unused_sector=unused_enzyme_sector, configuration=config)
     return pa_model
 
-def set_up_ecoli_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_iML1515_EnzymaticData_240730.xlsx'),
+def set_up_ecoli_pam(pam_info_file:str= os.path.join('Results',
+                                      '1_preprocessing',
+                                      'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx'),
                      model:str = 'iML1515.xml', config:Config = None,
                      total_protein: Union[bool, float] = True, active_enzymes: bool = True,
                      translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True,
