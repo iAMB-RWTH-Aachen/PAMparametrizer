@@ -12,7 +12,7 @@ from PAModelpy.configuration import Config
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import setup_pputida_pam
+from Modules.utils.pam_generation import setup_pputida_pam
 from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
 
 
@@ -68,12 +68,14 @@ def set_up_validation_data(csources: List[str] = None,
             fluxomics_data = fluxomics_csources[c_uptake_id].drop('Reference', axis=1)
             if c_uptake_id in exchanges.columns:
                 valid_data_df = pd.concat([fluxomics_data, valid_data_df])
+
             else:
                 valid_data_df = fluxomics_data
         if (c_uptake_id not in fluxomics_csources.keys()) and (c_uptake_id not in exchanges.columns):
             print('There are no exchange rates available for', substrate)
             continue
         valid_data_df[c_uptake_id + '_ub'] = valid_data_df[c_uptake_id]
+
 
         validation_data = ValidationData(valid_data_df, c_uptake_id, [valid_data_df[c_uptake_id].min()-1, -0.1])
         #validate only exchange rates and growth rate
@@ -192,7 +194,7 @@ if __name__ == "__main__":
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                 'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx')
+                                 'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
     # set_up_validation_data(pam_info_file=pam_info_file)

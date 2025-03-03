@@ -6,7 +6,7 @@ from cobra import DictList
 from PAModelpy import PAModel
 
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_validation_data
-from Scripts.pam_generation_uniprot_id import setup_pputida_pam
+from Modules.utils.pam_generation import setup_pputida_pam
 from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
 from Modules.utils.pamparametrizer_analysis import get_results_from_simulations
 
