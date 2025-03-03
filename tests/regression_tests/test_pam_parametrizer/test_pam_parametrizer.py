@@ -15,6 +15,7 @@ from tests.pam_parametrizer_mock import PAMParametrizerMock
 def test_enzymes_to_evaluate_are_parsed_correctly(sheet_name:str, rxns2test: List[str]):
     # Arrange
     sut = PAMParametrizerMock()
+    #make sure the information to test is associated with the toy model
     gpr_relations_to_add = pd.read_excel(os.path.join('tests', 'data','mock_enzyme_sensitivities.xlsx'),
                                    sheet_name=sheet_name+'_gpr')
     sut._pamodel.add_reactions([Reaction(rid) for rid in gpr_relations_to_add.rxn_id.drop_duplicates()])
@@ -22,11 +23,13 @@ def test_enzymes_to_evaluate_are_parsed_correctly(sheet_name:str, rxns2test: Lis
                                                       model =sut._pamodel)
     sut._pamodel.add_rxn2protein_to_active_enzymes(rxn2protein, protein2gpr, verbose=True)
 
+    # get dummy enzyme sensitivities
     esc_results_df = pd.read_excel(os.path.join('tests', 'data','mock_enzyme_sensitivities.xlsx'),
                                    sheet_name=sheet_name)
 
     # Act
-    esc_topn_df = sut._select_topn_enzymes(esc_results_df,nmbr_kcats_to_pick=len(esc_results_df))
+    esc_topn_df = sut._select_topn_enzymes(esc_results_df,
+                                           nmbr_kcats_to_pick=len(esc_results_df))
     enzymes_to_evaluate = sut._parse_enzymes_to_evaluate(esc_topn_df)
 
     # Assert
