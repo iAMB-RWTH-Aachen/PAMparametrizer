@@ -28,7 +28,6 @@ def test_enzymes_to_evaluate_are_parsed_correctly(sheet_name:str, rxns2test: Lis
     # Act
     esc_topn_df = sut._select_topn_enzymes(esc_results_df,nmbr_kcats_to_pick=len(esc_results_df))
     enzymes_to_evaluate = sut._parse_enzymes_to_evaluate(esc_topn_df)
-    print(enzymes_to_evaluate)
 
     # Assert
     rxn_in_e2evaluate = []
