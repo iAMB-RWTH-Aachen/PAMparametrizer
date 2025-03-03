@@ -24,7 +24,7 @@ config.reset()
 def set_up_validation_data(csources: List[str] = None,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx')
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx')
                            ) -> list[ValidationData]:
 
     condition2uptake = {'Glycerol': 'EX_glyc_e', 'Glucose': 'EX_glc__D_e',
@@ -133,7 +133,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate):
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx'),
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
@@ -175,7 +175,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250214.xlsx')
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx')
                          ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
