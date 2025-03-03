@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 from Modules.utils.sector_config_functions import run_simulations
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam
+from Modules.utils.pam_generation import set_up_ecoli_pam
 
 def test_if_sector_config_run_simulations_gives_same_results_as_running_simulations():
     # Arrange

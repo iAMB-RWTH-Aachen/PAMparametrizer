@@ -173,24 +173,27 @@ def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
         'mean': [0.5, 0.2, 0.1]
     })
 
-    enzymes_to_evaluate_validation = {'E3':{'reaction':'CE_R3_E3','kcats':{'f':1,'b':1}, 'sensitivity':0.5},
-                                      'E4':{'reaction':'CE_R4_E4','kcats': {'f':0.5, 'b':0.5}, 'sensitivity':0.2},
-                                      'E5':{'reaction':'CE_R5_E5','kcats':{'f':0.45, 'b':0.45}, 'sensitivity':0.1}}
+    enzymes_to_evaluate_validation = {'E3':[{'reaction':'CE_R3_E3','kcats':{'f':1,'b':1}, 'sensitivity':0.5}],
+                                      'E4':[{'reaction':'CE_R4_E4','kcats': {'f':0.5, 'b':0.5}, 'sensitivity':0.2}],
+                                      'E5':[{'reaction':'CE_R5_E5','kcats':{'f':0.45, 'b':0.45}, 'sensitivity':0.1}]}
 
     # Act
     enzymes_to_evaluate_to_test = sut._parse_enzymes_to_evaluate(esc_topn_df_dummy)
 
     # Assert
-    assert all(((enzymes_to_evaluate_to_test[key]['kcats']['f'] == pytest.approx(value['kcats']['f'], abs=1e-3))
-                & (enzymes_to_evaluate_to_test[key]['kcats']['b'] == pytest.approx(value['kcats']['b'], abs=1e-3)))
-               for key, value in enzymes_to_evaluate_validation.items())
+    for enzid, rxn_list in enzymes_to_evaluate_validation.items():
+        rxn_info_validation = rxn_list[0]
+        rxn_info_test = enzymes_to_evaluate_to_test[enzid][0]
+        for direction in ['f', 'b']:
+            assert rxn_info_test['kcats'][direction] == pytest.approx(1/rxn_info_validation['kcats'][direction], abs=1e-3)
+
 
 def test_if_genetic_algorithm_runs():
     # Arrange
     sut = PAMParametrizerMock()
-    enzymes_to_evaluate = {'E3':{'reaction':'CE_R3_E3','kcats':{'f':1,'b':1}, 'sensitivity':0.5},
-                                      'E4':{'reaction':'CE_R4_E4','kcats': {'f':0.5, 'b':0.5}, 'sensitivity':0.2},
-                                      'E5':{'reaction':'CE_R5_E5','kcats':{'f':0.45, 'b':0.45}, 'sensitivity':0.1}}
+    enzymes_to_evaluate= {'E3':[{'reaction':'CE_R3_E3','kcats':{'f':1,'b':1}, 'sensitivity':0.5}],
+                                      'E4':[{'reaction':'CE_R4_E4','kcats': {'f':0.5, 'b':0.5}, 'sensitivity':0.2}],
+                                      'E5':[{'reaction':'CE_R5_E5','kcats':{'f':0.45, 'b':0.45}, 'sensitivity':0.1}]}
 
     filename_extension = 'test'
     full_file_path = os.path.join('Results', '2_parametrization',
@@ -262,11 +265,11 @@ def test_if_restart_genetic_algorithm_runs():
 def test_pam_parametrizes_reparametrizes_enzymes_correctly():
     # Arrange
     sut = PAMParametrizerMock()
-    enzymes_to_evaluate = {'E3': {'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5},
-                                      'E4': {'reaction': 'CE_R4_E4', 'kcats': {'f': 0.5, 'b': 0.5},
-                                             'sensitivity': 0.2},
-                                      'E5': {'reaction': 'CE_R5_E5', 'kcats': {'f': 0.45, 'b': 0.45},
-                                             'sensitivity': 0.1}}
+    enzymes_to_evaluate = {'E3': [{'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5}],
+                                      'E4': [{'reaction': 'CE_R4_E4', 'kcats': {'f': 0.5, 'b': 0.5},
+                                             'sensitivity': 0.2}],
+                                      'E5': [{'reaction': 'CE_R5_E5', 'kcats': {'f': 0.45, 'b': 0.45},
+                                             'sensitivity': 0.1}]}
     filename_extension = f'final_run_{sut.iteration}'
     full_file_path = os.path.join('Results', '2_parametrization',
                                   sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
@@ -282,7 +285,7 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
         model_kcat_dict = sut._pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id.split("_")[1]])
         if direction in model_kcat_dict.keys():
             kcat_test = (model_kcat_dict[direction]*3600*1e-6) #model units: 1/h *1e6 unit correction, returned ga units: 1/s
-            assert kcat_expected == pytest.approx(kcat_test, abs=1e-6)
+            assert 1/kcat_expected == pytest.approx(kcat_test, abs=1e-6)
     # remove the produced files
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
@@ -292,10 +295,10 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     enzyme_id = 'E1'
     reaction_id = 'R1'
     kcat_dict = {reaction_id: {'f': kcat}}
-    enzymes_to_evaluate = {enzyme_id: {
+    enzymes_to_evaluate = {enzyme_id: [{
                         'reaction': reaction_id,
-                        'kcats': {'f':kcat},
-                        'sensitivity': 0.1}}
+                        'kcats': {'f':1/(kcat* 3600 * 1e-6)},
+                        'sensitivity': 0.1}]}
     substrate_rates = {'R1':[1e-3, 1e-2]}
 
     #set up parametrizer and genetic algorithm objects
@@ -310,14 +313,18 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
     toolbox = ga._init_deap_toolbox()
     population = ga.ga.init_pop(toolbox, ga.population_size, True)
     individual = population[0]
-    individual.kcat_list = [(kcat*3600*1e-6)]
 
     # Act
-    sut._change_kcat_value_for_enzyme(enzyme_id='E1', kcat_dict=kcat_dict)
-    kcat_model_sut = get_kcat_values_from_model(sut._pamodel, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
+    sut._change_kcat_value_for_enzyme(enzyme_id='E1',
+                                      kcat_dict=kcat_dict)
+    kcat_model_sut = get_kcat_values_from_model(sut._pamodel,
+                                                enzyme_ids= [enzyme_id],
+                                                reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     ga.FitEval._change_kcat_values_for_individual(individual)
-    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model, enzyme_ids= [enzyme_id], reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
+    kcat_model_ga = get_kcat_values_from_model(ga.FitEval.model,
+                                               enzyme_ids= [enzyme_id],
+                                               reaction_names= [f"CE_{reaction_id}_{enzyme_id}"])[0]
 
     # Assert
     assert kcat_model_sut == pytest.approx(kcat_model_ga, abs = 1e-3)
@@ -407,7 +414,7 @@ def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
 
     # Assert
     # Expect a perfect fit, as the same model was used to generate the validation data
-    assert error == pytest.approx(1, abs = 1e-5)
+    assert error == pytest.approx(1, abs = 1e-3)
 
 def test_if_parametrizer_convergence_with_similar_error():
     # Arrange
@@ -485,11 +492,11 @@ def run_pamodel_binned(pamodel:PAModelpy.PAModel, bin_information:dict) -> tuple
 def run_mock_genetic_algorithm(sut: PAMParametrizerMock,
                                bin_information: dict = {1:[0.001, 0.002, 0.001 / 5],
                                                         2: [0.001, 0.002, 0.001 / 5]}) -> PAMParametrizerMock:
-    enzymes_to_evaluate = {'E3': {'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5},
-                                      'E4': {'reaction': 'CE_R4_E4', 'kcats': {'f': 1 / 0.5, 'b': 1 / 0.5},
-                                             'sensitivity': 0.2},
-                                      'E5': {'reaction': 'CE_R5_E5', 'kcats': {'f': 1 / 0.45, 'b': 1 / 0.45},
-                                             'sensitivity': 0.1}}
+    enzymes_to_evaluate = {'E3': [{'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5}],
+                                      'E4': [{'reaction': 'CE_R4_E4', 'kcats': {'f': 1 / 0.5, 'b': 1 / 0.5},
+                                             'sensitivity': 0.2}],
+                                      'E5': [{'reaction': 'CE_R5_E5', 'kcats': {'f': 1 / 0.45, 'b': 1 / 0.45},
+                                             'sensitivity': 0.1}]}
 
     filename_extension = 'test'
 

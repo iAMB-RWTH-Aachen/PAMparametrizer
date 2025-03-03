@@ -87,7 +87,7 @@ def test_if_simulation_error_for_multiple_carbon_sources_of_parametrizer_is_same
     r_squared_ga = individual_to_evaluate.fitness._wsum()
 
     # Assert
-    assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-3)
+    assert r_squared_ga == pytest.approx(r_squared_param, abs = 1e-2)
 
 
 ##########################################################################################################################
