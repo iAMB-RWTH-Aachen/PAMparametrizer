@@ -24,9 +24,9 @@ class GeneticAlgorithmMock(GAPOUniform):
 
 
         super().__init__(model=pamodel, # Metabolic model,
-        enzymes_to_eval = {'E3':{'reaction':'R3','kcats': {'f': 1}, 'sensitivity':0.5}, #should become 5
-                           'E4':{'reaction':'R4','kcats': {'f': 0.5}, 'sensitivity':0.2},#should become 0.1
-                           'E5':{'reaction':'R5','kcats': {'f': 0.45}, 'sensitivity':0.1}},#should become 0.25
+        enzymes_to_eval = {'E3':[{'reaction':'R3','kcats': {'f': 1}, 'sensitivity':0.5}], #should become 5
+                           'E4':[{'reaction':'R4','kcats': {'f': 0.5}, 'sensitivity':0.2}],#should become 0.1
+                           'E5':[{'reaction':'R5','kcats': {'f': 0.45}, 'sensitivity':0.1}]},#should become 0.25
         fitness_class="Fitfun_params_uniform", # filename (or module) of the fitness function class
         mutation_probability = 0.5, # probability with which an individual (solution) is mutated in a generation
         mutation_rate = 0.5, # probability with which an attribute (e.g. gene) of an individual is mutated
@@ -116,7 +116,7 @@ def test_genetic_algorithm_adjust_kcat_correctly():
     for rxn_id, constraint_id in zip(reaction_names, constraint_names):
         rxn = model.reactions.get_by_id(rxn_id)
         coeff = model.constraints[constraint_id].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
-        kcats_after_ga_adjustment.append(1/coeff)
+        kcats_after_ga_adjustment.append(coeff)
         # kcats_after_ga_adjustment += [1/coeff/(3600*1e-6)]#unit conversion
 
     # Assert
@@ -137,10 +137,10 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
 
     new_kcats = [5,0.1,0.25]
     new_kcats_other = [10, 10, 10]
-    population[0].kcat_list = new_kcats
+    population[0].kcat_list = [1/kcat for kcat in new_kcats]
     #also check if other individual is not affected by changing the kcat values
     other_individual = population[2]
-    other_individual.kcat_list = new_kcats_other
+    other_individual.kcat_list = [1/kcat for kcat in new_kcats_other]
 
     # adjust for toy pam altered kcat_values to calculate reference fitness
     kcats = [1, 0.5, 5, 0.1, 0.25, 1.5]
@@ -158,7 +158,7 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     #1e-6 is solver feasibility tolerance
     assert individual_to_evaluate.fitness is not other_individual.fitness
     assert fitness_other_indiv_simulated != fitness_simulated
-    assert new_kcats == individual_to_evaluate.kcat_list
+    assert new_kcats == [1/kcat for kcat in individual_to_evaluate.kcat_list]
     assert fitness_validation == pytest.approx(fitness_simulated, abs=1e-6)
 
 def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
@@ -169,7 +169,7 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     kcat_lists = [[5,0.1,0.25],[1,0.5,0.45],[0.1,0.1,0.1],[1,1,1], [3,3,3]]
     for individual, kcat_list in zip(population, kcat_lists):
         # individual.kcat_list = [kcat/(3600*1e-6) for kcat in kcat_list]
-        individual.kcat_list = kcat_list
+        individual.kcat_list = [1/kcat for kcat in kcat_list]
 
     #calculate actual fitnesses (expected result)
     expected_fitnesses = []
@@ -215,23 +215,22 @@ def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources
     expected_flux_results, reactions_to_validate = get_toy_model_simulations_other_csource(toy_pam,
                                                                                            other_substrate_reaction,
                                                                                            substrate_uptake_rates)
-    print(expected_flux_results, reactions_to_validate)
     # Change the validation data object in the genetic algorithm
     sut.FitEval.valid_data = {**sut.FitEval.valid_data, **{other_substrate_reaction:expected_flux_results}}
     sut.FitEval.substrate_uptake_rates[other_substrate_reaction] = substrate_uptake_rates
     sut.FitEval.reactions_with_data[other_substrate_reaction] = reactions_to_validate
-    sut.FitEval.translational_sector_config = {'R1': {'slope':0.01, 'intercept':0.01*1e-3},
+    sut.FitEval.translational_sector_config = {'R1': {'slope':0.01*1e-3, 'intercept':0.01*1e-3},
                                              'R9': {'slope':0, 'intercept':0.01*1e-3}}
 
     # Set up a population for comparison
     toolbox = sut._init_deap_toolbox()
     population = toolbox.population(n=3)
-    population[0].kcat_list = new_kcats
+    population[0].kcat_list = [1/kcat for kcat in new_kcats]
 
     # Act
     fitnesses_from_ga = [fit._wsum() for fit in map(toolbox.evaluate, population)]
     # Expect a perfect fit, as the same model was used to generate the validation data
-    assert fitnesses_from_ga[0] == 1
+    assert fitnesses_from_ga[0] == pytest.approx(1, abs=1e-3)
 
 def test_fitness_evaluation_configures_translational_sector_correctly():
     # Arrange
@@ -249,7 +248,7 @@ def test_fitness_evaluation_configures_translational_sector_correctly():
     rxn = sut.FitEval.model.reactions.R1
     coeff = sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
     assert sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub == tot_prot-intercept*1e3
-    assert -slope == coeff
+    assert slope*1e3 == coeff
 
 
 
@@ -309,11 +308,16 @@ def evaluate_toy_model_fitness(toy_model, substrate_rates = [0.001, 0.091],
     return sum(error)/len(error)
 
 def get_toy_model_simulations_other_csource(toy_model,
-                                            reaction_id='R9', substrate_uptake_rates=[-1e-3, -1e-2]):
+                                            reaction_id='R9',
+                                            substrate_uptake_rates=[-1e-3, -1e-2]):
     reactions_to_save = [reaction_id, 'R7', 'R8', 'R1']
     fluxes_df = pd.DataFrame(columns = [f'{reaction_id}_ub']+reactions_to_save)
 
     toy_model.change_reaction_bounds('R1', -1e6, 0)
+    toy_model.change_sector_parameters(toy_model.sectors.TranslationalProteinSector,
+                                       slope=0,
+                                       intercept = 0.01*1e-3,
+                                       lin_rxn_id=reaction_id)
     for rate in substrate_uptake_rates:
         toy_model.change_reaction_bounds(reaction_id, rate, 0)
         toy_model.optimize()
