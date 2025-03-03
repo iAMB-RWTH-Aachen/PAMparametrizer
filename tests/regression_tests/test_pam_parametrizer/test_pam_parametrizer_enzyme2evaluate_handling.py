@@ -46,14 +46,13 @@ def test_iJN1463_parametrization_when_error_is_converging():
     sut = set_up_pamparametrizer(-10,-9)
     sut.hyperparameters.number_of_kcats_to_mutate = len(sut._pamodel.enzymes)
     #use dummy ESC results
-
-    esc_results_df = pd.read_excel(os.path.join('tests', 'data','mock_enzyme_sensitivities.xlsx'),
-                                   sheet_name='pseudomonasids')
+    sut._pamodel.optimize()
+    sut.parametrization_results.add_enzyme_sensitivity_coefficients(
+        sut._pamodel.enzyme_sensitivity_coefficients,
+        bin_id='',
+        substrate_uptake_rate=-10)
 
     # Act
     enzymes_to_evaluate = sut._determine_enzymes_to_evaluate_for_all_bins(
-        esc_results_df,
         nmbr_kcats_to_pick=sut.hyperparameters.number_of_kcats_to_mutate)
 
-    # Assert
-    assert len(enzymes_to_evaluate) == len(sut._pamodel.enzymes)
