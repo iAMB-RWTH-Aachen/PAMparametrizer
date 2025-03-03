@@ -1041,7 +1041,6 @@ class PAMParametrizer():
             rxn_id = f"CE_{rxn_id}_{enzyme_id}"
 
             enzyme_dict["reaction"] = rxn_id
-            print(rxn_id, enzyme_id, self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat)
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
             enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
             enzymes_to_evaluate[enzyme_id].append(enzyme_dict)
