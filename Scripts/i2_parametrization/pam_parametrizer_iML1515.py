@@ -123,7 +123,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            pam_info_file: str = os.path.join(
-                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250219.xlsx'),
+                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iML1515',
@@ -157,7 +157,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_info_file = os.path.join(
-        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250219.xlsx')
+        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
 
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
