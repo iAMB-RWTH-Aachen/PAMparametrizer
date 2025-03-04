@@ -437,8 +437,6 @@ class PAMParametrizer():
             substrate_uptake_id = valid_data.id
             reactions_to_validate = valid_data._reactions_to_validate
             validation_df = self._get_validation_data_to_validate(valid_data)
-            print(valid_data.sampled_valid_data)
-            print(validation_df)
 
             error += [nanaverage(self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
                                                          validation_df=validation_df,
@@ -999,6 +997,7 @@ class PAMParametrizer():
         # if bin_id is None: bin_id = "no bins"
         for rxn in reactions_to_validate: #+ self.validation_data._get_biomass_reactions():
             # only select the rows which are filled with data
+            if rxn not in validation_df.columns: continue
             validation_data = validation_df.dropna(axis=0, subset=rxn)
             # if there are no reference data points, continue to the next reaction
             if len(validation_data) == 0:
