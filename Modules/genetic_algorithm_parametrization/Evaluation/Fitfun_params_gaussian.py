@@ -266,9 +266,7 @@ class FitnessEvaluation():
         # apply kcat changes and compute metabolic functionalities
         reactions = [self.model.reactions.get_by_id(rxn) for rxn in individual.reactions]
         # save old kcats to revert after error calculation
-        kcat_old = [self.model.constraints[f'EC_{enz_id}_f'].get_linear_coefficients(
-            [reactions[i].forward_variable])[reactions[i].forward_variable]
-                    for i, enz_id in enumerate(individual.enzymes_to_eval)]
+        kcat_old = self._get_old_kcats(self.model, individual)
 
         self._change_kcat_values_for_individual(individual)
         # perform simulations and save results
@@ -344,6 +342,19 @@ class FitnessEvaluation():
     def _get_old_kcats(self, model: PAModel,
                        individual #deap individual
                        ) -> List[float]:
+        """
+        Obtains kcat_values from model which needs to be reverted at the end of the evaluation.
+        Takes into qaccount the direction on which the enzyme works
+
+        Args:
+            model (PAModel): the unmodified 'base' protein allocation model to which the kcats should be reverted
+            individual: deap individual containing information about the enzymes, reactions and directionalities as defined in the
+                main genetic algorithm
+
+        Returns:
+            List(floats): A list of kcat values where the position of the kcats agrees with the position of the
+                corresponding enzyme, reaction, directionality relation
+        """
         reaction_variables = []
         for rxn_id, direction in zip(individual.reactions, individual.directions):
             rxn = self.model.reactions.get_by_id(rxn_id)
@@ -351,7 +362,7 @@ class FitnessEvaluation():
             if direction == 'b': variable = rxn.reverse_variable
             reaction_variables.append(variable)
 
-        kcat_old = [self.model.constraints[f'EC_{enz_id}_{individual.directions[i]}'].get_linear_coefficients(
+        return [self.model.constraints[f'EC_{enz_id}_{individual.directions[i]}'].get_linear_coefficients(
             [reaction_variables[i]])[reaction_variables[i]]
                     for i, enz_id in enumerate(individual.enzymes_to_eval)]
 
