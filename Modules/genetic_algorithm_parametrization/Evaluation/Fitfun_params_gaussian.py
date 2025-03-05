@@ -11,10 +11,10 @@ import deap.base
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import os
 from os.path import dirname, abspath
-from scipy.stats import linregress
-from typing import Union
+from typing import List
+
+from PAModelpy import PAModel
 from ..core_parametrization_gaussian import MyFitness
 
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction
@@ -340,6 +340,20 @@ class FitnessEvaluation():
     def _reset_translational_sector(self):
         self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub = self.totprot_start_ub
         self.model.sectors.get_by_id('TranslationalProteinSector').intercept = self.tps_intercept
+
+    def _get_old_kcats(self, model: PAModel,
+                       individual #deap individual
+                       ) -> List[float]:
+        reaction_variables = []
+        for rxn_id, direction in zip(individual.reactions, individual.directions):
+            rxn = self.model.reactions.get_by_id(rxn_id)
+            variable = rxn.forward_variable
+            if direction == 'b': variable = rxn.reverse_variable
+            reaction_variables.append(variable)
+
+        kcat_old = [self.model.constraints[f'EC_{enz_id}_{individual.directions[i]}'].get_linear_coefficients(
+            [reaction_variables[i]])[reaction_variables[i]]
+                    for i, enz_id in enumerate(individual.enzymes_to_eval)]
 
     def _mutate_kcat_value(self, kcat:float, sensitivity:float = 0.5, toolbox:deap.base.Toolbox = None) -> float:
         """

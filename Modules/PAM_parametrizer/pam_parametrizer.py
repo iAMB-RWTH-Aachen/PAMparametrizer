@@ -993,9 +993,7 @@ class PAMParametrizer():
         # check if we want to calculate the error for a single bin
         if bin_id is not None: flux_df = flux_df[flux_df["bin"] == bin_id]
 
-
-        # if bin_id is None: bin_id = "no bins"
-        for rxn in reactions_to_validate: #+ self.validation_data._get_biomass_reactions():
+        for rxn in reactions_to_validate:
             # only select the rows which are filled with data
             if rxn not in validation_df.columns: continue
             validation_data = validation_df.dropna(axis=0, subset=rxn)
@@ -1041,6 +1039,9 @@ class PAMParametrizer():
 
             enzyme_dict["reaction"] = rxn_id
             kcat_dict = self._pamodel.enzymes.get_by_id(enzyme_id).rxn2kcat[rxn_id]
+            # kcats are in 1/s needs to be converted to 1/h.
+            # In the genetic algorithm, the kcats are directly set as coefficients
+            # (1/(kcat *1e-6), where 1e-6 is used to scale enzyme concentrations)
             enzyme_dict["kcats"] = {dir: 1/(kcat* 3600 * 1e-6) for dir, kcat in kcat_dict.items() if kcat>0}
             enzymes_to_evaluate[enzyme_id].append(enzyme_dict)
         return dict(enzymes_to_evaluate)
