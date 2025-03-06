@@ -15,7 +15,7 @@ def test_if_create_aes_parameter_file_generates_file():
     # cleanup temporary files
     temp_dir.cleanup()
 
-def test_if_creat_aes_parameter_file_corectly_sets_up_file():
+def test_if_create_aes_parameter_file_corectly_sets_up_file():
     # Arrange/Act
     temp_dir, files = create_new_aes_file_arrange_act()
     diagnostics_file = pd.read_excel(files['diagnostics_file'],
