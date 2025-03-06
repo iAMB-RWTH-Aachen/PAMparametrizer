@@ -10,7 +10,7 @@ import pytest
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.utils import calculate_r_squared_for_reaction
 from Scripts.pam_generation import setup_toy_pam
-from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import (evaluate_toy_model_fitness,
+from tests.regression_tests.test_genetic_algorithm.test_genetic_algorithm_evaluation import (evaluate_toy_model_fitness,
                                                                                     get_toy_model_simulations_other_csource)
 from tests.pam_parametrizer_mock import PAMParametrizerMock
 
@@ -179,11 +179,12 @@ def test_pam_parametrizer_parses_enzymes_to_evaluate_correctly():
 
     # Act
     enzymes_to_evaluate_to_test = sut._parse_enzymes_to_evaluate(esc_topn_df_dummy)
-
     # Assert
     for enzid, rxn_list in enzymes_to_evaluate_validation.items():
         rxn_info_validation = rxn_list[0]
         rxn_info_test = enzymes_to_evaluate_to_test[enzid][0]
+        #make sure each gpr is only present once
+        assert len(rxn_list) == len(enzymes_to_evaluate_to_test[enzid])
         for direction in ['f', 'b']:
             assert rxn_info_test['kcats'][direction] == pytest.approx(1/rxn_info_validation['kcats'][direction], abs=1e-3)
 

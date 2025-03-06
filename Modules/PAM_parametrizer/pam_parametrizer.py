@@ -907,10 +907,17 @@ class PAMParametrizer():
                 """
         # 0. get data in shape: make sure each reaction has their own row and substrate value is absolute
         # Splitting rxn_id column and creating new rows
-
         esc_results_df["rxn_id"] = esc_results_df["rxn_id"].str.split(",")
         esc_results_df = esc_results_df.explode("rxn_id", ignore_index=True)
         esc_results_df["substrate"] = esc_results_df["substrate"].abs()
+
+        #make sure each gpr is only present once
+        esc_results_df['reaction_parsed'] = esc_results_df.rxn_id.apply(
+            _extract_reaction_id_from_catalytic_reaction_id
+        )
+        esc_results_df = esc_results_df.drop_duplicates(
+            ['enzyme_id', 'reaction_parsed']
+        ).drop('reaction_parsed', axis = 1)
 
         # 1. determine top n values based on average ESC
         # Group by enzyme and calculate the average coefficient for each enzyme
