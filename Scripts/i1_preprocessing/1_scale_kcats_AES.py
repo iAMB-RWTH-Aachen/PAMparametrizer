@@ -2,13 +2,15 @@ import pandas as pd
 import numpy as np
 import os
 from typing import Union, Callable
+
 from PAModelpy import PAModel
 import matplotlib.pyplot as plt
 
-from Modules.utils.pam_generation import setup_pputida_pam, setup_yeast_pam
+from Modules.utils.pam_generation import setup_pputida_pam, setup_yeast_pam, setup_cglutanicum_pam
 from PAModelpy.utils import set_up_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as set_up_pamparam_pputida
+from Scripts.i2_parametrization.pam_parametrizer_iCGB21FR import set_up_pamparametrizer as set_up_pamparam_cglutanicum
 from Scripts.i2_parametrization.pam_parametrizer_yeast9 import set_up_pamparametrizer as set_up_pamparam_yeast9
 
 
@@ -47,8 +49,8 @@ def scan_kcat_factors(max_factor:int,
     factors_to_scan = np.arange(min_factor,max_factor+stepsize,stepsize)
 
     pam_parametrizer_kwargs['threshold_iteration'] = len(factors_to_scan)
-    pam_parametrizer = setup_pamparametrizer_function(substrate_uptake_rates[0],
-                                                      substrate_uptake_rates[-1],
+    pam_parametrizer = setup_pamparametrizer_function(min_substrate_uptake_rate = substrate_uptake_rates[0],
+                                                      max_substrate_uptake_rate =substrate_uptake_rates[-1],
                                                       **pam_parametrizer_kwargs)
     fig, axs = pam_parametrizer.plot_valid_data()
 
@@ -72,14 +74,14 @@ def scan_kcat_factors(max_factor:int,
     print("\n-------------------------------------------------------------------\nDone scanning the kcat multiplication factors")
 
 def scan_kcat_factors_iML1515():
-    scan_kcat_factors(10, os.path.join('Results', '1_preprocessing','figures',  'multifactor_scan_iML1515.png'))
+    scan_kcat_factors(10, os.path.join('Results', '1_preprocessing','figures', 'multifactor_scan_iML1515.png'))
 
 
 def scan_kcat_factors_pputida():
     scan_kcat_factors(max_factor=10,
                       min_factor=1,
                       stepsize=1,
-                      scan_figure_file_path= os.path.join('Results','1_preprocessing','multifactor_scan_iJN1463.png'),
+                      scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_iJN1463.png'),
                       setup_pam_function=setup_pputida_pam,
                       pam_info_file=os.path.join(
                           'Results', '1_preprocessing', 'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx'
@@ -88,12 +90,24 @@ def scan_kcat_factors_pputida():
                       substrate_reaction_id= 'EX_glc__D_e',
                       substrate_uptake_rates= np.arange(-15,1,1))
 
+def scan_kcat_factors_cglutanicum():
+    scan_kcat_factors(max_factor=10,
+                      min_factor=1,
+                      stepsize=1,
+                      scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_iCGB21FR.png'),
+                      setup_pam_function=setup_cglutanicum_pam,
+                      pam_info_file=os.path.join(
+                          'Results', '1_preprocessing','proteinAllocationModel_iCGB21FR_EnzymaticData_250227.xlsx'
+                      ),
+                      setup_pamparametrizer_function=set_up_pamparam_cglutanicum,
+                      substrate_reaction_id= 'EX_glc__D_e',
+                      substrate_uptake_rates= np.arange(-20,1,1))
 
 def scan_kcat_factors_yeast9():
     scan_kcat_factors(max_factor=10,
                       min_factor=1,
                       stepsize=1,
-                      scan_figure_file_path= os.path.join('Results','1_preprocessing','multifactor_scan_yeast9.png'),
+                      scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_yeast9.png'),
                       setup_pam_function=setup_yeast_pam,
                       pam_info_file=os.path.join(
                           'Results', '1_preprocessing','proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'
@@ -104,5 +118,6 @@ def scan_kcat_factors_yeast9():
 
 if __name__ == '__main__':
     # scan_kcat_factors_iML1515()
-    scan_kcat_factors_yeast9()
     # scan_kcat_factors_pputida()
+    scan_kcat_factors_cglutanicum()
+    # scan_kcat_factors_yeast9()

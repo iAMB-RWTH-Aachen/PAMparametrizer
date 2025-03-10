@@ -88,6 +88,7 @@ def set_up_hyperparameter(processes: int,
     return hyperparams
 
 def set_up_pamparametrizer(max_substrate_uptake_rate:float,
+                           min_substrate_uptake_rate:float =-10,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
                                              'proteinAllocationModel_iCGB21FR_EnzymaticData_250227.xlsx'),
@@ -139,6 +140,7 @@ def run_parametrizations(n_iterations:int=5,
         pam_parametrizer = set_up_pamparametrizer(MAX_SUBSTRATE_UPTAKE_RATE,
                                                   pam_info_file=pam_info_file,
                                                   filename_extension = f'iCGB21FR_{i}',
+                                                  kcat_increase_factor=2,
                                                   c_sources=['Glucose', 'Succinate', 'Fructose', 'Gluconate'])
         #
         pam_parametrizer.run(remove_subruns=True, binned='False')
