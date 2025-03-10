@@ -5,10 +5,12 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from PAModelpy.configuration import Config
+from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
 
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
-from Scripts.pam_generation_uniprot_id import setup_yeast_pam, increase_kcats_in_parameter_file
+from Modules.utils.pam_generation import setup_yeast_pam
+
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -20
@@ -110,10 +112,10 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            kcat_increase_factor: int = 1):
 
     pam_info_file_path_new = os.path.join(
-        'Results', '1_preprocessing',  'yeast9','proteinAllocationModel_yeast9_EnzymaticData_TurnUp_multi.xlsx')
+        'Results', '1_preprocessing', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp_multi.xlsx')
     increase_kcats_in_parameter_file(kcat_increase_factor,
                                      pam_info_file_path_ori=os.path.join(
-                                         'Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
+                                         'Results','1_preprocessing', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
                                      pam_info_file_path_out=pam_info_file_path_new)
 
     yeast_pam = setup_yeast_pam(pam_info_file_path_new, unused_enzymes=False)

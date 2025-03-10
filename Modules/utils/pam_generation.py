@@ -179,7 +179,8 @@ def create_new_aes_parameter_file(old_param_file:str,
 
 
 
-def setup_yeast_pam(pam_info_file:str= os.path.join('Data', 'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
+def setup_yeast_pam(pam_info_file:str= os.path.join('Results','1_preprocessing',
+                    'proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'),
                      model:str = 'Models/yeast9.xml', config:Config = None,
                      total_protein: Union[bool, float] = 0.28697423725932236, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True) -> PAModel:
