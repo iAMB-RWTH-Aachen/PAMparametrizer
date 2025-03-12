@@ -34,7 +34,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates = substrate_rates,
                                                                    sensitivity = False)
-    fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates]+[0],
+    fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                iteration=0, color='black')
 
@@ -46,7 +46,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,
                                                                        sensitivity=False)
-        fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates]+[0],
+        fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                    parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                    iteration=j + 1, max_iteration=len(best_indiv_files), label = label)
 
@@ -119,14 +119,11 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
     return parametrizer, substrate_rates
 
 def main_ecoli():
-    PAM_DATA_FILE_PATH = os.path.join('Results', '2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
-    # PAM_KCAT_FILES = [os.path.join('Results', '3_analysis', 'parameter_files',
-    #                                f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
-    #                   range(1, 11)]
+    NUM_MODELS = 8
     PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                    f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
-                      range(1, 11)]
-    labels = [f'Alternative {i}' for i in range(1, 11)]
+                      range(1, NUM_MODELS+1)]
+    labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
     fig_file_path = os.path.join('Results', '3_analysis', 'pam-parametrizer_alternatives_cleaned_figure.png')
 
     alternative_param_files = PAM_KCAT_FILES
@@ -149,4 +146,4 @@ def main_mcecoli():
                            setup_parametrizer = set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
-    main_mcecoli()
+    main_ecoli()

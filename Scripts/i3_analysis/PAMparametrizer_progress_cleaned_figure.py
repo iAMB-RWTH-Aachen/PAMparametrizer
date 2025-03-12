@@ -6,7 +6,7 @@ import matplotlib.ticker as ticker
 from typing import Callable
 
 from Modules.utils.pamparametrizer_visualization import plot_simulation, plot_valid_data
-from Models.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
+from Modules.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as set_up_pamparametrizer_putida
 from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
@@ -21,7 +21,8 @@ def recreate_progress_plot(best_individual_df:pd.DataFrame,
                            set_up_parametrizer: Callable = None,
                            pamparam_kwargs: dict = {'max_substrate_uptake_rate': -0.1,
                                                     'min_substrate_uptake_rate': -11,
-                                                    'kcat_increase_factor': 3}) -> None:
+                                                    'kcat_increase_factor': 3}
+                           ) -> None:
     FIGWIDTH = 12
     FIGHEIGHT = 12
     FONTSIZE = 20
@@ -94,11 +95,11 @@ def create_empty_plot():
 
 def main_ecoli():
     result_file = os.path.join('Results', '2_parametrization',
-                               'diagnostics', 'pam_parametrizer_diagnostics_1.xlsx')
+                               'diagnostics', 'pam_parametrizer_diagnostics_2.xlsx')
 
     best_indiv_df = pd.read_excel(result_file, sheet_name='Best_Individuals')
     #
-    fig_file_path = os.path.join('Results', '3_analysis', 'pam_parametrizer_progess_cleaned_iML1515_1.png')
+    fig_file_path = os.path.join('Results', '3_analysis', 'pam_parametrizer_progess_cleaned_iML1515_2.png')
     recreate_progress_plot(best_indiv_df, fig_file_path)
 
 def main_putida():
@@ -123,5 +124,5 @@ def main_mcecoli():
                            set_up_parametrizer=set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
-    main_mcecoli()
+    main_ecoli()
 

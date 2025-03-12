@@ -7,7 +7,7 @@ from PAModelpy import CatalyticEvent
 
 RESULT_PARAMETRIZATION_FILE = os.path.join('Results', '2_parametrization', 'pam_parametrizer_diagnostics_iML1515_randomized.xlsx')
 NEW_AES_SUFFIX = 'iMl1515_241209'
-SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_241209_multi.xlsx')
+SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
 
 def search_index_in_parameter_file(df:pd.DataFrame, protein:str, reaction:str, direction:str):
@@ -57,8 +57,8 @@ if __name__ == '__main__':
     # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
     #
-    for file_nmbr in range(1,8):
-        suffix = f'mcmciML1515_{file_nmbr}'
+    for file_nmbr in range(1,9):
+        suffix = f'iML1515_{file_nmbr}'
         result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx')
         create_new_aes_parameter_file(result_file_path= result_file,
                                       new_aes_suffix= suffix)
