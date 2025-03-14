@@ -24,7 +24,7 @@ from Modules.utils.pamparametrizer_analysis import (calculate_kcat_differences,
                                                    )
 
 from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation
-
+from squarify import layout
 
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Carbohydrate transport and metabolism': 'Carbon metabolism',
@@ -59,11 +59,13 @@ def calculate_distribution_statistics(bin_heigths: list[float],
         f'\tMost frequent flux:\t\t{peak_bin_value} mmol/gCDW/h\n\tArea under the curve:\t\t{area_under_curve} mmol/gCDW/h\n')
 
 def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
+                                     ax:plt.Axes,
                                      label_names:list[str],
                                      cumulative: bool = False,
                                      other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'},
-                                     legend = True):
-    fig, ax = plt.subplots()
+                                     legend = True,
+                                     fontsize =16):
+    # fig, ax = plt.subplots()
     n_bins = 50
     i = 0
     cmap = plt.get_cmap("coolwarm")
@@ -90,21 +92,24 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
 
     plt.yscale('log')
-    plt.ylabel('Frequency')
+    plt.ylabel('Frequency', fontsize=fontsize)
     plt.xscale('log')
-    plt.xlabel('Kcat value [s-1]')
+    plt.xlabel('Kcat value [s-1]', fontsize=fontsize)
     if legend:
         plt.legend()
     plt.tight_layout()
-    return fig, ax
+    return ax
 
 def create_kcat_change_per_cog_barplot(original_pam_kcat_file: str,
                                        model_file: str,
-                                       diagnostic_files: List[str]):
+                                       diagnostic_files: List[str],
+                                       ax: plt.Axes,
+                                       legend=True,
+                                       fontsize = 16):
     individual_info_with_cog = get_kcat_changes_per_cog(original_pam_kcat_file,
                                        model_file,
                                        diagnostic_files)
-    return create_barplot(individual_info_with_cog)
+    return create_cog_barplot(individual_info_with_cog, ax, legend=legend, fontsize=fontsize)
 
 def get_kcat_changes_per_cog(original_pam_kcat_file:str,
                              model_file:str,
@@ -116,8 +121,7 @@ def get_kcat_changes_per_cog(original_pam_kcat_file:str,
     best_individual_df = calculate_change_in_kcat(best_individual_df,
                                                   rxn2kcat)
     best_individual_with_cog = add_pathway_annotation_to_kcat_changes(best_individual_df)
-    best_individual_cog_summarized= summarize_and_pivot_cog_info_df_to_long(best_individual_with_cog)
-    return summarize_and_pivot_cog_info_df_to_long(best_individual_cog_summarized)
+    return summarize_and_pivot_cog_info_df_to_long(best_individual_with_cog)
 
 
 def merge_all_diagnostic_files(diagnostic_files: List[str]) -> pd.DataFrame:
@@ -164,8 +168,9 @@ def add_pathway_annotation_to_kcat_changes(best_individual_df: pd.DataFrame,
                                    left_on='rxn_id', right_on='Reactions', how='left')
     best_kcats_with_cog = best_kcats_with_cog.drop_duplicates(
         ['rxn_id', 'enzyme_id', 'r_squared', 'COG description']).reset_index(drop=True)
+    best_kcats_with_cog['relative_change']  = best_kcats_with_cog['kcat_change']
     total_change_per_iteration = best_kcats_with_cog.groupby(['alternative'])['kcat_change'].sum().abs().reset_index()
-    return pd.merge(best_kcats_with_cog, total_change_per_iteration,
+    return pd.merge(best_kcats_with_cog.drop('kcat_change', axis=1), total_change_per_iteration,
                              on=['alternative'])
 
 def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
@@ -189,10 +194,12 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
     )
     return cog_summary_long
 
-def create_barplot(cog_summary_long:pd.DataFrame,
-                   plotting_threshold=0.5,
-                   bar_width=0.2,spacing_factor = 3,  # Increase spacing
-                   fontsize = 15):
+def create_cog_barplot(cog_summary_long:pd.DataFrame,
+                       ax:plt.Axes,
+                       plotting_threshold=5*1e11,
+                       bar_width=0.2, spacing_factor = 3,  # Increase spacing
+                       fontsize = 15,
+                       legend = True):
     # only plot the most important cogs
     cog_summary_long = cog_summary_long.groupby('COG description').filter(
         lambda x: x['Change'].abs().sum() > plotting_threshold
@@ -207,7 +214,7 @@ def create_barplot(cog_summary_long:pd.DataFrame,
     )
 
     #create the plot
-    fig, ax = plt.subplots(figsize=(12, len(cog_summary_long['COG description'].unique()) * 0.5))
+    # fig, ax = plt.subplots(figsize=(12, len(cog_summary_long['COG description'].unique()) * 0.5), ax)
 
     # Define sorted y positions
     y_positions = np.arange(0, len(cog_order) * spacing_factor, spacing_factor)
@@ -247,7 +254,7 @@ def create_barplot(cog_summary_long:pd.DataFrame,
 
     # make x-axis logaritmic
     # ax.set_xscale('symlog')
-    ax.set_xlim([-2.5 * 1e9, 2.5 * 1e9])
+    # ax.set_xlim([-2.5 * 1e9, 2.5 * 1e9])
 
     # Adjust y-axis labels
     ax.set_yticks(y_positions)
@@ -258,28 +265,27 @@ def create_barplot(cog_summary_long:pd.DataFrame,
     ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
 
     # Add legend (ensuring all alternatives are included)
-    handles, labels = ax.get_legend_handles_labels()
-    unique_labels = dict(zip(labels, handles))
-    ax.legend(unique_labels.values(), unique_labels.keys(), title='Alternative model', bbox_to_anchor=(1.05, 1), loc='upper left')
+    if legend:
+        handles, labels = ax.get_legend_handles_labels()
+        unique_labels = dict(zip(labels, handles))
+        ax.legend(unique_labels.values(), unique_labels.keys(), title='Alternative model', bbox_to_anchor=(1.05, 1), loc='upper left')
 
     # Show plot
     plt.tight_layout()
-    return fig, ax
+    return ax
 
 def recreate_progress_plot(best_indiv_files:list[str],
-                           labels:list[str],
+                           labels:list[str], fig,
+                           axs,
                            legend:bool = True,
+                           fontsize=20
                            ):
-    FIGWIDTH = 12
-    FIGHEIGHT = 12
-    FONTSIZE = 20
-
     j=0
 
     parametrizer, substrate_rates = set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates()
 
     substrate_rates = sorted(substrate_rates)
-    fig, axs = plot_valid_data(parametrizer, fontsize=FONTSIZE)
+    fig, axs = plot_valid_data(parametrizer,axs, fig, fontsize=fontsize)
     print('Run reference simulations')
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates = substrate_rates,
@@ -303,11 +309,9 @@ def recreate_progress_plot(best_indiv_files:list[str],
 
     lines, labels = fig.axes[1].get_legend_handles_labels()
 
-    fig.set_figwidth(FIGWIDTH)
-    fig.set_figheight(FIGHEIGHT)
     if legend:
         fig.legend(lines, labels, loc='upper left', bbox_to_anchor=(0.1, 0.99), frameon=False,
-                   fontsize=FONTSIZE - 5)
+                   fontsize=fontsize - 5)
     fig.tight_layout()
     return fig, axs
 
@@ -319,7 +323,8 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
                                                            kwargs)
 
 def main():
-    NUM_ALT_MODELS = 1
+    NUM_ALT_MODELS = 8
+    FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
                                   'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
@@ -327,50 +332,86 @@ def main():
 
     MODEL_FILE = os.path.join('Models', 'iML1515.xml')
 
-    RESULT_KCAT_HISTOGRAM_PATH = os.path.join('Results', '3_analysis', 'aes_histogram_iML1515.png')
-
     diagnostic_files = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                      f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                         range(1, NUM_ALT_MODELS + 1)]
     parameter_files = [os.path.join('Results', '3_analysis', 'parameter_files',
-                                    f'proteinAllocationModel_EnzymaticData_{model}.xlsx') for model in
+                                    f'proteinAllocationModel_EnzymaticData_iML1515_{model}.xlsx') for model in
                        range(1, NUM_ALT_MODELS + 1)]
 
     #create a pretty figure
-    fig = plt.figure(figsize=(10, 12))
+    fig = plt.figure(figsize=(15, 15))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(2, 1, height_ratios=[2, 3], wspace=0)
+    gs_main = gridspec.GridSpec(1, 2, wspace=0,hspace=0.1)
+    gs_inner = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[0], hspace=0.1)
 
-    gs_inner_top = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_main[0])
-    line, line_ax = recreate_progress_plot(diagnostic_files,
-                                           labels=[f'Alternative {i}' for i in range(1, NUM_ALT_MODELS + 1)])
-    for i, ax in enumerate(line_ax):
-        if i>2:
-            ax1_new = fig.add_subplot(gs_inner_top[i, 0])
-        else:
-            ax1_new = fig.add_subplot(gs_inner_top[1, i-2])
-        ax1_new.set_position(ax.get_position(line))  # Reposition into GridSpec
+    gs_inner_top = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_inner[0], hspace=0.1)
+    axs1 =[]
+    for i in range(4):  # Assuming line_axs[0] is a row of axes
+        row, col = (i, 0)  # Determine row/column position in the 2x2 grid
+        if i>1:row, col = (i-2, 1)
+        axs1.append(fig.add_subplot(gs_inner_top[row, col]))
+
+    line, line_axs = recreate_progress_plot(diagnostic_files[:2],
+                                           labels=[f'Alternative {i}' for i in range(1, NUM_ALT_MODELS + 1)],
+                                            fig=fig, axs=axs1, legend=False, fontsize=FONTSIZE)
 
     # Inner GridSpec: 2 columns
-    gs_inner = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
-                                                width_ratios=[2, 1])
-    fig.add_subplot(gs_inner[0])
-    hist, hist_ax = create_kcat_histogram_old_vs_new([PARAM_FILE_ORI,
+    # gs_inner = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
+    #                                             width_ratios=[2, 1], wspace = 1)
+    ax2 = fig.add_subplot(gs_inner[0])
+    hist_ax = create_kcat_histogram_old_vs_new([PARAM_FILE_ORI,
                                                       PARAM_FILE_PREPROC] + parameter_files,
-                                                     result_fig_file=RESULT_KCAT_HISTOGRAM_PATH,
+                                                     ax2,
                                                      label_names=['GotEnzymes', 'After preprocessing'] \
                                                                  + [f'Alternative {i}' for i in
                                                                     range(1, NUM_ALT_MODELS + 1)],
-                                                     legend=False)
-    hist_ax.set_position(gs_inner[0].get_position(fig))
+                                                     legend=False, fontsize=FONTSIZE)
+    # ax2_new.set_position(hist_ax.get_position(hist))
+    handles, labels = [], []
+    # for ax in [line_axs[0], ax2]:
+    for ax in [ax2]:
+        h, l = ax.get_legend_handles_labels()
+        for label, handle in zip(l, h):
+            if label not in labels:
+                handles.extend([handle])
+                labels.extend([label])
+    ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
 
-    fig.add_subplot(gs_inner[1])
-    bar, bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,
-                                                     MODEL_FILE,
-                                                     diagnostic_files)
-    bar_ax.set_position(gs_inner[1].get_position(fig))
-    plt.savefig(os.path.join('Figures', 'Figure1_parametrization_outcome.png'))
+    ax3 = fig.add_subplot(gs_main[1])
+    bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,
+                                                MODEL_FILE,
+                                                diagnostic_files,
+                                                ax3, legend=False)
+
+    # # create a legend
+    # legend_ax = fig.add_subplot(gs_main[2])
+    # legend_ax.axis("off")  # Hide axes
+    #
+    # # Manually create a legend based on the entries of the histogram
+    # handles, labels = [], []
+    # for ax in [line_axs[0], ax2]:
+    #     h, l = ax.get_legend_handles_labels()
+    #     print(h,l)
+    #     if l not in labels:
+    #         handles.extend(h)
+    #         labels.extend(l)
+    # legend_ax.legend(handles, labels, loc="center", ncol=len(labels), frameon=False)
+
+    #Add alphabet annotations
+    annotations = ["A", "B", "C", "D", "E", "F"]  # Adjust based on the number of subplots
+    fontsize = 14  # Adjust as needed
+
+    for ax, label in zip(fig.axes, annotations):
+        ax.annotate(label, xy=(0, 1), xycoords="axes fraction",
+                    fontsize=fontsize, fontweight='bold',
+                    xytext=(-5, 5), textcoords="offset points",
+                    ha="right", va="bottom")
+    fig.set_constrained_layout(True)
+    # plt.show()
+    # fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, hspace=0.3, wspace=0.2)
+    fig.savefig(os.path.join('Figures', 'Figure1_parametrization_results_analyis.png'))
 
 if __name__ == '__main__':
     main()
