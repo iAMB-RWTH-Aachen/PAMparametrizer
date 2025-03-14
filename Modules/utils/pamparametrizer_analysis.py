@@ -253,7 +253,7 @@ def calculate_kcat_differences(df_grouped: pd.DataFrame,
     grouped by the different alternative models of a single condition.
 
     Args:
-        df_grouped: group of a grouped dataframe (by model), containing at leat the columns: 'run_id', 'enzyme_id', and 'kcat[s-1'
+        df_grouped: group of a grouped dataframe (by model), containing at leat the columns: 'run_id', 'enzyme_id', and 'kcat[s-1]'
 
     Return:
         pd.DataFrame with changed kcat values (additional columns: 'previous kcat', 'kcat_change', 'absolute_kcat_change',

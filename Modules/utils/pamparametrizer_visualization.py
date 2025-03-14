@@ -29,12 +29,14 @@ def plot_simulation(fig, axs,
         cmap = plt.get_cmap('coolwarm')
         color = to_hex(cmap(iteration / (max_iteration+1)))
 
+    if not isinstance(axs, list):axs = axs.flatten()
+
     if label is None:
         label = 'Iteration ' + str(iteration)
     if iteration == 0:
         label = 'After preprocessing'
 
-    for r, ax in zip(reactions_to_plot, axs.flatten()):
+    for r, ax in zip(reactions_to_plot, axs):
         # plot data
         line = ax.plot(substrate_rates, [abs(f[r]) for f in fluxes], linewidth=5,
                        zorder=5, color=color, label = label)
@@ -43,13 +45,16 @@ def plot_simulation(fig, axs,
     fig.canvas.flush_events()
     return fig, axs
 
-def plot_valid_data(parametrizer, fontsize:int = 12):
+def plot_valid_data(parametrizer, axs=None, fig =None, fontsize:int = 12):
     RXN_NAME_MAPPER[parametrizer.pamodel.BIOMASS_REACTION] = 'Growth rate [$h^{-1}$]'
 
     # plot flux changes with glucose uptake
-    fig, axs = plt.subplots(2,2, dpi=100)
+    if axs is None:
+        fig, axs = plt.subplots(2,2, dpi=100)
+        axs = axs.flatten()
+
     valid_data = parametrizer.validation_data.get_by_id(parametrizer.substrate_uptake_id)
-    for r, ax in zip(valid_data._reactions_to_validate, axs.flatten()):
+    for r, ax in zip(valid_data._reactions_to_validate, axs):
         # plot data
         x = [abs(glc) for glc in valid_data.valid_data[parametrizer.substrate_uptake_id + '_ub']]
         y = [abs(data) for data in valid_data.valid_data[r]]
