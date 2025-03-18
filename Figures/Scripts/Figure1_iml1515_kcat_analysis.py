@@ -90,6 +90,7 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         calculate_distribution_statistics(bin_heights, bin_borders)
 
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
+    ax.tick_params(axis='both', labelsize=fontsize)
 
     plt.yscale('log')
     plt.ylabel('Frequency', fontsize=fontsize)
@@ -97,7 +98,6 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     plt.xlabel('Kcat value [s-1]', fontsize=fontsize)
     if legend:
         plt.legend()
-    plt.tight_layout()
     return ax
 
 def create_kcat_change_per_cog_barplot(original_pam_kcat_file: str,
@@ -257,12 +257,14 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # ax.set_xlim([-2.5 * 1e9, 2.5 * 1e9])
 
     # Adjust y-axis labels
+    ax.tick_params(axis='both', labelsize=fontsize)
     ax.set_yticks(y_positions)
-    ax.set_yticklabels([COG_MAPPER[cog] for cog in cog_order], fontsize=fontsize)  # Set labels in sorted order
+    ax.set_yticklabels([COG_MAPPER[cog] for cog in cog_order],
+                       fontsize=fontsize)  # Set labels in sorted order
 
     # Label axes
     ax.set_xlabel(r'$\sum \frac{k_{cat,new}-k_{cat,old}}{k_{cat,old}}$ ', fontsize=fontsize * 1.5)
-    ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
+    # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
 
     # Add legend (ensuring all alternatives are included)
     if legend:
@@ -271,7 +273,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
         ax.legend(unique_labels.values(), unique_labels.keys(), title='Alternative model', bbox_to_anchor=(1.05, 1), loc='upper left')
 
     # Show plot
-    plt.tight_layout()
+    # plt.tight_layout()
     return ax
 
 def recreate_progress_plot(best_indiv_files:list[str],
@@ -312,7 +314,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
     if legend:
         fig.legend(lines, labels, loc='upper left', bbox_to_anchor=(0.1, 0.99), frameon=False,
                    fontsize=fontsize - 5)
-    fig.tight_layout()
+    # fig.tight_layout()
     return fig, axs
 
 def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
@@ -340,27 +342,44 @@ def main():
                        range(1, NUM_ALT_MODELS + 1)]
 
     #create a pretty figure
-    fig = plt.figure(figsize=(15, 15))
+    fig = plt.figure(figsize=(30, 30))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(1, 2, wspace=0,hspace=0.1)
-    gs_inner = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[0], hspace=0.1)
+    gs_main = gridspec.GridSpec(1, 2,wspace=0.6,
+                                width_ratios=[10,6])
+    gs_inner_l = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[0],
+                                                hspace=0.2,height_ratios=[5,3]
+                                                )
 
-    gs_inner_top = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_inner[0], hspace=0.1)
-    axs1 =[]
-    for i in range(4):  # Assuming line_axs[0] is a row of axes
+    gs_inner_top = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_inner_l[0,0],
+                                                    wspace = 0.4,
+                                                    hspace=0.4)
+    gs_inner_r = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[1],
+                                                    hspace=0.5,height_ratios=[10,1])
+    axs1 =[None,None,None,None]
+    for i in reversed(range(4)):  # Assuming line_axs[0] is a row of axes
         row, col = (i, 0)  # Determine row/column position in the 2x2 grid
-        if i>1:row, col = (i-2, 1)
-        axs1.append(fig.add_subplot(gs_inner_top[row, col]))
-
-    line, line_axs = recreate_progress_plot(diagnostic_files[:2],
+        kwargs={}
+        if i>1:
+            row, col = (i-2, 1)
+        if i==0 or i==1:
+            kwargs={'sharex':axs1[i+1]}
+        axs1[i]= fig.add_subplot(gs_inner_top[row, col], **kwargs)
+    line, line_axs = recreate_progress_plot(diagnostic_files,
                                            labels=[f'Alternative {i}' for i in range(1, NUM_ALT_MODELS + 1)],
                                             fig=fig, axs=axs1, legend=False, fontsize=FONTSIZE)
+    #share x and y axis labels for progress plot
+    ax_group = fig.add_subplot(gs_inner_l[0])
+    ax_group.set_xticks([])
+    ax_group.set_yticks([])
+    ax_group.set_frame_on(False)
+    ax_group.set_ylabel(r"Flux [mmol/$\text{g}_{\text{CDW}}$/h]",
+                        labelpad=20, fontsize=FONTSIZE)
+    ax_group.yaxis.set_label_coords(-0.1, 0.5)  # Move ylabel to the right
+    ax_group.set_xlabel(r"Glucose uptake [mmol/$\text{g}_{\text{CDW}}$/h]",
+                        labelpad=20, fontsize=FONTSIZE)
 
-    # Inner GridSpec: 2 columns
-    # gs_inner = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
-    #                                             width_ratios=[2, 1], wspace = 1)
-    ax2 = fig.add_subplot(gs_inner[0])
+    ax2 = fig.add_subplot(gs_inner_l[1])
     hist_ax = create_kcat_histogram_old_vs_new([PARAM_FILE_ORI,
                                                       PARAM_FILE_PREPROC] + parameter_files,
                                                      ax2,
@@ -368,22 +387,34 @@ def main():
                                                                  + [f'Alternative {i}' for i in
                                                                     range(1, NUM_ALT_MODELS + 1)],
                                                      legend=False, fontsize=FONTSIZE)
-    # ax2_new.set_position(hist_ax.get_position(hist))
+
+    # create a legend
+    legend_ax = fig.add_subplot(gs_inner_r[1])
     handles, labels = [], []
     # for ax in [line_axs[0], ax2]:
-    for ax in [ax2]:
+    legend_ax.axis("off")  # Hide axes
+    line_axs[0].plot([],[],label='GotEnzymes', color='grey')#dummy line for complete legend
+    for ax in [line_axs[0], ax2]:
         h, l = ax.get_legend_handles_labels()
         for label, handle in zip(l, h):
             if label not in labels:
                 handles.extend([handle])
                 labels.extend([label])
-    ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
+    legend_ax.legend(handles, labels, loc="center",
+                     fontsize=FONTSIZE,
+                     ncol=round(len(labels)/4), frameon=False)
+    # ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
 
-    ax3 = fig.add_subplot(gs_main[1])
+    ax3 = fig.add_subplot(gs_inner_r[0])
     bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,
                                                 MODEL_FILE,
                                                 diagnostic_files,
                                                 ax3, legend=False)
+    # Get the current position of ax3
+    # pos = ax3.get_position()
+
+    # Shrink the axis to fit inside the GridSpec boundaries
+    # ax3.set_position([pos.x0 + 0.2, pos.y0 + 0.2, pos.width - 0.2, pos.height - 0.2])
 
     # # create a legend
     # legend_ax = fig.add_subplot(gs_main[2])
@@ -400,18 +431,20 @@ def main():
     # legend_ax.legend(handles, labels, loc="center", ncol=len(labels), frameon=False)
 
     #Add alphabet annotations
-    annotations = ["A", "B", "C", "D", "E", "F"]  # Adjust based on the number of subplots
-    fontsize = 14  # Adjust as needed
+    #first 4 axes are added in reverse, and must ignore additional axis for x/y label config
+    annotations = ["D", "C", "B", "A","","E","",  "F"]
+    fontsize = FONTSIZE  # Adjust as needed
 
     for ax, label in zip(fig.axes, annotations):
         ax.annotate(label, xy=(0, 1), xycoords="axes fraction",
                     fontsize=fontsize, fontweight='bold',
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
-    fig.set_constrained_layout(True)
+    # fig.set_constrained_layout(True)
+    fig.tight_layout()
     # plt.show()
     # fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, hspace=0.3, wspace=0.2)
-    fig.savefig(os.path.join('Figures', 'Figure1_parametrization_results_analyis.png'))
+    fig.savefig(os.path.join('Figures', 'Figure1_parametrization_results_analysis.png'))
 
 if __name__ == '__main__':
     main()
