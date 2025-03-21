@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 import PAModelpy
 from PAModelpy import PAModel
 
-from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
+from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict, TransSectorConfig
 
 #######
 #SETUP METHODS
@@ -39,7 +39,7 @@ def get_results_from_simulations(pamodel: PAModel,
                                  substrate_ids: Union[str, list[str]] = 'EX_glc__D_e',
                                  fluxes_to_save: list[str] = None,
                                  proteins_to_save:list[str] = None,
-                                 transl_sector_config: Union[dict[str, dict], bool]=True) -> dict[str, pd.DataFrame]:
+                                 transl_sector_config: Union[dict[str,TransSectorConfig], bool]=True) -> dict[str, pd.DataFrame]:
 
     if not isinstance(substrate_ids, Iterable) and not isinstance(substrate_rates[0], Iterable):
         substrate_ids = [substrate_ids]
@@ -123,7 +123,7 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
 
 def _set_up_pamodel_for_simulations(pamodel:PAModel,
                                    substrate_id: str,
-                                   transl_sector_config:Union[bool, dict[str, float]]) -> None:
+                                   transl_sector_config:Union[bool, TransSectorConfig]) -> None:
     if not isinstance(transl_sector_config, dict) and transl_sector_config:
         transl_sector_config = {'slope': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                                 'intercept': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]}

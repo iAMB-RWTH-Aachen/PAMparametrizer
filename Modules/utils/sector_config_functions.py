@@ -1,15 +1,23 @@
-from typing import Iterable
+from typing import Iterable, Literal, Union, Tuple
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from PAModelpy import Config, PAModel
 
-def perform_linear_regression(x, y):
+
+TransSectorConfig = dict[Literal['slope', 'intercept']]
+
+def perform_linear_regression(x:Iterable[Union[float, int]],
+                              y:Iterable[Union[float, int]]
+                              )-> Tuple[float, float]:
     result = linregress(x=x,y=y)
     return result.slope, result.intercept
 
-def reset_translational_sector(pamodel, slope, intercept, new_id = None):
+def reset_translational_sector(pamodel:PAModel,
+                               slope:float, intercept:float,
+                               new_id:str = None
+                               ) -> PAModel:
     transl_sector = pamodel.sectors.get_by_id('TranslationalProteinSector')
     pamodel.remove_sectors([transl_sector])
     if new_id is not None:
@@ -82,7 +90,10 @@ def get_model_simulations_vs_sector(pamodel:PAModel,
 
     return simulation_results
 
-def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> list:
+def run_simulations(pamodel:PAModel,
+                    substrate_rates:Iterable[float],
+                    sub_uptake_id = 'EX_glc__D_e'
+                    ) -> list:
     fluxes = []
     for substrate in substrate_rates:
         if substrate<0:
@@ -99,11 +110,17 @@ def run_simulations(pamodel, substrate_rates, sub_uptake_id = 'EX_glc__D_e') -> 
     return fluxes
 
 
-def plot_translational_protein_vs_mu(literature, results,
-                                     protein_fraction, measured_protein_fraction,
-                                     oxygen_results=None, oxygen_rxn_id=None, return_fig = False,
-                                     configuration = None, literature_label = 'Schmidt et al (2016)',
-                                     model_label = 'new iML1515 PAM'):
+def plot_translational_protein_vs_mu(literature:pd.DataFrame,
+                                     results:pd.DataFrame,
+                                     protein_fraction:float,
+                                     measured_protein_fraction:float,
+                                     oxygen_results:pd.DataFrame=None,
+                                     oxygen_rxn_id:str=None,
+                                     return_fig:bool = False,
+                                     configuration:Config = None,
+                                     literature_label:str = 'Schmidt et al (2016)',
+                                     model_label:str = 'new iML1515 PAM'
+                                     )->None:
 
     if configuration is None:
         configuration  = Config().reset()
@@ -147,7 +164,9 @@ def plot_translational_protein_vs_mu(literature, results,
     plt.show()
 
 
-def plot_unused_protein_vs_mu(results, biomass_rxn):
+def plot_unused_protein_vs_mu(results:pd.DataFrame,
+                              biomass_rxn:str
+                              )->None:
     # plotting
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -171,7 +190,8 @@ def plot_unused_protein_vs_mu(results, biomass_rxn):
 
 def change_translational_sector_with_config_dict(pamodel:PAModel,
                                                  transl_sector_config:dict,
-                                                 substrate_uptake_id:str) -> None:
+                                                 substrate_uptake_id:str
+                                                 ) -> None:
     pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
 
     pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),
