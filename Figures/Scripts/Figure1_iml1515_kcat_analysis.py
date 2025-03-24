@@ -1,12 +1,11 @@
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
 from matplotlib import gridspec
+import seaborn as sns
 import numpy as np
 import pandas as pd
 import os
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Callable
 from PAModelpy.utils import set_up_pam
 
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
@@ -24,7 +23,7 @@ from Modules.utils.pamparametrizer_analysis import (calculate_kcat_differences,
                                                    )
 
 from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation
-from squarify import layout
+
 
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Carbohydrate transport and metabolism': 'Carbon metabolism',
@@ -199,7 +198,9 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        plotting_threshold=5*1e11,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
-                       legend = True):
+                       legend = True,
+                       xlabel=r'$\sum \frac{k_{cat,new}-k_{cat,old}}{k_{cat,old}}$',
+                       other_colors:dict={}):
     # only plot the most important cogs
     cog_summary_long = cog_summary_long.groupby('COG description').filter(
         lambda x: x['Change'].abs().sum() > plotting_threshold
@@ -221,8 +222,11 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
 
     # Get unique alternatives and define a color mapping using coolwarm
     alternatives = cog_summary_long['alternative'].unique()
-    norm = mcolors.Normalize(vmin=min(alternatives), vmax=max(alternatives))  # Normalize alternative values
-    alternative_colors = {alt: cm.coolwarm(norm(alt)) for alt in alternatives}  # Assign colors from coolw
+    model_colors = sns.color_palette("coolwarm", n_colors=len(alternatives)-len(other_colors))
+    alternative_colors = {
+        **{l: c for l, c in zip([f'Alternative {i + 1}' for i in range(len(alternatives)-len(other_colors))], model_colors)},
+        **other_colors}
+
 
     # Plot each alternative separately
     for i, alt in enumerate(cog_summary_long['alternative'].unique()[::-1]):
@@ -241,8 +245,10 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
         y_pos_negative = np.array(y_pos_alt[:len(negative_data)]) + (i - len(alternatives) / 2) * bar_width
 
         # Plot positive changes
+        if isinstance(alt, str): label =alt
+        else: label = f'Alternative {alt}'
         ax.barh(y_pos_positive, positive_data['Change'].values,
-                color=alternative_colors[alt], label=f'Alternative {alt}',
+                color=alternative_colors[alt], label=label,
                 height=bar_width, align='center')
 
         # Plot negative changes
@@ -263,14 +269,15 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        fontsize=fontsize)  # Set labels in sorted order
 
     # Label axes
-    ax.set_xlabel(r'$\sum \frac{k_{cat,new}-k_{cat,old}}{k_{cat,old}}$ ', fontsize=fontsize * 1.5)
+    ax.set_xlabel(xlabel, fontsize=fontsize * 1.5)
     # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
 
     # Add legend (ensuring all alternatives are included)
     if legend:
         handles, labels = ax.get_legend_handles_labels()
         unique_labels = dict(zip(labels, handles))
-        ax.legend(unique_labels.values(), unique_labels.keys(), title='Alternative model', bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.legend(unique_labels.values(), unique_labels.keys(),
+                  bbox_to_anchor=(1.05, 1), loc='upper left', fontsize = fontsize)
 
     # Show plot
     # plt.tight_layout()
@@ -280,11 +287,21 @@ def recreate_progress_plot(best_indiv_files:list[str],
                            labels:list[str], fig,
                            axs,
                            legend:bool = True,
-                           fontsize=20
+                           fontsize=20,
+                           pamparam_setup: Callable= None,
+                           pamparam_kwargs: dict = {'max_substrate_uptake_rate':-0.1},
+                           rxns_to_plot: List[str] = None,
+                           substrate_uptake_id:str = 'Ex_glc__D_e'
                            ):
     j=0
 
-    parametrizer, substrate_rates = set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates()
+    if pamparam_setup is None:
+        parametrizer, substrate_rates = set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates()
+    else:
+        parametrizer, substrate_rates = set_up_pam_parametrizer_and_get_substrate_uptake_rates(pamparam_setup,
+                                                                                               pamparam_kwargs)
+    if rxns_to_plot is not None:
+        parametrizer.validation_data.get_by_id(substrate_uptake_id)._reactions_to_plot = rxns_to_plot
 
     substrate_rates = sorted(substrate_rates)
     fig, axs = plot_valid_data(parametrizer,axs, fig, fontsize=fontsize)
