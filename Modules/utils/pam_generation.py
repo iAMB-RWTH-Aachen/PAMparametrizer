@@ -16,7 +16,9 @@ DEFAULT_KCAT = 11 #s-1
 
 def create_pamodel_from_diagnostics_file(file_path:str,
                                          model: PAModel,
-                                         sheet_name: str = 'Best_Individuals')-> PAModel:
+                                         sheet_name: str = 'Best_Individuals',
+                                         other_enzyme_id_pattern: str = r'E[0-9][0-9]*|Enzyme*'
+                                         )-> PAModel:
     """
     Modifies a Protein Allocation Model using information about turnover numbers from a diagnostics file (result from PAMparametrizer)
 
@@ -38,7 +40,8 @@ def create_pamodel_from_diagnostics_file(file_path:str,
     for _, group in best_individual_df.groupby('run_id'):
         for _, row in group.iterrows():
             rxn_id = _extract_reaction_id_from_catalytic_reaction_id(row['rxn_id'])
-            enzyme_id = _order_enzyme_complex_id(row['enzyme_id'])
+            enzyme_id = _order_enzyme_complex_id(row['enzyme_id'],
+                                                 other_enzyme_id_pattern = other_enzyme_id_pattern)
             kcat_dict = {rxn_id: {row['direction']: row['kcat[s-1]']}}
             model.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
     return model
