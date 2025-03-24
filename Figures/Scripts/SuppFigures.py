@@ -53,7 +53,7 @@ def main_sfig3():
                                      label_names=['GotEnzymes', 'After preprocessing'] \
                                                  + [f'Alternative {i}' for i in range(1, len(BEST_INDIV_RESULT_FILES) + 1)],
                                      cumulative=True,
-                                     result_fig_file = os.path.join('Figures', 'SuppFig3_flux_histogram.png'),
+                                     result_fig_file = os.path.join('Figures', 'SuppFig4_flux_histogram.png'),
                                      fontsize = FONTSIZE)
 
 def main_sfig4():
@@ -170,7 +170,7 @@ def main_sfig4():
 
     # plt.legend(loc = 'lower center')
     # plt.tight_layout()
-    plt.savefig(os.path.join('Figures', 'SuppFig4_flux_comparison_glucose_intracellular.png'))
+    plt.savefig(os.path.join('Figures', 'SuppFig5_flux_comparison_glucose_intracellular.png'))
 
 def main_sfig5():
     #MFA carbon sources

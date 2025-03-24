@@ -40,8 +40,6 @@ def make_simulation_error_boxplot(gotenz_param_file:str,
     substrate_rates = [
         [-f for f in flux_data.loc[substr_id, :].values] for substr_id in substrate_uptake_ids
     ]
-    print(substrate_rates, rxns_to_save)
-    print(flux_data)
     simulated_fluxes = get_simulation_results_for_pams(ecoli_pams,
                                                        substrate_rates = substrate_rates,
                                                        substrate_uptake_ids = substrate_uptake_ids,
@@ -156,6 +154,7 @@ def create_simulation_error_boxplot(simulated_fluxes: Dict[str, pd.DataFrame],
 
     # Combine data into a DataFrame
     all_differences = pd.DataFrame()
+    curated_differences = None  # Placeholder for Curated errors
 
     for model, flux_df in simulated_fluxes.items():
 
@@ -167,9 +166,17 @@ def create_simulation_error_boxplot(simulated_fluxes: Dict[str, pd.DataFrame],
             differences += difference
 
         temp_df = pd.DataFrame({'Model': [model] * len(differences), 'Difference': differences})
+        if model == 'GotEnzymes':
+            curated_differences = differences
+        else:
+            # Statistical test
+            stat, p = mannwhitneyu(curated_differences, differences, alternative='greater')
+            print(f"{model}: U-statistic = {stat}, p-value = {p}")
 
         # Append to the main DataFrame
         all_differences = pd.concat([all_differences, temp_df], ignore_index=True)
+
+    print(all_differences)
 
     # Boxplot or Violin Plot
     sns.boxplot(x='Model', y='Difference', data=all_differences, ax=ax, palette=cmap, showfliers=False)

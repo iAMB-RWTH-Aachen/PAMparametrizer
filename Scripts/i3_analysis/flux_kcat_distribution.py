@@ -117,11 +117,13 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      label_names:list[str],
                                      result_fig_file: str = RESULT_FLUX_HISTOGRAM_PATH,
                                      other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'},
-                                     cumulative:bool=False):
+                                     cumulative:bool=False,
+                                     fontsize=16):
     fig, ax = plt.subplots()
     n_bins = 50
     i = 0
     cmap = plt.get_cmap("coolwarm")
+
 
     for label, data_file_path in zip(label_names, data_file_paths):
         print('------------------------------------------------------------------------')
@@ -140,11 +142,14 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         hist, bins = np.histogram(fluxes, bins=n_bins)
         logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
 
+
         if label in other_colors.keys():
             color = other_colors[label]
         else:
             i += 1
             color = to_hex(cmap(i / (len(data_file_paths) - len(other_colors))))
+            print(i, color)
+            print((len(data_file_paths) - len(other_colors)), i / (len(data_file_paths) - len(other_colors)))
         kwargs = {'cumulative':cumulative}
         if not cumulative:
             kwargs = {**kwargs, 'fill': True,  'alpha':0.5}
@@ -153,14 +158,14 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                               stacked = True, label = label, color = color,
                                               **kwargs)
 
-        i += 1
         calculate_distribution_statistics(bin_heights, bin_borders)
 
 
     # plt.yscale('log')
-    plt.ylabel('Frequency')
+    plt.ylabel('Frequency', fontsize=fontsize)
     plt.xscale('log')
-    plt.xlabel('Flux [mmol/gCDW/h]')
+    plt.xlabel('Flux [mmol/gCDW/h]', fontsize=fontsize)
+    ax.tick_params(axis='both', labelsize=fontsize)
 
     plt.legend()
     plt.tight_layout()
@@ -182,11 +187,11 @@ if __name__ == '__main__':
                                      label_names = ['GotEnzymes', 'After preprocessing']\
                                                    + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
                                      cumulative=True)
-    # create_kcat_histogram_old_vs_new([PARAM_FILE_OLD,
-    #                                   SECTOR_PARAM_FILE] + other_files,
-    #                                  label_names=['GotEnzymes', 'After preprocessing'] \
-    #                                              + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
-    #                                  legend = False)
+    create_kcat_histogram_old_vs_new([PARAM_FILE_OLD,
+                                      SECTOR_PARAM_FILE] + other_files,
+                                     label_names=['GotEnzymes', 'After preprocessing'] \
+                                                 + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
+                                     legend = False)
     #
     # create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
     #                                   SECTOR_PARAM_FILE] + other_files,

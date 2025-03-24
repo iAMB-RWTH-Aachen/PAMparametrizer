@@ -22,7 +22,7 @@ from Modules.utils.pamparametrizer_analysis import (calculate_kcat_differences,
                                                     set_up_pam_parametrizer_and_get_substrate_uptake_rates
                                                    )
 
-from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation
+from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation, plot_flux_vs_experiment
 
 
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
@@ -291,7 +291,8 @@ def recreate_progress_plot(best_indiv_files:list[str],
                            pamparam_setup: Callable= None,
                            pamparam_kwargs: dict = {'max_substrate_uptake_rate':-0.1},
                            rxns_to_plot: List[str] = None,
-                           substrate_uptake_id:str = 'Ex_glc__D_e'
+                           substrate_uptake_id:str = 'EX_glc__D_e',
+                           other_measurements: bool = False
                            ):
     j=0
 
@@ -321,9 +322,14 @@ def recreate_progress_plot(best_indiv_files:list[str],
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,
                                                                        sensitivity=False)
-        fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
+        fig, axs, color = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                    parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
-                                   iteration=j + 1, max_iteration=len(best_indiv_files), label = label)
+                                   iteration=j + 1, max_iteration=len(best_indiv_files), label = label,
+                                   return_color=True)
+        if other_measurements:
+            print('plotting other carbon sources')
+            plot_flux_vs_experiment(axs[len(rxns_to_plot)], parametrizer,
+                                    color)
 
 
     lines, labels = fig.axes[1].get_legend_handles_labels()
