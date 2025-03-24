@@ -36,13 +36,14 @@ def set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: 
 #######
 def get_results_from_simulations(pamodel: PAModel,
                                  substrate_rates: Union[Iterable[float], Iterable[Iterable[float]]],
-                                 substrate_ids: Union[str, list[str]] = 'EX_glc__D_e',
+                                 substrate_ids: Union[str, list[str]] = ['EX_glc__D_e'],
                                  fluxes_to_save: list[str] = None,
                                  proteins_to_save:list[str] = None,
                                  transl_sector_config: Union[dict[str,TransSectorConfig], bool]=True) -> dict[str, pd.DataFrame]:
 
-    if not isinstance(substrate_ids, Iterable) and not isinstance(substrate_rates[0], Iterable):
+    if isinstance(substrate_ids, str):
         substrate_ids = [substrate_ids]
+    if not isinstance(substrate_rates[0], Iterable):
         substrate_rates = [substrate_rates]
 
     solution_information = _set_up_solution_info(fluxes_to_save, proteins_to_save)
@@ -53,7 +54,6 @@ def get_results_from_simulations(pamodel: PAModel,
             if substrate_id not in transl_sector_config: continue
             transl_sector = transl_sector_config[substrate_id]
         _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector)
-
         for substrate in substrate_list:
             pamodel.change_reaction_bounds(rxn_id=substrate_id,
                                            lower_bound=substrate, upper_bound=0)
