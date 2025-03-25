@@ -59,7 +59,8 @@ def plot_simulation(fig, axs,
 
 def plot_flux_vs_experiment(ax,
                            parametrizer,
-                            color):
+                            color,
+                            fontsize):
     fluxes_dict = {}
     for substrate_id in parametrizer.substrate_uptake_ids:
         print(substrate_id)
@@ -87,6 +88,25 @@ def plot_flux_vs_experiment(ax,
             exp_measurements = feas_sampled_data[reaction]
             simulations = [f[reaction] for f in fluxes]
             ax.scatter(exp_measurements, simulations, color=color)
+
+        ax.tick_params(axis='both', labelsize=fontsize)
+        ax.set_ylabel(r'Experimental flux', fontsize = fontsize)
+        ax.set_xlabel(r'Simulated flux', fontsize = fontsize)
+
+        ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useOffset=False, useMathText=False))
+        ax.yaxis.get_major_formatter().set_scientific(False)  # Disable scientific notation
+        ax.yaxis.get_major_formatter().set_useLocale(True)  # Ensure proper decimal formatting
+
+        # Make the axes square
+        ax.set_aspect('equal', adjustable='box')
+        xlims = ax.get_xlim()
+        ylims = ax.get_ylim()
+
+        # Define the range for the diagonal
+        lims = [min(xlims[0], ylims[0]), max(xlims[1], ylims[1])]
+        ax.plot(lims, lims, color='black', linestyle='--', linewidth=1)
+        ax.set_xlim(lims)
+        ax.set_ylim(lims)
 
 def plot_valid_data(parametrizer, axs=None, fig =None, fontsize:int = 12):
     RXN_NAME_MAPPER[parametrizer.pamodel.BIOMASS_REACTION] = 'Growth rate [$h^{-1}$]'

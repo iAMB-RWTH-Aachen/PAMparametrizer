@@ -329,7 +329,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
         if other_measurements:
             print('plotting other carbon sources')
             plot_flux_vs_experiment(axs[len(rxns_to_plot)], parametrizer,
-                                    color)
+                                    color, fontsize)
 
 
     lines, labels = fig.axes[1].get_legend_handles_labels()
