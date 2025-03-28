@@ -12,6 +12,7 @@ from typing import List, Dict, Tuple, Iterable
 from PAModelpy.utils import set_up_pam
 
 from Scripts.pam_generation import setup_ecoli_pam as set_up_ecoli_pam_curated
+from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import RXNS_TO_VALIDATE, get_reactions2plot_pathway_mapping
 from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
 
 from Modules.utils.pamparametrizer_analysis import (get_results_from_simulations,
@@ -139,17 +140,17 @@ def calculate_error_for_simulations(simulation_results:Dict[str, pd.DataFrame],
     for alt, error_list in error_new_dict.items():
         print(f'R^2 values for alternative model {alt} with the optimized parameters: ', np.nanmean(error_list))
 
-def create_simulation_error_boxplot(simulated_fluxes: Dict[str, pd.DataFrame],
-                                    valid_df:pd.DataFrame,
-                                    fluxes_to_save:List[str],
-                                    ax:plt.Axes,
-                                    fontsize:int,
+def create_simulation_error_boxplot(simulated_fluxes,
+                                    valid_df: pd.DataFrame,
+                                    fluxes_to_save,
+                                    ax: plt.Axes,
+                                    fontsize: int,
                                     other_colors={'GotEnzymes': 'grey', 'After preprocessing': 'black',
                                                   'Curated': 'chocolate'}
                                     ) -> plt.Axes:
     models = [label for label in simulated_fluxes if label not in other_colors.keys()]
-    other_colors = {k:v for k,v in other_colors.items() if k in simulated_fluxes}
-    model_colors = sns.color_palette("coolwarm", n_colors=len(simulated_fluxes)-len(other_colors))
+    other_colors = {k: v for k, v in other_colors.items() if k in simulated_fluxes}
+    model_colors = sns.color_palette("coolwarm", n_colors=len(simulated_fluxes) - len(other_colors))
     cmap = {**dict(zip(models, model_colors)), **other_colors}
 
     # Combine data into a DataFrame
@@ -171,29 +172,29 @@ def create_simulation_error_boxplot(simulated_fluxes: Dict[str, pd.DataFrame],
         else:
             # Statistical test
             stat, p = mannwhitneyu(curated_differences, differences, alternative='greater')
-            print(f"{model}: U-statistic = {stat}, p-value = {p}")
+            print(
+                f"{model}: U-statistic = {stat}, p-value = {p}, median = {np.median(differences)}, mean = {np.mean(differences)}")
 
         # Append to the main DataFrame
         all_differences = pd.concat([all_differences, temp_df], ignore_index=True)
-
-    print(all_differences)
 
     # Boxplot or Violin Plot
     sns.boxplot(x='Model', y='Difference', data=all_differences, ax=ax, palette=cmap, showfliers=False)
 
     # Adjust y-axis to focus on bulk data and add space for annotations
-    ax.set_ylim([all_differences['Difference'].quantile(0.05) - 3, all_differences['Difference'].quantile(0.96) + 3])
+    #     ax.set_ylim([all_differences['Difference'].quantile(0.05), all_differences['Difference'].quantile(0.96)])
 
     # Set labels and title
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=fontsize)
-    ax.set_xlabel('Model', fontsize=fontsize * 1.5)
+    ax.set_xlabel('Model', fontsize=fontsize)
     ax.set_ylabel(r'Difference (exp - sim) mmol/$\text{g}_{CDW}$/h', fontsize=fontsize)
 
     return ax
-def create_sensitivity_heatmap(ecoli_pams: dict, gs, fig):
+
+def create_sensitivity_heatmap(ecoli_pams: dict, gs, fig, fontsize):
     etc_reactions_proteins = get_reactions_from_etc(ecoli_pams['Alternative 1'], ecoli_pams['Curated'])
     enzyme_sensitivities = get_most_sensitive_enzymes(ecoli_pams, etc_reactions_proteins)
-    plot_split_clustermap(enzyme_sensitivities, etc_reactions_proteins,gs, fig)
+    plot_split_clustermap(enzyme_sensitivities, etc_reactions_proteins,gs, fig, fontsize)
 
 def get_reactions_from_etc(pam, pam_curated):
     etc_reactions = pd.DataFrame({'Reactions':
@@ -272,7 +273,8 @@ def get_most_sensitive_enzymes(ecoli_pams:dict, etc_reactions_proteins:pd.DataFr
     )
     return enzyme_sensitivities
 
-def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig):
+
+def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig, fontsize):
     # Split data into two subsets
     mask = enzyme_sensitivities.reaction.isin(genes_reactions_etc.Reactions)
     heatmap_1 = enzyme_sensitivities[mask]
@@ -289,6 +291,14 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig):
         index='enzyme_id', columns='model', values='coefficient', aggfunc="sum"
     ).dropna(how='all').fillna(0)
 
+    # Replace enzyme IDs with reaction IDs
+    enzyme_to_reaction = enzyme_sensitivities.drop_duplicates(
+        'enzyme_id'
+    ).set_index('enzyme_id')[['reaction']]
+    heatmap_2 = pd.merge(
+        heatmap_2, enzyme_to_reaction, left_index=True, right_index=True
+    ).reset_index().set_index('reaction').drop('enzyme_id', axis=1)
+
     # Define custom colormap
     colors_pos = plt.cm.coolwarm(np.linspace(0, 1, 256))
     colors_zero = np.array([[0.549, 0.5725, 1, 0.9]])  # White for zero
@@ -296,13 +306,13 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig):
     colors = np.vstack((colors_zero, colors_pos))
     combined_cmap = mcolors.ListedColormap(colors, name='custom_cmap')
 
-    vmin, vmax = 0, 1#round(max(heatmap_1.max().max(), heatmap_2.max().max()))
+    vmin, vmax = 0, 1  # round(max(heatmap_1.max().max(), heatmap_2.max().max()))
     bounds = np.linspace(vmin, vmax, len(colors))
     norm = mcolors.BoundaryNorm(bounds, combined_cmap.N)
 
     # 2 columns: heatmap and cmap
     gs_main = gridspec.GridSpecFromSubplotSpec(1, 2, width_ratios=[10, 1],
-                                               wspace=0.2, subplot_spec=gs)
+                                               wspace=0.4, subplot_spec=gs)
     # 2 rows: ETC heatmap and top sensitivities heatmap
     gs_inner = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[0],
                                                 height_ratios=[heatmap_1.shape[0], heatmap_2.shape[0]],
@@ -313,28 +323,52 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig):
     sns.heatmap(heatmap_1, cmap=combined_cmap, norm=norm, cbar=False, ax=ax1)
     ax1.xaxis.set_visible(False)
     ax1.set_xlabel("")
-    ax1.set_ylabel("ETC")
-
-    # Clustermap for Heatmap 2 (most sensitive enzymes)
-    cluster_map = sns.clustermap(heatmap_2, cmap=combined_cmap, norm=norm,
-                                 cbar=False, col_cluster=False, figsize=(10, 12))
+    ax1.set_ylabel("ETC", fontsize=fontsize)
 
     # Step 2: Extract reordered row indices
-    row_order = leaves_list(cluster_map.dendrogram_row.linkage)  # Get sorted row indices
-    data_reordered = heatmap_2.iloc[row_order]  # Reorder data
+    rxns_to_plot = get_reactions2plot_pathway_mapping(heatmap_2.T)
+    # Flatten all reaction lists into a set for fast lookup
+    all_rxns = set(rxn for rxn_list in rxns_to_plot.values() for rxn in rxn_list)
+
+    # Loop over indices and add to 'anabolism' if not present in any of the lists
+    for idx in heatmap_2.index:
+        if idx not in all_rxns:
+            rxns_to_plot.setdefault('Other', []).append(idx)
+
+    row_order = []  # leaves_list(cluster_map.dendrogram_row.linkage)  # Get sorted row indices
+    for rxns in rxns_to_plot.values(): row_order += rxns
+    data_reordered = heatmap_2.loc[row_order]  # Reorder data
 
     # Step 4: Add heatmap to GridSpec
     ax2 = fig.add_subplot(gs_inner[1, 0])
     sns.heatmap(data_reordered, cmap=combined_cmap, norm=norm, cbar=False, ax=ax2)
-    ax2.set_ylabel("Reaction")
+    ax2.set_ylabel("Reaction", fontsize=fontsize)
 
-    # Replace enzyme IDs with reaction IDs
-    enzyme_to_reaction = enzyme_sensitivities.drop_duplicates(
-        'enzyme_id'
-    ).set_index('enzyme_id')[['reaction']].to_dict()['reaction']
-    ax2.set_yticklabels([enzyme_to_reaction.get(enzid, enzid) for enzid in heatmap_2.index])
+    ax2.set_xlabel("")
+    ax2.tick_params(axis='x', labelrotation=45)
 
-    ax2.set_xlabel("Model")
+    # add pathway annotation
+    group_labels = []
+    group_positions = []
+    start = 0
+    for group_name, row in rxns_to_plot.items():
+        length = len(row)
+        center = start + length / 2
+        group_labels.append(group_name)
+        group_positions.append(center)
+        start += length
+        # drawing line between the groups
+        if start < heatmap_2.shape[0]:  # Avoid drawing a line at the far right
+            ax2.axhline(y=start, color='black', linewidth=2)
+
+    # Add group labels as a second y-axis (on the left)
+    ax_top = ax2.twinx()
+    # Match the ticks and limits
+    ax_top.set_ylim(ax2.get_ylim())
+    ax_top.set_yticks(group_positions)
+    ax_top.set_yticklabels(group_labels, fontsize=fontsize, fontweight='bold')
+    ax_top.tick_params(axis='y', bottom=False, top=True, labelbottom=False, labeltop=True)
+    ax_top.spines['bottom'].set_visible(False)
 
     # Colorbar spanning both heatmaps
     cbar_ax = fig.add_subplot(gs_main[0, 1])
@@ -346,10 +380,9 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig):
     cbar.ax.yaxis.set_minor_locator(plt.NullLocator())  # Remove minor ticks
     cbar.set_ticks(valid_ticks)
 
-    cbar.ax.set_ylabel("Sensitivity Coefficient")
+    cbar.ax.set_ylabel("Sensitivity Coefficient", fontsize=fontsize)
 
-    # Remove the original extra figure from clustermap
-    plt.close(cluster_map.fig)
+
 
 def main():
     N_ALT_MODELS = 8
@@ -377,7 +410,7 @@ def main():
                                         MODEL_FILE_PATH,
                                         ECOLI_PHENOTYPE_DATA_PATH,
                                         ax1, fontsize= FONTSIZE)
-    create_sensitivity_heatmap(ecoli_pams, gs_main[1], fig)
+    create_sensitivity_heatmap(ecoli_pams, gs_main[1], fig, FONTSIZE)
 
     for ax in fig.axes:
         ax.tick_params(axis='both', labelsize=FONTSIZE)
