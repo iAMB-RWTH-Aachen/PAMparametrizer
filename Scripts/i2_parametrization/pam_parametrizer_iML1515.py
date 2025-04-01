@@ -98,7 +98,7 @@ def set_up_hyperparameter(processes: int,
 
     hyperparams.genetic_algorithm_hyperparams['processes'] = processes
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
-    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 6
+    hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2#6
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
     hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'EX_ac_e':3,
                                                                   config.BIOMASS_REACTION: 7}
@@ -166,8 +166,8 @@ if __name__ == "__main__":
                                               pam_info_file= pam_info_file,
                                               filename_extension= 'iML1515',
                                               c_sources = ['Glucose'],
-                                              kcat_increase_factor= 3,
-                                              threshold_iteration= 8)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+                                              kcat_increase_factor=3, #9,
+                                              threshold_iteration= 5)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515

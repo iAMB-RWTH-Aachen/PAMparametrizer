@@ -345,7 +345,7 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig, fo
     ax2.set_ylabel("Reaction", fontsize=fontsize)
 
     ax2.set_xlabel("")
-    ax2.tick_params(axis='x', labelrotation=45)
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right')
 
     # add pathway annotation
     group_labels = []

@@ -38,16 +38,7 @@ cmap = {**{l:c for l, c in zip([f'Alternative {i + 1}' for i in range(len(BEST_I
         **other_colors}
 
 
-
-def main_sfig1():
-    #translational_sector_config
-    pass
-
-def main_sfig2():
-    #compare simulation results
-    pass
-
-def main_sfig3():
+def main_sfig_flux_distribution():
     #flux distribution
     create_flux_histogram_old_vs_new([PARAM_FILE_GOTENZ,
                                       PARAM_FILE_PREPROC] + PARAMETER_RESULT_FILES,
@@ -57,7 +48,7 @@ def main_sfig3():
                                      result_fig_file = os.path.join('Figures', 'SuppFig4_flux_histogram.png'),
                                      fontsize = FONTSIZE)
 
-def main_sfig4():
+def main_sfig_error_progression():
     #compare error progression
     best_individual_df = None
 
@@ -80,8 +71,8 @@ def main_sfig4():
     gs = gridspec.GridSpec(1, 2, wspace=0.3)
     axs = [fig.add_subplot(gs[i]) for i in [0,1]]
     for ax, type, annotation in zip(axs,
-                                    ['ga_error', 'r_squared'],
-                                    ['genetic algorithm', 'PAMparametrizer']
+                                    ['r_squared', 'ga_error'],
+                                    ['PAMparametrizer', 'genetic algorithm']
                                     ):
         iteration = best_individual_df.drop(
             [col for col in best_individual_df.columns if col not in ['alternative', 'run_id', type]],
@@ -114,10 +105,11 @@ def main_sfig4():
     fig.tight_layout()
     fig.savefig(os.path.join('Figures', 'SuppFig3_pamparametrizer_performance.png'))
 
-def main_sfig7():
-    plot_intracell_flux_distribution_ecoli(fig_out=os.path.join('Figures', 'SuppFig_intracell_flux_distribution_heatmap_ecoli.png'))
+def main_sfig_ecoli_intracell_flux():
+    plot_intracell_flux_distribution_ecoli(
+        fig_out=os.path.join('Figures', 'SuppFig_intracell_flux_distribution_heatmap_ecoli.png')
+    )
 
 if __name__ == '__main__':
-    main_sfig7()
-    # main_sfig4()
-    # main_sfig5()
+    main_sfig_ecoli_intracell_flux()
+    main_sfig_error_progression()

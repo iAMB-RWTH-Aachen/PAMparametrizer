@@ -142,7 +142,7 @@ def _set_up_solution_info(fluxes_to_save: list[str],
         solution_information['fluxes'] = pd.DataFrame(columns=[ 'substrate_id','substrate'] + fluxes_to_save)
     if proteins_to_save is not None:
         solution_information['proteins'] = pd.DataFrame(
-            columns=['substrate_id','enzyme_id', 'fraction', 'growth_rate', 'substrate_uptake'])
+            columns=['substrate_id','enzyme_id','fraction', 'growth_rate', 'substrate_uptake'])
     if method_ids is not None:
         for key, df in solution_information.items():
             df['method'] = []
@@ -399,7 +399,8 @@ def normalize_simulated_protein_concentrations(df: pd.DataFrame,
                                 ue_sector: PAModelpy.UnusedEnzymeSector):
     """Normalizes protein fractions in a simulation dataset.
 
-    This function processes simulation results by normalizing protein concentrations.
+    This function processes simulation results by converting predicted enzyme concentrations form mmol/gCDW to
+    g/gCDW and by normalizing protein concentrations.
     It accounts for unused enzyme fractions and converts enzyme-level simulated concentration into
     enzyme-level fractions. The final concentration values are normalized based
     on the total protein concentration in the system, taking unused proteins into account.
@@ -408,8 +409,9 @@ def normalize_simulated_protein_concentrations(df: pd.DataFrame,
         df (pd.DataFrame):
             The simulation dataframe containing columns:
             - 'method' (str): The simulation method identifier.
-            - 'fraction' (float): Protein fraction values.
+            - 'fraction' (float): Protein fraction values in mmol/g_cdw.
             - 'growth_rate' (float): Growth rate for each condition.
+            - 'molMass' (int): molar mass of the enzyme in kDa.
         enzyme_db (pd.DataFrame):
             The enzyme database mapping peptides to their corresponding enzymes.
         ue_sector (UnusedEnzymeSector):
@@ -427,6 +429,11 @@ def normalize_simulated_protein_concentrations(df: pd.DataFrame,
 
     df = df.dropna(how='any')
 
+    #convert mmol to grams of protein
+    #mmol*1e-3 -> mol
+    #mol*g/mol -> mol
+    df['fraction'] = df.fraction *1e-3 * df.molMass
+
     peptide_simulated_df_list = []  # Store results in a list
 
     for method, simulation_df in df.groupby('method'):
@@ -440,7 +447,7 @@ def normalize_simulated_protein_concentrations(df: pd.DataFrame,
         simulation_df['normalized_fraction'] = simulation_df['fraction'] * 1e6 / total_conc
         simulation_df['method'] = method
 
-        peptide_simulated_df_list.append(simulation_df[['enzyme_id', 'normalized_fraction', 'method', 'enzyme_type']])
+        peptide_simulated_df_list.append(simulation_df[['enzyme_id', 'rxn_id','normalized_fraction', 'method', 'enzyme_type']])
 
     return pd.concat(peptide_simulated_df_list, ignore_index=True)
 

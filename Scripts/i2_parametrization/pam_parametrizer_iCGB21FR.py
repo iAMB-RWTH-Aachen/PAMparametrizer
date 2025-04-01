@@ -155,6 +155,6 @@ if __name__ == "__main__":
     #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
-    run_parametrizations(1, pam_info_file)
+    run_parametrizations(5, pam_info_file)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515

@@ -110,7 +110,9 @@ def compute_final_error_on_full_dataset_for_all_experiments(base_file_path: str,
 def plot_progression_of_errors(final_errors: pd.DataFrame,
                                metrics: Literal['smape', 'r_squared'] ='rsquared',
                                fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'error_per_reaction_num_datapoints.png'),
-                               fontsize:int = 16
+                               fontsize:int = 16,
+                               ax = None,
+                               legend=True
                                ) -> None:
     metrics_mapper = {'rsquared': r'$R^{2}$',
                       'smape': 'Symmetric Mean Absolute Percentage Error'}
@@ -138,7 +140,9 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     summary_stats = long_data.groupby(["perc_data", "reaction"])[metrics].agg(['mean', 'min', 'max']).reset_index()
 
     # Plot
-    plt.figure(figsize=(12, 6))
+    if ax is None:
+        plt.figure(figsize=(12, 6))
+        plt.tight_layout()
 
     # Plot each reaction with error bars
     for reaction in summary_stats['reaction'].unique():
@@ -151,19 +155,24 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
             capsize=3,
             color=cmap[reaction],
             linewidth=2
-
         )
 
     # Customize the plot
     # plt.title("R_squared Values by Reaction", fontsize=16)
     plt.xlabel("Number of datapoints", fontsize=fontsize)
     plt.ylabel(metrics_mapper[metrics], fontsize=fontsize)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left",
-               fontsize=fontsize)
+    if legend:
+        plt.legend(
+            loc='upper center',
+            bbox_to_anchor=(0.5, -0.2),
+            ncol=3,
+            fontsize=fontsize,
+            frameon=False  # removes the border box
+        )
+
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     # plt.ylim([40,100])
-    plt.tight_layout()
     #
     plt.savefig(fig_file_path)
 

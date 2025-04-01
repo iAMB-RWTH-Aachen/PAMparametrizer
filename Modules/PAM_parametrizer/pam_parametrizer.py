@@ -1084,6 +1084,7 @@ class PAMParametrizer():
         if len(esc_results_df) == 0: return self._get_random_enzymes_to_evaluate() #if infeasible get default parameter set to adjust
         esc_topn_df = self._select_topn_enzymes(esc_results_df,
                                                 nmbr_kcats_to_pick)
+        print(esc_topn_df)
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
 
         return enzymes_to_evaluate
@@ -1206,6 +1207,7 @@ class PAMParametrizer():
         for substrate_id in self.substrate_uptake_ids:
             if substrate_id == self.substrate_uptake_id: substrate_range = None
             else: substrate_range = self.validation_data.get_by_id(substrate_id).valid_data[substrate_id]
+
 
             fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
                                                                    substrate_rates=substrate_range,
