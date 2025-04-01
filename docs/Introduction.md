@@ -72,7 +72,7 @@ The genetic algorithm makes use of the [DEAP toolbox](https://github.com/DEAP/de
 the tools needed to create different types of evolutionary algorithms, such as the genetic algorithm.
 
 The full list of dependencies is as follows:
-- PAModelpy==0.0.3.15
+- PAModelpy==0.0.4.8
 - matplotlib==3.8.4
 - deap==1.4.1y
 - random
