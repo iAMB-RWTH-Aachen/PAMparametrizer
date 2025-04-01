@@ -45,7 +45,7 @@ def main_sfig_flux_distribution():
                                      label_names=['GotEnzymes', 'After preprocessing'] \
                                                  + [f'Alternative {i}' for i in range(1, len(BEST_INDIV_RESULT_FILES) + 1)],
                                      cumulative=True,
-                                     result_fig_file = os.path.join('Figures', 'SuppFig4_flux_histogram.png'),
+                                     result_fig_file = os.path.join('Figures', 'SuppFig_flux_histogram.png'),
                                      fontsize = FONTSIZE)
 
 def main_sfig_error_progression():
@@ -103,7 +103,7 @@ def main_sfig_error_progression():
                     ha="right", va="bottom")
 
     fig.tight_layout()
-    fig.savefig(os.path.join('Figures', 'SuppFig3_pamparametrizer_performance.png'))
+    fig.savefig(os.path.join('Figures', 'SuppFig_pamparametrizer_performance.png'))
 
 def main_sfig_ecoli_intracell_flux():
     plot_intracell_flux_distribution_ecoli(
