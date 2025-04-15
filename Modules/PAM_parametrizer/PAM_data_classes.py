@@ -1,13 +1,31 @@
 from dataclasses import dataclass, field
 import pandas as pd
 from PAModelpy.configuration import Config
-from typing import Union, Callable
+from PAModelpy import TransEnzymeSector, UnusedEnzymeSector, CustomSector
+from typing import Union, Callable, TypedDict, Iterable
 import os
 from cobra import DictList
 import random
 
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from Modules.genetic_algorithm_parametrization import GAPOUniform
+
+class SectorConfig(TypedDict):
+    """
+    Dictionary to store the information on how to configure a protein sector for new carbon sources.
+    Can be used as a 'bride' between different carbon sources by relating the sector to the growth rate
+
+    Args:
+        sectorname (str): the sector identifier for which the relation is defined as present in the PAModel
+        slope (float): slope between protein fraction allocated to the sector and the growth rate [g/gCDW/h]
+        intercept (float): the protein fraction allocated to the sector at zero growth [g/gCDW]
+        substrate_range (iterable of floats or ints): substrate range which for all the substrates is not related to fermentative phenotypes
+    """
+    sectorname:str
+    slope_vs_mu:float
+    intercept_vs_mu:float
+    substrate_range:Iterable[Union[float, int]]
+
 
 @dataclass
 class ValidationData:

@@ -246,7 +246,12 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                                                                 substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1)
                                                                 )-> ParameterDict:
     if sector_id not in pamodel.sectors:
-        raise KeyError(f'{sector_id} is not in the sectors of the PAModel')
+        sectors = [s.id for s in pamodel.sectors]
+        raise KeyError(f'{sector_id} is not in the sectors of the PAModel, '
+                       f'choose on of the following sectors:',
+                       "\n\t".join(sectors)
+                       )
+
 
     pamodel.change_sector_parameters(
         pamodel.sectors.get_by_id(sector_id),
@@ -261,6 +266,6 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                                                              intercept = params['intercept'], slope = params['slope'],
                                                              sector_name='unused_enzymes')
     slope_glc, intercept_glc = perform_linear_regression(
-        x=simulation_results_bms[substrate_range], y=simulation_results_bms['unused_enzymes'])
+        x=simulation_results_bms[substrate_uptake_id], y=simulation_results_bms['unused_enzymes'])
 
     return {'slope': slope_glc, 'intercept': intercept_glc}
