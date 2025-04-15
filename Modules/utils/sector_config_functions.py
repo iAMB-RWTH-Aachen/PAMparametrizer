@@ -2,6 +2,7 @@ from typing import Iterable, Literal, Union, Tuple
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 from PAModelpy import Config, PAModel
 
@@ -119,12 +120,15 @@ def plot_translational_protein_vs_mu(literature:pd.DataFrame,
                                      return_fig:bool = False,
                                      configuration:Config = None,
                                      literature_label:str = 'Schmidt et al (2016)',
-                                     model_label:str = 'new iML1515 PAM'
+                                     model_label:str = 'new iML1515 PAM',
+                                     fig:plt.Figure=None,
+                                     ax:plt.Axes=None
                                      )->None:
 
     if configuration is None:
         configuration  = Config().reset()
-    fig, ax = plt.subplots(figsize=(10, 6))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 6))
 
     # Plotting the literature data
     ax.scatter(
@@ -191,7 +195,7 @@ def plot_unused_protein_vs_mu(results:pd.DataFrame,
 def change_translational_sector_with_config_dict(pamodel:PAModel,
                                                  transl_sector_config:dict,
                                                  substrate_uptake_id:str
-                                                 ) -> None:
+                                                 ) -> PAModel:
     pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
 
     pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),
@@ -199,6 +203,8 @@ def change_translational_sector_with_config_dict(pamodel:PAModel,
                                               intercept=transl_sector_config['intercept'],
                                     lin_rxn_id=substrate_uptake_id
                                      )
+
+    return pamodel
 
     # pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub #reset
 
@@ -231,3 +237,30 @@ def get_translational_sector_config(pamodel:PAModel,
             x=simulation_results[substrate_id], y=simulation_results["translational_protein"])
             # slope, intercept = slope * self.MEASURED_PROTEIN_FRACTION, intercept*self.MEASURED_PROTEIN_FRACTION
     return {"slope":slope,"intercept":intercept}
+
+ParameterDict = dict[Literal['slope', 'intercept'], float]
+def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAModel,
+                                                                params:ParameterDict,
+                                                                sector_id:str,
+                                                                substrate_uptake_id: str = 'EX_glc__D_e',
+                                                                substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1)
+                                                                )-> ParameterDict:
+    if sector_id not in pamodel.sectors:
+        raise KeyError(f'{sector_id} is not in the sectors of the PAModel')
+
+    pamodel.change_sector_parameters(
+        pamodel.sectors.get_by_id(sector_id),
+        slope=params['slope'],
+        intercept=params['intercept'],
+        lin_rxn_id=pamodel.BIOMASS_REACTION
+    )
+    simulation_results_bms = get_model_simulations_vs_sector(pamodel,
+                                                             sub_uptake_rxn = substrate_uptake_id,
+                                                             rxn_id_to_relate_to = pamodel.BIOMASS_REACTION,
+                                                             substrate_range = substrate_range,
+                                                             intercept = params['intercept'], slope = params['slope'],
+                                                             sector_name='unused_enzymes')
+    slope_glc, intercept_glc = perform_linear_regression(
+        x=simulation_results_bms[substrate_range], y=simulation_results_bms['unused_enzymes'])
+
+    return {'slope': slope_glc, 'intercept': intercept_glc}
