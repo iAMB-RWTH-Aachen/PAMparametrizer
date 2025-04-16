@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 import numpy as np
-from typing import Literal, Tuple, Iterable, Union, List
+from typing import Literal, Tuple, Iterable, Union, List, Dict
 import datetime
-from cobra import DictList
+import ast
 
 from Modules.utils.sector_config_functions import ParameterDict
 from Modules.PAM_parametrizer import SectorConfig
@@ -116,7 +116,7 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str)-> Tuple[dict[s
 
 def set_up_sector_config(pam_info_file: str,
                          sectors_not_related_to_growth: List[str]
-                         ) -> DictList[SectorConfig]:
+                         ) -> Dict[str,SectorConfig]:
     """Initializes sector configuration objects from PAM parameter Excel file.
 
     This function reads the PAM parameter Excel file and sets up configuration objects
@@ -132,8 +132,8 @@ def set_up_sector_config(pam_info_file: str,
             linearly related to the growth rate, but to for example the substrate uptake rate
 
     Returns:
-        DictList[SectorConfig]: Dictionary-like structure mapping sector IDs to their
-        corresponding `SectorConfig` instances.
+        Dict[str, SectorConfig]: Dict of the parsed SectorConfig typed dicts with the corresponding model sector name
+            as keys
     """
 
     sectors_to_sheets = {
@@ -141,7 +141,7 @@ def set_up_sector_config(pam_info_file: str,
         'UnusedEnzymeSector': 'UnusedEnzyme'
     }
 
-    sector_configs = DictList()
+    sector_configs = {}
     for sector_id in sectors_not_related_to_growth:
         if sector_id not in sectors_to_sheets:
             raise ValueError(f"Unknown sector: {sector_id}. Must be one of {list(sectors_to_sheets.keys())}.")
@@ -149,12 +149,13 @@ def set_up_sector_config(pam_info_file: str,
         sector_to_growth = pd.read_excel(
             pam_info_file,
             sheet_name=sectors_to_sheets[sector_id]
-        ).set_index('Parameters')[['Value_for_growth']]
+        ).set_index('Parameter')[['Value_for_growth']]
 
         sector_configs[sector_id] = SectorConfig(
             sectorname=sector_id,
-            slope_vs_mu=sector_to_growth[sector_to_growth.index.str.endswith('_mu')],
-            intercept_vs_mu=sector_to_growth[sector_to_growth.index.str.endswith('_0')],
-            substrate_range=sector_to_growth['substrate_range']
+            slope_vs_mu=sector_to_growth.filter(like='_mu', axis=0)['Value_for_growth'].iloc[0],
+            intercept_vs_mu=sector_to_growth.filter(like='_0', axis=0)['Value_for_growth'].iloc[0],
+            #convert string to list with ast.literal_eval
+            substrate_range= ast.literal_eval(sector_to_growth.loc['substrate_range', 'Value_for_growth'])
         )
     return sector_configs
