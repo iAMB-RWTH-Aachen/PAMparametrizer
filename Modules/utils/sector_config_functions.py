@@ -191,16 +191,16 @@ def plot_unused_protein_vs_mu(results:pd.DataFrame,
     plt.show()
 
 
-def change_translational_sector_with_config_dict(pamodel:PAModel,
-                                                 transl_sector_config:ParameterDict,
-                                                 substrate_uptake_id:str
-                                                 ) -> PAModel:
+def change_sector_parameters_with_config_dict(pamodel: PAModel,
+                                              sector_config: ParameterDict,
+                                              substrate_uptake_id: str,
+                                              sector_id:str = 'TranslationalProteinSector') -> PAModel:
     pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
 
-    pamodel.change_sector_parameters(pamodel.sectors.get_by_id('TranslationalProteinSector'),
-                                              slope=transl_sector_config['slope'],
-                                              intercept=transl_sector_config['intercept'],
-                                    lin_rxn_id=substrate_uptake_id
+    pamodel.change_sector_parameters(pamodel.sectors.get_by_id(sector_id),
+                                     slope=sector_config['slope'],
+                                     intercept=sector_config['intercept'],
+                                     lin_rxn_id=substrate_uptake_id
                                      )
 
     return pamodel
