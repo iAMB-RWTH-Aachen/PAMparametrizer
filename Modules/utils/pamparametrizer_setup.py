@@ -115,7 +115,27 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str)-> Tuple[dict[s
 
 
 def set_up_sector_config(pam_info_file: str,
-                         sectors_not_related_to_growth: List[str]) -> DictList[SectorConfig]:
+                         sectors_not_related_to_growth: List[str]
+                         ) -> DictList[SectorConfig]:
+    """Initializes sector configuration objects from PAM parameter Excel file.
+
+    This function reads the PAM parameter Excel file and sets up configuration objects
+    for each sector not linearly related to the growth rate, but to another linear reaction
+    (such as substrate uptake rate). This allows the relation to be extrapolated to other
+    conditions/substrates It extracts the slope, intercept, and substrate range associated
+    with growth for each specified sector.
+
+    Args:
+        pam_info_file (str): Path to the Excel file containing PAM parameter data.
+        sectors_not_related_to_growth (List[str]): List of sector identifiers
+            (e.g., 'TranslationalProteinSector', 'UnusedEnzymeSector') that are not
+            linearly related to the growth rate, but to for example the substrate uptake rate
+
+    Returns:
+        DictList[SectorConfig]: Dictionary-like structure mapping sector IDs to their
+        corresponding `SectorConfig` instances.
+    """
+
     sectors_to_sheets = {
         'TranslationalProteinSector': 'Translational',
         'UnusedEnzymeSector': 'UnusedEnzyme'
@@ -123,6 +143,9 @@ def set_up_sector_config(pam_info_file: str,
 
     sector_configs = DictList()
     for sector_id in sectors_not_related_to_growth:
+        if sector_id not in sectors_to_sheets:
+            raise ValueError(f"Unknown sector: {sector_id}. Must be one of {list(sectors_to_sheets.keys())}.")
+
         sector_to_growth = pd.read_excel(
             pam_info_file,
             sheet_name=sectors_to_sheets[sector_id]
