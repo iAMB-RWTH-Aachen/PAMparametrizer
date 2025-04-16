@@ -38,6 +38,6 @@ def test_set_up_sector_config_returns_expected_structure(sector_ids: List[str],
         assert sector_id in config
         sector_info = sectors_info[sector_id]
         substrate_range_expected = ast.literal_eval(sector_info.loc['substrate_range', 'Value_for_growth'])
-        assert sector_info.filter(like='_mu', axis=0)['Value_for_growth'].iloc[0] == config[sector_id]['slope_vs_mu']
-        assert sector_info.filter(like='_0', axis=0)['Value_for_growth'].iloc[0] == config[sector_id]['intercept_vs_mu']
+        assert sector_info.filter(like='_mu', axis=0)['Value_for_growth'].iloc[0] == config[sector_id]['slope']
+        assert sector_info.filter(like='_0', axis=0)['Value_for_growth'].iloc[0] == config[sector_id]['intercept']
         assert substrate_range_expected == config[sector_id]['substrate_range']
