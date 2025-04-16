@@ -13,21 +13,24 @@ from cobra import DictList
 from collections import defaultdict
 from typing import List, Dict, Literal
 
-from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults
+from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
 from Modules.utils.sampling_functions import adaptive_sampling
 from Modules.utils.pam_generation import _extract_reaction_id_from_catalytic_reaction_id
 from Modules.utils.sector_config_functions import (get_model_simulations_vs_sector,
                                                    perform_linear_regression,
-                                                   change_translational_sector_with_config_dict)
-
+                                                   change_translational_sector_with_config_dict,
+                                                   change_proteinsector_relation_from_growth_to_substrate_uptake)
 
 class PAMParametrizer():
-
     #from Schmidt et al(2016):
-    TRANSL_SECTOR_INTERCEPT_vs_MU = 0.04738115630907698#g / g_cdw
-    TRANSL_SECTOR_SLOPE_vs_MU = 0.04806975534478209 #g / g_cdw / h
+    TRANSLATIONAL_SECTOR_CONFIG = SectorConfig(
+        sectorname='TranslationalProteinSector',
+        slope_vs_mu= 0.04806975534478209, #g / g_cdw / h
+        intercept_vs_mu=0.04738115630907698,#g / g_cdw
+        substrate_range= list(np.arange(-4,0,1))
+    )
     TRANSL_SECTOR_INTERCEPT_vs_GLC = 0.046136644909661115#g / g_cdw
     TRANSL_SECTOR_SLOPE_vs_GLC = -0.004340256958025938 #g / mmol_glc / h
     MEASURED_PROTEIN_FRACTION = 0.55*0.55
@@ -35,6 +38,7 @@ class PAMParametrizer():
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
                  hyperparameters: HyperParameters = HyperParameters(),
+                 sector_configs: List[SectorConfig] = [TRANSLATIONAL_SECTOR_CONFIG],
                  substrate_uptake_id: str = "EX_glc__D_e",
                  max_substrate_uptake_rate: Union[float, int] = 0,
                  min_substrate_uptake_rate: Union[float, int] = -11,
@@ -53,6 +57,7 @@ class PAMParametrizer():
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
         self.hyperparameters = hyperparameters
+        self.sector_configs = sector_configs
 
         self.substrate_uptake_ids = [csource_data.id for csource_data in validation_data]
 
@@ -111,7 +116,7 @@ class PAMParametrizer():
             A png image of the parametrization progress and an excel file with the resulting parameters
         """
         self._set_pamodel_no_sensitivities()
-        self.calculate_translational_sector_for_multiple_csources()
+        self.calculate_sector_parameters_for_multiple_csources()
 
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
@@ -157,34 +162,27 @@ class PAMParametrizer():
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
 
-    def calculate_translational_sector_for_multiple_csources(self):
-        #generate a pam with only the translational sector
-        #make a copy of the pam using pickle (the copy method for some reason does not work properly)
-        pamtransl = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
+    def calculate_sector_parameters_for_multiple_csources(self):
+        pam_no_totprot = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
 
-        #remove total protein to remove protein relations
-        pamtransl.remove_cons_vars([pamtransl.constraints[pamtransl.TOTAL_PROTEIN_CONSTRAINT_ID]])
+        #remove total protein to remove protein relations, which results in a linear relation between growth and substrate
+        pam_no_totprot.remove_cons_vars([pam_no_totprot.constraints[pam_no_totprot.TOTAL_PROTEIN_CONSTRAINT_ID]])
 
         for vd in self.validation_data:
-            if vd.translational_sector_config is not None: continue
-            sub_upt_id = vd.id
+            for sector_id, sector_config in self.sector_configs.items():
+                if sector_id in vd.sector_config: continue
+                sub_upt_id = vd.id
 
-            #to prevent overflow metabolism, only select the lower growth rates to derive the equation
-            substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
-            #get the simulations for relatively low substrate uptake rates
-            simulation_results = get_model_simulations_vs_sector(pamodel = pamtransl,
-                                                                 sub_uptake_rxn = sub_upt_id,
-                                                                 rxn_id_to_relate_to = self._pamodel.BIOMASS_REACTION,
-                                                                 substrate_range = substrate_range,
-                                                                 intercept = self.TRANSL_SECTOR_INTERCEPT_vs_MU,
-                                                                 slope = self.TRANSL_SECTOR_SLOPE_vs_MU)
-            if len(simulation_results)==0 or len(simulation_results[sub_upt_id].unique()) ==1: # model was infeasible for all datapoints or did not change at all
-                slope, intercept = self.TRANSL_SECTOR_SLOPE_vs_GLC, self.TRANSL_SECTOR_INTERCEPT_vs_GLC
-            else:
-                slope, intercept = perform_linear_regression(
-                x=simulation_results[sub_upt_id], y=simulation_results["translational_protein"])
-                # slope, intercept = slope * self.MEASURED_PROTEIN_FRACTION, intercept*self.MEASURED_PROTEIN_FRACTION
-            vd.translational_sector_config = {"slope":slope,"intercept":intercept}
+                #to prevent overflow metabolism, only select the lower growth rates to derive the equation
+                substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
+
+                vd.sector_config[sector_config] = change_proteinsector_relation_from_growth_to_substrate_uptake(
+                    pamodel = pam_no_totprot,
+                    params = sector_config,
+                    sector_id = sector_id,
+                    substrate_uptake_id = sub_upt_id,
+                    substrate_range = substrate_range
+                )
 
 
     def perform_iteration_in_bins(self, start_time:float) -> list:
@@ -195,8 +193,8 @@ class PAMParametrizer():
 
         # 2. Run model in bins, get sensitivities and calculate errors
         for subst_uptake_id, binned_substrate in binned_substrates.items():
-            self._change_translational_sector_for_substrate(substrate_uptake_id=subst_uptake_id,
-                                                            pamodel=self._pamodel)
+            self._change_sector_parameters_for_substrate(substrate_uptake_id=subst_uptake_id,
+                                                         pamodel=self._pamodel)
             for bin_id, bin_info in binned_substrate.items():
                 self.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id = subst_uptake_id)
                 # print running time to check on progress
@@ -335,7 +333,7 @@ class PAMParametrizer():
             - Either bin_information or substrate_uptake_rates should be defined in order to define the substrate uptake
                     rates to constrain the model
         """
-        self._change_translational_sector_for_substrate(substrate_uptake_reaction, self._pamodel)
+        self._change_sector_parameters_for_substrate(substrate_uptake_reaction, self._pamodel)
         if bin_information is not None:
             start, stop, step = bin_information[0], bin_information[1], bin_information[2]
             substrate_range = np.arange(start, stop, step)
@@ -677,10 +675,13 @@ class PAMParametrizer():
             if not subdir in os.listdir(result_file_path):
                 os.path.mkdir(os.path.join(result_file_path, 'progress'))
 
-    def _change_translational_sector_for_substrate(self, substrate_uptake_id: str, pamodel:PAModel) -> None:
-        transl_sector_config = self.validation_data.get_by_id(substrate_uptake_id).translational_sector_config
-        if transl_sector_config is None: return # use default if other parameterization is not provided
-        change_translational_sector_with_config_dict(pamodel, transl_sector_config, substrate_uptake_id)
+    def _change_sector_parameters_for_substrate(self,
+                                                substrate_uptake_id: str,
+                                                pamodel:PAModel
+                                                ) -> None:
+        sector_configs = self.validation_data.get_by_id(substrate_uptake_id).sector_configs
+        for sector_id, sector_config in sector_configs:
+            change_translational_sector_with_config_dict(pamodel, transl_sector_config, substrate_uptake_id)
 
     def _get_substrate_range_lower_substrate_conc(self, validation_range:list[Union[int, float]], number_of_steps: int = 5) -> Iterable:
         #only loop over the low growth rates, to prevent overflow like metabolism to interfere with the derivation of a linear equation
@@ -1262,8 +1263,8 @@ class PAMParametrizer():
             pamodel = self.pamodel_no_sensitivity
 
         #change the translational sector for correct relation between substrate uptake rate and ribosome content
-        self._change_translational_sector_for_substrate(substrate_uptake_id,
-                                                        pamodel)
+        self._change_sector_parameters_for_substrate(substrate_uptake_id,
+                                                     pamodel)
 
         if substrate_rates is None:
             step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
