@@ -45,7 +45,7 @@ def save_sector_information_to_excel(
 
     with pd.ExcelWriter(output_file_path) as writer:
         for sheet, df in pam_parameter_information.items():
-            if sheet == 'Translational':
+            if sheet == sector_id:
                 df = pd.concat([df,pd.Series(substrate_range_row)], ignore_index =True)
                 df = df.set_index('Parameter')
                 df['Value_for_growth'] = sector_vs_growthrate
