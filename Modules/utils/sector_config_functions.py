@@ -6,8 +6,7 @@ import numpy as np
 
 from PAModelpy import Config, PAModel
 
-
-TransSectorConfig = dict[Literal['slope', 'intercept']]
+ParameterDict = dict[Literal['slope', 'intercept'], float]
 
 def perform_linear_regression(x:Iterable[Union[float, int]],
                               y:Iterable[Union[float, int]]
@@ -193,7 +192,7 @@ def plot_unused_protein_vs_mu(results:pd.DataFrame,
 
 
 def change_translational_sector_with_config_dict(pamodel:PAModel,
-                                                 transl_sector_config:dict,
+                                                 transl_sector_config:ParameterDict,
                                                  substrate_uptake_id:str
                                                  ) -> PAModel:
     pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
@@ -213,7 +212,7 @@ def get_translational_sector_config(pamodel:PAModel,
                                     substrate_id: str,
                                     substrate_range:Iterable[Union[int, float]],
                                     rxn_to_relate_to: str = None
-                                    )->TransSectorConfig:
+                                    )->ParameterDict:
     #generate a pam with only the translational sector
     #make a copy of the pam using pickle (the copy method for some reason does not work properly)
     pamtransl = pamodel.copy(copy_with_pickle=True)
@@ -238,7 +237,6 @@ def get_translational_sector_config(pamodel:PAModel,
             # slope, intercept = slope * self.MEASURED_PROTEIN_FRACTION, intercept*self.MEASURED_PROTEIN_FRACTION
     return {"slope":slope,"intercept":intercept}
 
-ParameterDict = dict[Literal['slope', 'intercept'], float]
 def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAModel,
                                                                 params:ParameterDict,
                                                                 sector_id:str,
