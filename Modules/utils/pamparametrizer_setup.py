@@ -1,9 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
-from typing import Literal, Tuple
+from typing import Literal, Tuple, Iterable, Union
 import datetime
-
 
 from Modules.utils.sector_config_functions import ParameterDict
 
@@ -15,7 +14,8 @@ def save_sector_information_to_excel(
         biomass_rxn:str,
         lin_rxn_id:str,
         sector_id:Literal['Translational', 'UnusedEnzyme'],
-        pam_data_file:str = None
+        pam_data_file:str = None,
+        substrate_range: Iterable[Union[float, int]] = np.arange(-4,0,1)
 )-> None:
     pam_parameter_information, output_file_path = _get_pam_parameter_information_from_excel(pam_data_file)
     slope_id, intercept_id = 'tps_mu','tps_0'
@@ -26,7 +26,7 @@ def save_sector_information_to_excel(
         slope_id:param_vs_growth['slope'],
         intercept_id:param_vs_growth['intercept'],
         'mol_mass':pam_parameter_information[sector_id].set_index('Parameter').loc['mol_mass', 'Value'],
-        'substrate_range': list(np.arange(-4,0,1))
+        'substrate_range': substrate_range
     })
 
     sector_vs_glucose = pd.Series({
