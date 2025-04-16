@@ -22,7 +22,7 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 class GAPOUniform(GAPO):
     
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _init_deap_toolbox_mutation(self, toolbox):
         # only change the mutation function to uniform sampling

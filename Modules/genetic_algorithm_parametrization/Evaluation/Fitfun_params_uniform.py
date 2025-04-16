@@ -45,8 +45,8 @@ class FitnessEvaluation(FitnessEvaluation):
 
         
         """
-                    
-        super().__init__(*args, **kwargs)
+
+        super().__init__(**kwargs)
         
     ##########################################################################
     # NECESSARY CUSTOM FUNCTION

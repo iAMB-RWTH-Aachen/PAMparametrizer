@@ -21,7 +21,6 @@ from pathlib import Path
 import importlib
 import pandas as pd
 import json
-import inspect
 
 from multiprocessing import Pool
 
@@ -37,22 +36,32 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 
 class GAPO():
     
-    def __init__(self, model=None,
-                 enzymes_to_eval: dict = {},  #dict of enz.id:[{reaction, kcat, sensitivity}]
-                 translational_sector_config: dict = None, # dict of substrate_uptake_id: {slope, intercept} of configuration of translational sector
-                 fitness_class = "Fitfun_params_uniform",
-                 mutation_probability=0.5, mutation_rate=0.05, population_size=30,
-                 crossover_probability=0.8, number_generations=20, number_gene_flow_events=10,
-                 processes=2, time_limit=600, init_attribute_probability=0,
+    def __init__(self,
+                 model=None,
+                 enzymes_to_eval: dict = {},
+                 sector_configs: dict = None,
+                 fitness_class="Fitfun_params_uniform",
+                 mutation_probability=0.5,
+                 mutation_rate=0.05,
+                 population_size=30,
+                 crossover_probability=0.8,
+                 number_generations=20,
+                 number_gene_flow_events=10,
+                 processes=2,
+                 time_limit=600,
+                 init_attribute_probability=0,
                  fixed_attributes=[],
                  folderpath_save=Path("Results"),
                  filename_save="ga_results",
                  overwrite_intermediate_results=True,
-                 objective_id = 'BIOMASS', valid_data = dict(),
-                 sigma_denominator:int=10,
-                 substrate_uptake_rates = {'EX_glc__D_e':[0.7,11.3]}, substrate_uptake_id = 'EX_glc__D_e',
+                 objective_id='BIOMASS',
+                 valid_data=dict(),
+                 sigma_denominator: int = 10,
+                 substrate_uptake_rates={'EX_glc__D_e': [0.7, 11.3]},
+                 substrate_uptake_id='EX_glc__D_e',
                  error_weights: dict = {},
-                 print_progress = True):
+                 print_progress=True
+                 ):
         
         if not model:
             self.model = model
@@ -146,8 +155,7 @@ class GAPO():
         # Set up fitness evaluation class
         self.FitEval = self.fitness_class.FitnessEvaluation(
             model=self.model,
-            translational_sector_config = translational_sector_config,
-            processes=processes,
+            translational_sector_config = sector_configs,
             fixed_attr_list=fixed_attributes,
             valid_data = valid_data,
             error_weights = error_weights,

@@ -18,7 +18,7 @@ from PAModelpy import PAModel
 from ..core_parametrization_gaussian import MyFitness
 
 from Modules.utils.error_calculation import calculate_r_squared_for_reaction
-from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
+from Modules.utils.sector_config_functions import change_sector_parameters_with_config_dict
 
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
@@ -33,24 +33,28 @@ class FitnessEvaluation():
     KCAT_SIGMA = 1e2
     NUM_KCATS = 5
 
-    def __init__(self, model=None, translational_sector_config:dict = None,
-                 fixed_attr_list=[], processes=2, objective_id=str(),
-                 valid_data = dict(), sigma_denominator:int = 10, error_weights: dict = {},
-                 substrate_uptake_rates = {'EX_glc__D_e':[0.7, 11.3]}, substrate_uptake_id = 'EX_glc__D_e'):
+    def __init__(self, model=None,
+                 sector_configs: dict = None,
+                 fixed_attr_list=[],
+                 objective_id=str(),
+                 valid_data=dict(),
+                 sigma_denominator: int = 10,
+                 error_weights: dict = {},
+                 substrate_uptake_rates={'EX_glc__D_e': [0.7, 11.3]},
+                 substrate_uptake_id='EX_glc__D_e'):
         """Initialize fitness evaluation class for a genetic algorithm
         
         Args:
             cobra.core.Model: Metabolic model in COBRA format
-            translational_sector_config (dict of dict): Dictionary with the slope and intercept of the translational
+            sector_configs (dict of dict): Dictionary with the slope and intercept of the translational and unused
                 sector configuration for each substrate.
                 Format:
-                {'substrate_uptake_id':{
+                {'ProteinSector'{'substrate_uptake_id':{
                     'slope':float, #slope in g/mmol/h
                     'intercept':float #intercept in g/mmol
-                    }
+                    }}
                 }
             fixed_attr_list: Identifiers of attributes not to be used as solution variables
-            processes: Number of workers available (unused here)
             objective_id: identifier of the objective function
             valid_data: dictionary of substrate uptake reaction and Dataframe which contains
                 the data to validate the results to for that specific substrate
@@ -70,7 +74,7 @@ class FitnessEvaluation():
         self.growth_rate = {}
         self.reactions_with_data = {}
         self.substrate_uptake_rates = {}
-        self.translational_sector_config = translational_sector_config
+        self.sector_configs= sector_configs
 
         # only get exchanges and growth rate
         for substr_uptake, valid_data_df in valid_data.items():
@@ -276,10 +280,11 @@ class FitnessEvaluation():
         error = []
 
         for substrate_uptake_id, fluxes_df in fluxes.items():
-            if self.translational_sector_config is not None:
-                change_translational_sector_with_config_dict(self.model,
-                                                             self.translational_sector_config[substrate_uptake_id],
-                                                             substrate_uptake_id)
+            for sector_id, config_dict in self.sector_configs:
+                change_sector_parameters_with_config_dict(pamodel = self.model,
+                                                          sector_config = config_dict[substrate_uptake_id],
+                                                          substrate_uptake_id = substrate_uptake_id,
+                                                          sector_id = sector_id)
             for rate in self.substrate_uptake_rates[substrate_uptake_id]:
                 new_row = [rate] + [0] * len(fluxes_df.columns[1:])
                 fluxes_df.loc[len(fluxes_df)] = new_row

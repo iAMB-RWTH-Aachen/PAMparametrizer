@@ -20,7 +20,7 @@ from Modules.utils.sampling_functions import adaptive_sampling
 from Modules.utils.pam_generation import _extract_reaction_id_from_catalytic_reaction_id
 from Modules.utils.sector_config_functions import (get_model_simulations_vs_sector,
                                                    perform_linear_regression,
-                                                   change_translational_sector_with_config_dict,
+                                                   change_sector_parameters_with_config_dict,
                                                    change_proteinsector_relation_from_growth_to_substrate_uptake)
 
 class PAMParametrizer():
@@ -512,17 +512,17 @@ class PAMParametrizer():
             filename_extension: extension of base filename to save the result of the genetic algorithm
         """
         substrate_rates = dict()
-        translation_configs = dict()
+        sector_configs_per_substrate = dict()
         for valid_data in self.validation_data:
             #need to make sure that there is data sampled in the range to evaluate for this specific substrate
             if valid_data.sampled_valid_data is not None:
                 substrate_rates[valid_data.id] = valid_data.sampled_valid_data[valid_data.id+"_ub"]
-            translation_configs[valid_data.id] = valid_data.translational_sector_config
+            sector_configs_per_substrate[valid_data.id] = valid_data.sector_configs
 
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
-                                            enzymes_to_evaluate=enzymes_to_evaluate,
-                                            translational_sector_config=translation_configs,
-                                            filename_extension=filename_extension)
+                                          enzymes_to_evaluate=enzymes_to_evaluate,
+                                          sector_configs_per_substrate=sector_configs_per_substrate,
+                                          filename_extension=filename_extension)
         ga.start()
 
     def restart_genetic_algorithm(self) -> None:
@@ -550,10 +550,10 @@ class PAMParametrizer():
         substrate_rates = {fr.id:fr.substrate_range for fr in self.parametrization_results.flux_results}
         translational_sector_config = {vd.id: vd.translational_sector_config for vd in self.validation_data}
 
-        ga = self._init_genetic_algorithm(substrate_uptake_rates= substrate_rates,
-                                          enzymes_to_evaluate= enzymes_to_evaluate,
-                                          translational_sector_config= translational_sector_config,
-                                          filename_extension= f"final_run_{self.iteration}")
+        ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
+                                          enzymes_to_evaluate=enzymes_to_evaluate,
+                                          sector_configs_per_substrate=translational_sector_config,
+                                          filename_extension=f"final_run_{self.iteration}")
         # TODO make a population with the current solution and the solution from the different ga's for the duplicate enzymes
 
         ga.restart(json_files)
@@ -681,7 +681,11 @@ class PAMParametrizer():
                                                 ) -> None:
         sector_configs = self.validation_data.get_by_id(substrate_uptake_id).sector_configs
         for sector_id, sector_config in sector_configs:
-            change_translational_sector_with_config_dict(pamodel, transl_sector_config, substrate_uptake_id)
+            change_sector_parameters_with_config_dict(pamodel,
+                                                      sector_config=sector_config,
+                                                      substrate_uptake_id = substrate_uptake_id,
+                                                      sector_id = sector_id
+                                                      )
 
     def _get_substrate_range_lower_substrate_conc(self, validation_range:list[Union[int, float]], number_of_steps: int = 5) -> Iterable:
         #only loop over the low growth rates, to prevent overflow like metabolism to interfere with the derivation of a linear equation
@@ -763,15 +767,17 @@ class PAMParametrizer():
                                 **{bin_id + 0.1: [substrate_start + bin_range * 0.5, substrate_start + bin_range, stepsize]}}
 
 
-    def _init_genetic_algorithm(self, substrate_uptake_rates: dict,
+    def _init_genetic_algorithm(self,
+                                substrate_uptake_rates: dict,
                                 enzymes_to_evaluate: Dict[str,
-                                List[
+                                Dict[
                                     Dict[Literal['reaction', 'kcats', 'sensitivity'],
-                                    Union[str, dict,float]
+                                    Union[str, dict, float]
                                     ]
                                 ]],
-                                translational_sector_config: dict,
-                                filename_extension:str) -> GAPOGauss:
+                                sector_configs_per_substrate: dict,
+                                filename_extension: str
+                                ) -> GAPOGauss:
         """
         Initializes the core genetic algorithm object.
 
@@ -794,13 +800,13 @@ class PAMParametrizer():
                         'sensitivity': esc_value
                     }]
                 }
-            translational_sector_config (dict of dict): Dictionary with the slope and intercept of the translational
+            sector_configs_per_substrate (dict of dict): Dictionary with the slope and intercept of the translational and unused
                 sector configuration for each substrate.
                 Format:
-                {'substrate_uptake_id':{
+                {'substrate_uptake_id':{'ProteinSector'{
                     'slope':float, #slope in g/mmol/h
                     'intercept':float #intercept in g/mmol
-                    }
+                    }}
                 }
             filename_extension (str): Extension of the base filename to save the result of the genetic algorithm.
 
@@ -813,7 +819,7 @@ class PAMParametrizer():
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
-            translational_sector_config = translational_sector_config,
+            translational_sector_config = sector_configs_per_substrate,
             valid_data = self._create_validation_data_dict_for_genetic_algorithm(),#{valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,
