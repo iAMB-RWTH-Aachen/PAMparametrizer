@@ -22,8 +22,8 @@ class SectorConfig(TypedDict):
         substrate_range (iterable of floats or ints): substrate range which for all the substrates is not related to fermentative phenotypes
     """
     sectorname:str
-    slope_vs_mu:float
-    intercept_vs_mu:float
+    slope:float
+    intercept:float
     substrate_range:Iterable[Union[float, int]]
 
 
@@ -33,7 +33,7 @@ class ValidationData:
     id: str
     validation_range: list
     sampled_valid_data: pd.DataFrame = None
-    translational_sector_config: dict = None
+    sector_configs: dict = None
     _reactions_to_validate : list = field(default_factory=list)
     biomass_reaction_extension : str = 'BIOMASS'
     exchange_reaction_extension: str = 'EX'

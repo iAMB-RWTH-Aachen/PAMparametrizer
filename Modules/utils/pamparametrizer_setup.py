@@ -153,8 +153,8 @@ def set_up_sector_config(pam_info_file: str,
 
         sector_configs[sector_id] = SectorConfig(
             sectorname=sector_id,
-            slope_vs_mu=sector_to_growth.filter(like='_mu', axis=0)['Value_for_growth'].iloc[0],
-            intercept_vs_mu=sector_to_growth.filter(like='_0', axis=0)['Value_for_growth'].iloc[0],
+            slope=sector_to_growth.filter(like='_mu', axis=0)['Value_for_growth'].iloc[0],
+            intercept=sector_to_growth.filter(like='_0', axis=0)['Value_for_growth'].iloc[0],
             #convert string to list with ast.literal_eval
             substrate_range= ast.literal_eval(sector_to_growth.loc['substrate_range', 'Value_for_growth'])
         )
