@@ -34,7 +34,7 @@ class FitnessEvaluation():
     NUM_KCATS = 5
 
     def __init__(self, model=None,
-                 sector_configs: dict = None,
+                 sector_configs_per_substrate: dict = None,
                  fixed_attr_list=[],
                  objective_id=str(),
                  valid_data=dict(),
@@ -46,10 +46,10 @@ class FitnessEvaluation():
         
         Args:
             cobra.core.Model: Metabolic model in COBRA format
-            sector_configs (dict of dict): Dictionary with the slope and intercept of the translational and unused
+            sector_configs_per_substrate (dict of dict): Dictionary with the slope and intercept of the translational and unused
                 sector configuration for each substrate.
                 Format:
-                {'ProteinSector'{'substrate_uptake_id':{
+                {'substrate_uptake_id':{'ProteinSector'{
                     'slope':float, #slope in g/mmol/h
                     'intercept':float #intercept in g/mmol
                     }}
@@ -74,7 +74,7 @@ class FitnessEvaluation():
         self.growth_rate = {}
         self.reactions_with_data = {}
         self.substrate_uptake_rates = {}
-        self.sector_configs= sector_configs
+        self.sector_configs= sector_configs_per_substrate
 
         # only get exchanges and growth rate
         for substr_uptake, valid_data_df in valid_data.items():

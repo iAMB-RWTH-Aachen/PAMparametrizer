@@ -548,11 +548,11 @@ class PAMParametrizer():
 
 
         substrate_rates = {fr.id:fr.substrate_range for fr in self.parametrization_results.flux_results}
-        translational_sector_config = {vd.id: vd.translational_sector_config for vd in self.validation_data}
+        sector_configs_per_substrate = {vd.id: vd.sector_configs for vd in self.validation_data}
 
         ga = self._init_genetic_algorithm(substrate_uptake_rates=substrate_rates,
                                           enzymes_to_evaluate=enzymes_to_evaluate,
-                                          sector_configs_per_substrate=translational_sector_config,
+                                          sector_configs_per_substrate=sector_configs_per_substrate,
                                           filename_extension=f"final_run_{self.iteration}")
         # TODO make a population with the current solution and the solution from the different ga's for the duplicate enzymes
 
@@ -614,13 +614,22 @@ class PAMParametrizer():
             figure: figure to save (progress figure)
         """
         figure.savefig(self.result_figure_file, dpi=100, bbox_inches="tight")
-        transl_sector_config = pd.DataFrame(columns = ["substrate_uptake_id", "slope", "intercept"])
+        sector_configs = pd.DataFrame(columns = ["substrate_uptake_id", "slope", "intercept", 'sector_id'])
         ga_weights = pd.DataFrame({'reaction':self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].keys(),
                                    'weight': self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].values()} )
 
         for vd in self.validation_data:
-            transl_sector_config.loc[len(transl_sector_config)] = [vd.id, vd.translational_sector_config["slope"],
-                                                                   vd.translational_sector_config["intercept"]]
+            for sector_id, sector_config in vd.sector_configs:
+                sector_configs = pd.concat(
+                    [sector_configs, pd.Series(
+                        {
+                            "substrate_uptake_id":vd.id,
+                            "slope": sector_config['slope'],
+                            "intercept": sector_config['intercept'],
+                            "sector_id": sector_id
+                        })],
+                    ignore_index=True
+                )
 
         with pd.ExcelWriter(self.result_diagnostics_file) as writer:
             # Write each DataFrame to a specific sheet
@@ -628,7 +637,7 @@ class PAMParametrizer():
             self.parametrization_results.computational_time.to_excel(writer, sheet_name="Computational_Time",
                                                                      index=False)
             self.parametrization_results.final_errors.to_excel(writer, sheet_name="Final_Errors", index=False)
-            transl_sector_config.to_excel(writer, sheet_name="translational_sector", index = False)
+            sector_configs.to_excel(writer, sheet_name="sector_parameters", index = False)
             if len(ga_weights)>0:ga_weights.to_excel(writer, sheet_name="reaction_weights", index = False)
 
     def add_new_substrate_source(self, new_substrate_uptake_id:str,
@@ -819,7 +828,7 @@ class PAMParametrizer():
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
-            translational_sector_config = sector_configs_per_substrate,
+            sector_configs = sector_configs_per_substrate,
             valid_data = self._create_validation_data_dict_for_genetic_algorithm(),#{valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,
@@ -1268,7 +1277,7 @@ class PAMParametrizer():
         else:
             pamodel = self.pamodel_no_sensitivity
 
-        #change the translational sector for correct relation between substrate uptake rate and ribosome content
+        #change the sector parameters for correct relation between substrate uptake rate, ribosome content and unused proteins
         self._change_sector_parameters_for_substrate(substrate_uptake_id,
                                                      pamodel)
 
