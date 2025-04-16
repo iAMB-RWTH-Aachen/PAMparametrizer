@@ -56,7 +56,7 @@ def save_sector_information_to_excel(
         slope_id:param_vs_growth['slope'],
         intercept_id:param_vs_growth['intercept'],
         'mol_mass':pam_parameter_information[sector_id].set_index('Parameter').loc['mol_mass', 'Value'],
-        'substrate_range': substrate_range
+        'substrate_range': list(substrate_range)
     })
 
     sector_vs_glucose = pd.Series({
