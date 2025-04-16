@@ -1,13 +1,14 @@
 import os
 import pandas as pd
 import numpy as np
-from typing import Literal, Tuple, Iterable, Union
+from typing import Literal, Tuple, Iterable, Union, List
 import datetime
+from cobra import DictList
 
 from Modules.utils.sector_config_functions import ParameterDict
+from Modules.PAM_parametrizer import SectorConfig
 
 
-#save to excel
 def save_sector_information_to_excel(
         param_vs_lin_rxn: ParameterDict,
         param_vs_growth: ParameterDict,
@@ -75,7 +76,7 @@ def save_sector_information_to_excel(
     with pd.ExcelWriter(output_file_path) as writer:
         for sheet, df in pam_parameter_information.items():
             if sheet == sector_id:
-                df = pd.concat([df,pd.Series(substrate_range_row)])
+                df = pd.concat([df,pd.DataFrame([substrate_range_row])])
                 df = df.set_index('Parameter')
                 df['Value_for_growth'] = sector_vs_growthrate
                 df['Value'] = sector_vs_glucose
@@ -111,3 +112,26 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str)-> Tuple[dict[s
     pam_parameter_information = pd.read_excel(pam_data_file, sheet_name = None)
 
     return pam_parameter_information, output_file_path
+
+
+def set_up_sector_config(pam_info_file: str,
+                         sectors_not_related_to_growth: List[str]) -> DictList[SectorConfig]:
+    sectors_to_sheets = {
+        'TranslationalProteinSector': 'Translational',
+        'UnusedEnzymeSector': 'UnusedEnzyme'
+    }
+
+    sector_configs = DictList()
+    for sector_id in sectors_not_related_to_growth:
+        sector_to_growth = pd.read_excel(
+            pam_info_file,
+            sheet_name=sectors_to_sheets[sector_id]
+        ).set_index('Parameters')[['Value_for_growth']]
+
+        sector_configs[sector_id] = SectorConfig(
+            sectorname=sector_id,
+            slope_vs_mu=sector_to_growth[sector_to_growth.index.str.endswith('_mu')],
+            intercept_vs_mu=sector_to_growth[sector_to_growth.index.str.endswith('_0')],
+            substrate_range=sector_to_growth['substrate_range']
+        )
+    return sector_configs
