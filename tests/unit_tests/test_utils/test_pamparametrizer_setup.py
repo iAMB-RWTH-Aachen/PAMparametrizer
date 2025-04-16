@@ -1,12 +1,13 @@
+import ast
 import pytest
 import pandas as pd
 import os
 from typing import List
-from Modules.model_setup.sector_config import set_up_sector_config
-from Modules.model_setup.sector_classes import SectorConfig
-from Modules.utils.sector_config_functions import DictList
 
-@pytest.mark('sector_ids, sector_sheet_names',[
+from Modules.utils.pamparametrizer_setup import set_up_sector_config
+from Modules.PAM_parametrizer import SectorConfig
+
+@pytest.mark.parametrize('sector_ids, sector_sheet_names',[
     (['UnusedEnzymeSector'], ['UnusedEnzyme']),
     (['TranslationalProteinSector'], ['Translational']),
     (['UnusedEnzymeSector', 'TranslationalProteinSector'], ['UnusedEnzyme', 'Translational'])
@@ -32,12 +33,11 @@ def test_set_up_sector_config_returns_expected_structure(sector_ids: List[str],
                                   )
 
     # Assert
-    assert isinstance(config, DictList)
+    assert isinstance(config, dict)
     for sector_id in sector_ids:
         assert sector_id in config
-        assert isinstance(config[sector_id], SectorConfig)
-
         sector_info = sectors_info[sector_id]
-        assert sector_info.index.str.endswith('_mu') == config[sector_id].slope_vs_mu
-        assert sector_info.index.str.endswith('_0') == config[sector_id].intercept_vs_mu
-        assert sector_info.substrate_range == config[sector_id].substrate_range
+        substrate_range_expected = ast.literal_eval(sector_info.loc['substrate_range', 'Value_for_growth'])
+        assert sector_info.filter(like='_mu', axis=0)['Value_for_growth'].iloc[0] == config[sector_id]['slope_vs_mu']
+        assert sector_info.filter(like='_0', axis=0)['Value_for_growth'].iloc[0] == config[sector_id]['intercept_vs_mu']
+        assert substrate_range_expected == config[sector_id]['substrate_range']
