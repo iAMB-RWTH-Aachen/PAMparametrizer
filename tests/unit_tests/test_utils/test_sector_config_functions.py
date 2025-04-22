@@ -64,4 +64,4 @@ def set_up_ecoli_pam(sensitivity = False):
     return set_up_pam(pam_info_file = os.path.join(
         'tests', 'data', 'proteinAllocationModel_iML1515_EnzymaticData_dummy.xlsx'
     ),
-        pam_sensitivity = sensitivity)
+        sensitivity = sensitivity)

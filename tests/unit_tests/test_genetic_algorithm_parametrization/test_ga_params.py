@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from pathlib import Path
 
+from Modules.PAM_parametrizer import SectorConfig
 from Modules.genetic_algorithm_parametrization import GAPOUniform
 from Modules.utils.sector_config_functions import (change_proteinsector_relation_from_growth_to_substrate_uptake,
                                                    get_model_simulations_vs_sector,
@@ -12,18 +13,36 @@ from Scripts.pam_generation import setup_toy_pam
 
 
 class GeneticAlgorithmMock(GAPOUniform):
-    RESULT_DF_FILE = os.path.join('Scripts', 'i2_parametrization', 'Data', 'toy_model_simulations_ga.csv')
+    RESULT_DF_FILE = os.path.join('tests', 'data', 'toy_model_simulations_ga.csv')
 
     def __init__(self,
-                 substrate_uptake_rates = [0.001,0.091]):
+                 substrate_uptake_rates = [0.001,0.091]
+                 ):
         valid_data_df = pd.read_csv(self.RESULT_DF_FILE).round({'R1_ub':3}) #need to round for correct matching to simulations
         pamodel = setup_toy_pam()
 
 
-        super().__init__(model=pamodel, # Metabolic model,
-        enzymes_to_eval = {'E3':[{'reaction':'R3','kcats': {'f': 1}, 'sensitivity':0.5}], #should become 5
-                           'E4':[{'reaction':'R4','kcats': {'f': 0.5}, 'sensitivity':0.2}],#should become 0.1
-                           'E5':[{'reaction':'R5','kcats': {'f': 0.45}, 'sensitivity':0.1}]},#should become 0.25
+        super().__init__(
+            model=pamodel, # Metabolic model,
+            enzymes_to_eval = {'E3':[{'reaction':'R3','kcats': {'f': 1}, 'sensitivity':0.5}], #should become 5
+                               'E4':[{'reaction':'R4','kcats': {'f': 0.5}, 'sensitivity':0.2}],#should become 0.1
+                               'E5':[{'reaction':'R5','kcats': {'f': 0.45}, 'sensitivity':0.1}]#should become 0.25
+                               },
+            sector_configs_per_substrate = {
+            'R1': {'TranslationalProteinSector':SectorConfig(
+            sectorname = 'TranslationalProteinSector',
+            slope = 0.01*1e-3,
+            intercept = 0.01*1e-3,
+            substrate_range = [-1e-3,-2*1e-3]
+            )},
+            'R9': {
+                'TranslationalProteinSector':SectorConfig(
+                    sectorname = 'TranslationalProteinSector',
+                    slope = 0,
+                    intercept = 0.01*1e-3,
+                    substrate_range = [-1e-3,-2*1e-3]
+                )}
+        },
         fitness_class="Fitfun_params_uniform", # filename (or module) of the fitness function class
         mutation_probability = 0.5, # probability with which an individual (solution) is mutated in a generation
         mutation_rate = 0.5, # probability with which an attribute (e.g. gene) of an individual is mutated

@@ -3,7 +3,7 @@ import pandas as pd
 
 from Scripts.pam_generation import setup_toy_pam
 from Modules.PAM_parametrizer import PAMParametrizer
-from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
+from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 
 
 max_substrate_uptake_rate = 0.1
@@ -35,15 +35,25 @@ class PAMParametrizerMock(PAMParametrizer):
 
 
     def set_up_validation_data_mock(self):
-        DATA_DIR = os.path.join('Scripts', 'i2_parametrization', 'Data')
+        DATA_DIR = os.path.join('tests', 'data')
         RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
         valid_data_df = pd.read_csv(RESULT_DF_FILE).round({'R1_ub': 3})
 
-        validation_data = ValidationData(valid_data_df, 'R1', [min_substrate_uptake_rate, max_substrate_uptake_rate])
+        validation_data = ValidationData(valid_data_df,
+                                         'R1',
+                                         [min_substrate_uptake_rate, max_substrate_uptake_rate])
         validation_data.sampled_valid_data = valid_data_df
         validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
         validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
-        validation_data.translational_sector_config = {'intercept': 0.01*1e-3, 'slope': 0.01*1e-3}
+
+
+
+        validation_data.sector_configs = {'TranslationalProteinSector':SectorConfig(
+            sectorname = 'TranslationalProteinSector',
+            slope = 0.01*1e-3,
+            intercept = 0.01*1e-3,
+            substrate_range = [-1e-3,-2*1e-3]
+        )}
         return validation_data
 
     def set_up_hyperparameter_mock(self):

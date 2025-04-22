@@ -38,9 +38,8 @@ def test_if_running_toy_model_in_pam_parametrizer_gives_correct_results():
 
     # Act
     sut.run_pamodel_simulations_in_bin(bin_id = bin_id, bin_information=bin_information, substrate_uptake_reaction='R1')
-    flux_data = sut.parametrization_results.flux_results.get_by_id('R1').fluxes_df.drop('bin', axis =1)
-    flux_data = flux_data.rename(columns = {'substrate': 'R1_ub'})
-
+    flux_data = sut.parametrization_results.flux_results.get_by_id('R1').fluxes_df.drop(['bin','substrate'], axis =1)
+    # flux_data = flux_data.rename(columns = {'substrate': 'R1_ub'})
     # Assert
     assert pd.testing.assert_frame_equal(reference_flux_data, flux_data,
                                          check_dtype=False,check_exact=False, atol=1e-3) is None
@@ -97,10 +96,14 @@ def change_kcat_to_expected_outcome(pam_parametrizer):
     for enz_id, kcat_dict in FINAL_ENZYMES2KCAT.items():
         pam_parametrizer._pamodel.change_kcat_value(enz_id, kcat_dict)
 
-def set_up_mockga_multiple_csources(expected_flux_results, new_substrate_id,
-                                    reactions_to_validate, substrate_uptake_rates):
+def set_up_mockga_multiple_csources(expected_flux_results,
+                                    new_substrate_id,
+                                    reactions_to_validate,
+                                    substrate_uptake_rates
+                                    ):
     sut_ga = GeneticAlgorithmMock()
     fiteval = sut_ga.FitEval
+    print(fiteval.sector_configs)
     fiteval.valid_data[new_substrate_id] = expected_flux_results
     fiteval.reactions_with_data[new_substrate_id] = reactions_to_validate
     fiteval.substrate_uptake_rates[new_substrate_id] = substrate_uptake_rates

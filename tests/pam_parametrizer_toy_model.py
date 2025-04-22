@@ -1,10 +1,9 @@
 import os
 import pandas as pd
-import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
-from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
+from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 from Modules.PAM_parametrizer import PAMParametrizer
 from Scripts.pam_generation import setup_toy_pam
 
@@ -12,12 +11,17 @@ MAX_SUBSTRATE_UPTAKE_RATE = 0.1
 MIN_SUBSTRATE_UPTAKE_RATE = 0.001
 
 def set_up_validation_data():
-    DATA_DIR = os.path.join(os.getcwd(), 'Scripts', 'i2_parametrization', 'Data')
+    DATA_DIR = os.path.join('tests', 'data')
     RESULT_DF_FILE = os.path.join(DATA_DIR, 'toy_model_simulations_ga.csv')
     valid_data_df = pd.read_csv(RESULT_DF_FILE)
 
     validation_data = ValidationData(valid_data_df, 'R1', [MIN_SUBSTRATE_UPTAKE_RATE,MAX_SUBSTRATE_UPTAKE_RATE])
-    validation_data.translational_sector_config = {'intercept': 0.01*1e-3, 'slope': 0.01*1e-3}
+    validation_data.sector_configs = {'TranslationalProteinSector':SectorConfig(
+            sectorname = 'TranslationalProteinSector',
+            slope = 0.01*1e-3,
+            intercept = 0.01*1e-3,
+            substrate_range = [-1e-3,-2*1e-3]
+        )}
     validation_data._reactions_to_plot = ['R1', 'R7', 'R8', 'R9']
     validation_data._reactions_to_validate = ['R1', 'R7', 'R8', 'R9']
     return validation_data

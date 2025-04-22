@@ -157,6 +157,7 @@ def test_pam_parametrizer_determines_most_sensitive_enzymes_correctly():
     for column in columns_to_be_present:
         assert column in esc_topn_df.columns
     #check if the correct enzymes are selected
+    print(esc_topn_df)
     assert 3 == len(esc_topn_minimal)
     for enzyme in enzymes_to_be_selected:
         assert enzyme in esc_topn_minimal.enzyme_id.to_list()
@@ -236,10 +237,13 @@ def tests_pam_parametrizer_parses_enzymes_to_evaluate_for_all_bins_correctly():
     for bin_id, bin_info in bin_information.items():
         sut.run_pamodel_simulations_in_bin('R1',bin_id, bin_info)
     enzymes_to_evaluate_expected = ['E2', 'E5', 'E1']
+    for vd in sut.validation_data:
+        print(vd.sector_configs)
 
     # Act
     enzymes_to_evaluate_test = sut._determine_enzymes_to_evaluate_for_all_bins(nmbr_kcats_to_pick = 3)
 
+    print(enzymes_to_evaluate_test)
     # Assert
     assert all(enzyme_id in enzymes_to_evaluate_test for enzyme_id in enzymes_to_evaluate_expected), "Not all enzyme IDs are present"
 
@@ -304,8 +308,11 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     #set up parametrizer and genetic algorithm objects
     sut = PAMParametrizerMock()
-    ga = sut._init_genetic_algorithm(substrate_rates, enzymes_to_evaluate, sector_configs_per_substrate={'R1':
-                                                                                                             sut.validation_data.R1.translational_sector_config},
+    ga = sut._init_genetic_algorithm(substrate_rates,
+                                     enzymes_to_evaluate,
+                                     sector_configs_per_substrate={
+                                         'R1':sut.validation_data.R1.sector_configs
+                                     },
                                      filename_extension='')
     #for the genetic algorithm we need a dummy individual to change the kcat
     toolbox = ga._init_deap_toolbox()

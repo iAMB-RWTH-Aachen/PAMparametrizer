@@ -4,7 +4,7 @@ import pytest
 import os
 
 from typing import Union
-
+from Modules.PAM_parametrizer import SectorConfig
 from Scripts.pam_generation import setup_toy_pam
 from tests.unit_tests.test_genetic_algorithm_parametrization.test_ga_params import GeneticAlgorithmMock
 
@@ -104,8 +104,19 @@ def test_genetic_algorithms_calculates_error_correct_for_multiple_carbon_sources
     sut.FitEval.valid_data = {**sut.FitEval.valid_data, **{other_substrate_reaction:expected_flux_results}}
     sut.FitEval.substrate_uptake_rates[other_substrate_reaction] = substrate_uptake_rates
     sut.FitEval.reactions_with_data[other_substrate_reaction] = reactions_to_validate
-    sut.FitEval.translational_sector_config = {'R1': {'slope':0.01*1e-3, 'intercept':0.01*1e-3},
-                                             'R9': {'slope':0, 'intercept':0.01*1e-3}}
+    sut.FitEval.sector_configs_per_substrate = {
+        'R1': {'TranslationalProteinSector':SectorConfig(
+            sectorname = 'TranslationalProteinSector',
+            slope = 0.01*1e-3,
+            intercept = 0.01*1e-3,
+            substrate_range = [-1e-3,-2*1e-3]
+        )},
+        'R9': {'TranslationalProteinSector':SectorConfig(
+            sectorname = 'TranslationalProteinSector',
+            slope = 0,
+            intercept = 0.01*1e-3,
+            substrate_range = [-1e-3,-2*1e-3]
+        )}}
 
     # Set up a population for comparison
     toolbox = sut._init_deap_toolbox()
