@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pytest
+import os
 
 from typing import Union
 
@@ -53,7 +54,6 @@ def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     population = sut.get_initial_population()
     kcat_lists = [[5,0.1,0.25],[1,0.5,0.45],[0.1,0.1,0.1],[1,1,1], [3,3,3]]
     for individual, kcat_list in zip(population, kcat_lists):
-        # individual.kcat_list = [kcat/(3600*1e-6) for kcat in kcat_list]
         individual.kcat_list = [1/kcat for kcat in kcat_list]
 
     #calculate actual fitnesses (expected result)
@@ -185,19 +185,21 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def evaluate_toy_model_fitness(toy_model, substrate_rates = [0.001, 0.091],
-                               reference_data_file:Union[str, pd.DataFrame] = 'Scripts/i2_parametrization/Data/toy_model_simulations_ga.csv',
+                               reference_data_file:Union[str, pd.DataFrame] = os.path.join(
+                                   'tests', 'data', 'toy_model_simulations_ga.csv'
+                               ),
                                substrate_rxn:str = 'R1_ub') -> float:
     """
     Evaluate the fitness of the toymodel compared to the reference dataset generated using kcat_fwd = [1, 0.5, 5, 0.1, 0.25, 1.5]
     :return: float: error average difference of validation and result for the total of substrate uptake range and available reactiosn
     """
     if isinstance(reference_data_file, str):
-        validation_data = pd.read_csv(reference_data_file).round({'R1_ub':3})
+        validation_data = pd.read_csv(reference_data_file).round({'R1_ub':4})
     else:
         validation_data = reference_data_file
     simulation_results = run_simulations(toy_model, substrate_rates)
     error = []
-    for reaction_id in validation_data.columns[2:]:
+    for reaction_id in validation_data.columns[1:]:
         # Take the absolute value of substrate uptake to avoid issues with reaction directionality
         validation_data[substrate_rxn] = [abs(flux) for flux in validation_data[substrate_rxn]]
         simulated_data = pd.DataFrame({substrate_rxn: [abs(flux) for flux in simulation_results['R1_ub']],
