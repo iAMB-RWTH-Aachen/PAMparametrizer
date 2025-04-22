@@ -181,17 +181,18 @@ class PAMParametrizer():
         pam_no_totprot.remove_cons_vars([pam_no_totprot.constraints[pam_no_totprot.TOTAL_PROTEIN_CONSTRAINT_ID]])
 
         for vd in self.validation_data:
-            for sector_id, sector_config in self.sector_configs.items():
-                if sector_id in vd.sector_config: continue
+            for sector in self.sector_configs:
+                if sector['sectorname'] in vd.sector_configs: continue
+                print(sector)
                 sub_upt_id = vd.id
 
                 #to prevent overflow metabolism, only select the lower growth rates to derive the equation
                 substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
 
-                vd.sector_config[sector_config] = change_proteinsector_relation_from_growth_to_substrate_uptake(
+                vd.sector_configs[sector] = change_proteinsector_relation_from_growth_to_substrate_uptake(
                     pamodel = pam_no_totprot,
-                    params = sector_config,
-                    sector_id = sector_id,
+                    params = sector,
+                    sector_id = sector['sectorname'],
                     substrate_uptake_id = sub_upt_id,
                     substrate_range = substrate_range
                 )
@@ -633,7 +634,7 @@ class PAMParametrizer():
                                    'weight': self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].values()} )
 
         for vd in self.validation_data:
-            for sector_id, sector_config in vd.sector_configs:
+            for sector_id, sector_config in vd.sector_configs.items():
                 sector_configs = pd.concat(
                     [sector_configs, pd.Series(
                         {
@@ -703,7 +704,7 @@ class PAMParametrizer():
                                                 pamodel:PAModel
                                                 ) -> None:
         sector_configs = self.validation_data.get_by_id(substrate_uptake_id).sector_configs
-        for sector_id, sector_config in sector_configs:
+        for sector_id, sector_config in sector_configs.items():
             change_sector_parameters_with_config_dict(pamodel,
                                                       sector_config=sector_config,
                                                       substrate_uptake_id = substrate_uptake_id,
@@ -837,7 +838,7 @@ class PAMParametrizer():
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
-            sector_configs = sector_configs_per_substrate,
+            sector_configs_per_substrate = sector_configs_per_substrate,
             valid_data = self._create_validation_data_dict_for_genetic_algorithm(),#{valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
             substrate_uptake_id = self.substrate_uptake_id,

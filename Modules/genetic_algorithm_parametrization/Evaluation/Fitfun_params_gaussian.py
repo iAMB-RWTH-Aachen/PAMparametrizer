@@ -278,9 +278,9 @@ class FitnessEvaluation():
         error = []
 
         for substrate_uptake_id, fluxes_df in fluxes.items():
-            for sector_id, config_dict in self.sector_configs:
+            for sector_id, config_dict in self.sector_configs[substrate_uptake_id].items():
                 change_sector_parameters_with_config_dict(pamodel = self.model,
-                                                          sector_config = config_dict[substrate_uptake_id],
+                                                          sector_config = config_dict,
                                                           substrate_uptake_id = substrate_uptake_id,
                                                           sector_id = sector_id)
             for rate in self.substrate_uptake_rates[substrate_uptake_id]:
