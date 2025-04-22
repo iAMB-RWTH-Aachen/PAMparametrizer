@@ -6,7 +6,7 @@ import numpy as np
 
 from PAModelpy import Config, PAModel
 
-ParameterDict = dict[Literal['slope', 'intercept'], float]
+SectorParameterDict = dict[Literal['slope', 'intercept'], float]
 
 def perform_linear_regression(x:Iterable[Union[float, int]],
                               y:Iterable[Union[float, int]]
@@ -192,7 +192,7 @@ def plot_unused_protein_vs_mu(results:pd.DataFrame,
 
 
 def change_sector_parameters_with_config_dict(pamodel: PAModel,
-                                              sector_config: ParameterDict,
+                                              sector_config: SectorParameterDict,
                                               substrate_uptake_id: str,
                                               sector_id:str = 'TranslationalProteinSector') -> PAModel:
     pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0 #need to set the lb to 0 to prevent errors in the setter methods
@@ -212,7 +212,7 @@ def get_translational_sector_config(pamodel:PAModel,
                                     substrate_id: str,
                                     substrate_range:Iterable[Union[int, float]],
                                     rxn_to_relate_to: str = None
-                                    )->ParameterDict:
+                                    )->SectorParameterDict:
     #generate a pam with only the translational sector
     #make a copy of the pam using pickle (the copy method for some reason does not work properly)
     pamtransl = pamodel.copy(copy_with_pickle=True)
@@ -238,11 +238,11 @@ def get_translational_sector_config(pamodel:PAModel,
     return {"slope":slope,"intercept":intercept}
 
 def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAModel,
-                                                                params:ParameterDict,
-                                                                sector_id:str,
-                                                                substrate_uptake_id: str = 'EX_glc__D_e',
-                                                                substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1)
-                                                                )-> ParameterDict:
+                                                                  params:SectorParameterDict,
+                                                                  sector_id:str,
+                                                                  substrate_uptake_id: str = 'EX_glc__D_e',
+                                                                  substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1)
+                                                                  )-> SectorParameterDict:
     if sector_id not in pamodel.sectors:
         sectors = [s.id for s in pamodel.sectors]
         raise KeyError(f'{sector_id} is not in the sectors of the PAModel, '

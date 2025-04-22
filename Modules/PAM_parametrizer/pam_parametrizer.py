@@ -21,7 +21,15 @@ from Modules.utils.pam_generation import _extract_reaction_id_from_catalytic_rea
 from Modules.utils.sector_config_functions import (get_model_simulations_vs_sector,
                                                    perform_linear_regression,
                                                    change_sector_parameters_with_config_dict,
-                                                   change_proteinsector_relation_from_growth_to_substrate_uptake)
+                                                   change_proteinsector_relation_from_growth_to_substrate_uptake,
+                                                   SectorParameterDict)
+
+#TYPEHINTS
+Reaction2KcatDict = List[
+    Literal['reaction', 'kcats', 'sensitivity'],
+    Union[str, dict, float]
+]
+Enzyme2Reaction2KcatDict = Dict[str, Reaction2KcatDict]
 
 class PAMParametrizer():
     #from Schmidt et al(2016):
@@ -493,7 +501,9 @@ class PAMParametrizer():
             if self._esc_variability_larger_than_threshold(esc_variability):
                 self.parametrization_results.bins_to_change.loc[len(self.parametrization_results.bins_to_change)] = [bin_id, True, False]
 
-    def run_genetic_algorithm(self, enzymes_to_evaluate:dict, filename_extension:str) -> None:
+    def run_genetic_algorithm(self,
+                              enzymes_to_evaluate: Enzyme2Reaction2KcatDict,
+                              filename_extension:str) -> None:
         """ Function to run the genetic algorithm.
 
         Results will be stored in a json, pickle and xlsx file with
@@ -503,11 +513,11 @@ class PAMParametrizer():
             enzymes_to_evaluate (dict): Dictionary with required information about which enzyme parameters should be optimized.
                 Format:
                 {
-                    'enzyme_id': {
+                    'enzyme_id': [{
                         'reaction': 'reaction_id',
                         'kcats': {'f':kcat_value_forward, 'b':kcat_value_reverse},
                         'sensitivity': esc_value
-                    }
+                    }]
                 }
             filename_extension: extension of base filename to save the result of the genetic algorithm
         """
@@ -778,13 +788,8 @@ class PAMParametrizer():
 
     def _init_genetic_algorithm(self,
                                 substrate_uptake_rates: dict,
-                                enzymes_to_evaluate: Dict[str,
-                                Dict[
-                                    Dict[Literal['reaction', 'kcats', 'sensitivity'],
-                                    Union[str, dict, float]
-                                    ]
-                                ]],
-                                sector_configs_per_substrate: dict,
+                                enzymes_to_evaluate: Enzyme2Reaction2KcatDict,
+                                sector_configs_per_substrate: Dict[str, SectorParameterDict],
                                 filename_extension: str
                                 ) -> GAPOGauss:
         """
@@ -1032,7 +1037,7 @@ class PAMParametrizer():
         return error
 
 
-    def _parse_enzymes_to_evaluate(self, esc_topn_df: pd.DataFrame) -> dict:
+    def _parse_enzymes_to_evaluate(self, esc_topn_df: pd.DataFrame) -> Reaction2KcatDict:
         """
         Parses the enzyme-reaction pairs for which the kinetic parameters should be adjusted from the enzyme sensitivity coefficients.
 
