@@ -39,7 +39,7 @@ class GAPO():
     def __init__(self,
                  model=None,
                  enzymes_to_eval: dict = {},
-                 sector_configs_per_substrate: dict = None,
+                 sector_configs_per_substrate: dict = {},
                  fitness_class="Fitfun_params_uniform",
                  mutation_probability=0.5,
                  mutation_rate=0.05,
