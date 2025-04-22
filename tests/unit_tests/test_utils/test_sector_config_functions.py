@@ -2,8 +2,10 @@ import pytest
 import numpy as np
 import os
 
+from PAModelpy.utils.pam_generation import set_up_pam
 from Modules.utils.sector_config_functions import run_simulations, get_translational_sector_config
-from Modules.utils.pam_generation import set_up_ecoli_pam, setup_toy_pam
+from Scripts.pam_generation import setup_toy_pam
+
 def test_if_sector_config_run_simulations_gives_same_results_as_running_simulations():
     # Arrange
     pam = set_up_ecoli_pam(sensitivity=False)
@@ -53,3 +55,13 @@ def test_get_translational_sector_config_returns_sector_correctly():
                                                           'R1')
     #Assert
     assert all([trans_sector_config[key] == pytest.approx(value, rel=1e-3) for key, value in expected_translational_sector.items()])
+
+
+########################################################################################################################
+# HELPER FUNCTIONS
+########################################################################################################################
+def set_up_ecoli_pam(sensitivity = False):
+    return set_up_pam(pam_info_file = os.path.join(
+        'tests', 'data', 'proteinAllocationModel_iML1515_EnzymaticData_dummy.xlsx'
+    ),
+        pam_sensitivity = sensitivity)

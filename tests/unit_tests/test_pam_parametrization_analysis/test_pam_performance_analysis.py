@@ -3,7 +3,7 @@ from datetime import date
 import subprocess
 import pandas as pd
 
-from Scripts.i2_parametrization.pam_parametrizer_toy_model import set_up_pamparametrizer
+from tests.pam_parametrizer_toy_model import set_up_pamparametrizer
 from Scripts.i2_parametrization.pam_parametrizer_performance_analysis import run_parametrization_workflow
 
 RESULT_FILE_PATH = os.path.join('Results', 'i2_parametrization', f'pam_parametrizer_statistics_{date.today()}.xlsx')

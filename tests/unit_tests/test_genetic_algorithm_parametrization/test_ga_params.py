@@ -1,15 +1,12 @@
-import unittest
 import pytest
 import os
 import pandas as pd
-import numpy as np
-from scipy.stats import linregress
 from pathlib import Path
-from typing import Union
-from deap.base import Fitness
 
 from Modules.genetic_algorithm_parametrization import GAPOUniform
-from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict, get_model_simulations_vs_sector, perform_linear_regression
+from Modules.utils.sector_config_functions import (change_proteinsector_relation_from_growth_to_substrate_uptake,
+                                                   get_model_simulations_vs_sector,
+                                                   perform_linear_regression)
 
 from Scripts.pam_generation import setup_toy_pam
 
@@ -131,7 +128,7 @@ def test_fitness_evaluation_configures_translational_sector_correctly():
     tot_prot = sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub + tps_0
 
     # Apply
-    change_translational_sector_with_config_dict(sut.FitEval.model,
+    change_proteinsector_relation_from_growth_to_substrate_uptake(sut.FitEval.model,
                                                  {'slope': slope, 'intercept': intercept},
                                                  'R1')
     # Assert

@@ -304,12 +304,9 @@ def test_pam_parametrizer_changes_kcats_same_way_as_genetic_algorithm():
 
     #set up parametrizer and genetic algorithm objects
     sut = PAMParametrizerMock()
-    ga = sut._init_genetic_algorithm(substrate_rates,
-                                     enzymes_to_evaluate,
-                                     translational_sector_config= {'R1':
-                                                                       sut.validation_data.R1.translational_sector_config},
-                                     filename_extension=''
-                                     )
+    ga = sut._init_genetic_algorithm(substrate_rates, enzymes_to_evaluate, sector_configs_per_substrate={'R1':
+                                                                                                             sut.validation_data.R1.translational_sector_config},
+                                     filename_extension='')
     #for the genetic algorithm we need a dummy individual to change the kcat
     toolbox = ga._init_deap_toolbox()
     population = ga.ga.init_pop(toolbox, ga.population_size, True)
