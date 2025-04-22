@@ -33,7 +33,7 @@ class ValidationData:
     id: str
     validation_range: list
     sampled_valid_data: pd.DataFrame = None
-    sector_configs: dict = None
+    sector_configs: dict = field(default_factory=dict)
     _reactions_to_validate : list = field(default_factory=list)
     biomass_reaction_extension : str = 'BIOMASS'
     exchange_reaction_extension: str = 'EX'

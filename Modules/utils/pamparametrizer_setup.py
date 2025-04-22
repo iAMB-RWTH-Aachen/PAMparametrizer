@@ -5,13 +5,13 @@ from typing import Literal, Tuple, Iterable, Union, List, Dict
 import datetime
 import ast
 
-from Modules.utils.sector_config_functions import ParameterDict
+from Modules.utils.sector_config_functions import SectorParameterDict
 from Modules.PAM_parametrizer import SectorConfig
 
 
 def save_sector_information_to_excel(
-        param_vs_lin_rxn: ParameterDict,
-        param_vs_growth: ParameterDict,
+        param_vs_lin_rxn: SectorParameterDict,
+        param_vs_growth: SectorParameterDict,
         biomass_rxn:str,
         lin_rxn_id:str,
         sector_id:Literal['Translational', 'UnusedEnzyme'],
@@ -25,8 +25,8 @@ def save_sector_information_to_excel(
     growth rate helps to translate the relation to other conditions
 
     Args:
-        param_vs_lin_rxn (ParameterDict): Parameters for the linear reaction (slope and intercept).
-        param_vs_growth (ParameterDict): Parameters for the biomass growth (slope and intercept).
+        param_vs_lin_rxn (SectorParameterDict): Parameters for the linear reaction (slope and intercept).
+        param_vs_growth (SectorParameterDict): Parameters for the biomass growth (slope and intercept).
         biomass_rxn (str): Reaction ID for the biomass reaction.
         lin_rxn_id (str): Reaction ID for the linear reaction to which the sector is related.
         sector_id (Literal['Translational', 'UnusedEnzyme']): Sector identifier to update, the identifier relates to the

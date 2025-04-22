@@ -268,10 +268,8 @@ class FitnessEvaluation():
         self._reset_translational_sector()#something is wrong with the copying, so we have to reset the tps to it's initial parameters
 
         # apply kcat changes and compute metabolic functionalities
-        reactions = [self.model.reactions.get_by_id(rxn) for rxn in individual.reactions]
         # save old kcats to revert after error calculation
         kcat_old = self._get_old_kcats(self.model, individual)
-
         self._change_kcat_values_for_individual(individual)
         # perform simulations and save results
         fluxes = {substr_uptake: pd.DataFrame(
@@ -422,6 +420,7 @@ class FitnessEvaluation():
         for rxn in self.reactions_with_data[substrate_reaction]:
             #only select the rows which are filled with data
             ref_data_rxn = self.valid_data[substrate_reaction].dropna(axis = 0, subset = rxn)
+
 
             #if there are no reference data points, continue to the next reaction
             if len(ref_data_rxn) == 0: continue

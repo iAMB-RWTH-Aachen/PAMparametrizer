@@ -25,11 +25,11 @@ from Modules.utils.sector_config_functions import (get_model_simulations_vs_sect
                                                    SectorParameterDict)
 
 #TYPEHINTS
-Reaction2KcatDict = List[
+Reaction2KcatDict = Dict[
     Literal['reaction', 'kcats', 'sensitivity'],
     Union[str, dict, float]
 ]
-Enzyme2Reaction2KcatDict = Dict[str, Reaction2KcatDict]
+Enzyme2Reaction2KcatDict = Dict[str, List[Reaction2KcatDict]]
 
 class PAMParametrizer():
     #from Schmidt et al(2016):
@@ -91,9 +91,13 @@ class PAMParametrizer():
 
         self._create_result_dirs()
         self.result_figure_file = os.path.join(
-            "Results", "2_parametrization", "progress", f"pam_parametrizer_progress_{hyperparameters.filename_extension}.png")
+            "Results", "2_parametrization",
+            "progress",
+            f"pam_parametrizer_progress_{hyperparameters.filename_extension}.png")
         self.result_diagnostics_file = os.path.join(
-            "Results",  "2_parametrization", "diagnostics", f"pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx")
+            "Results",  "2_parametrization",
+            "diagnostics",
+            f"pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx")
 
 
     def run(self, remove_subruns:bool = True, binned:str = "False") -> None:
