@@ -175,10 +175,7 @@ class PAMParametrizer():
         plt.close(fig)
 
     def calculate_sector_parameters_for_multiple_csources(self):
-        pam_no_totprot = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
-
-        #remove total protein to remove protein relations, which results in a linear relation between growth and substrate
-        pam_no_totprot.remove_cons_vars([pam_no_totprot.constraints[pam_no_totprot.TOTAL_PROTEIN_CONSTRAINT_ID]])
+        pam = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
 
         for vd in self.validation_data:
             for sector in self.sector_configs:
@@ -189,7 +186,7 @@ class PAMParametrizer():
                 substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
 
                 vd.sector_configs[sector] = change_proteinsector_relation_from_growth_to_substrate_uptake(
-                    pamodel = pam_no_totprot,
+                    pamodel = pam,
                     params = sector,
                     sector_id = sector['sectorname'],
                     substrate_uptake_id = sub_upt_id,
