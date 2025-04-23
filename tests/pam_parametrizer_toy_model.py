@@ -67,6 +67,8 @@ def run_simulations(pamodel, substrate_rates):
     return result_df
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
+                           pam_info_file = None,
+                           kcat_increase_factor = 1,
                            processes: int =2,
                            gene_flow_events: int = 2,
                            filename_extension:str = 'toy',
