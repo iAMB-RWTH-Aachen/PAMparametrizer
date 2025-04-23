@@ -19,6 +19,7 @@ from .Fitfun_params_gaussian import FitnessEvaluation
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
 DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
+DIFUSSIONLIMIT = 1e6
 
 # seed random number generator
 random.seed()
@@ -107,7 +108,8 @@ class FitnessEvaluation(FitnessEvaluation):
             # scale needs to be positive, so prevent negative values
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
-            return float(np.random.uniform(0,kcat*2))
+            max_kcat = kcat*2 if kcat*2<DIFUSSIONLIMIT else DIFUSSIONLIMIT
+            return float(np.random.uniform(0,max_kcat))
 
     def _mut_kcat_uniform(self, kcat_list:list, indpb:float):
         """
@@ -119,7 +121,7 @@ class FitnessEvaluation(FitnessEvaluation):
         :return: new_kcats: list with mutated kcat values
         """
         if random.random() < indpb:
-            new_kcats = [np.random.uniform(0, kcat*2) for kcat in kcat_list]
+            new_kcats = [np.random.uniform(0, kcat*2)if kcat * 2 < DIFUSSIONLIMIT else DIFUSSIONLIMIT for kcat in kcat_list ]
         else:
             new_kcats = kcat_list
         return new_kcats
