@@ -46,7 +46,7 @@ class PAMParametrizer():
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
                  hyperparameters: HyperParameters = HyperParameters(),
-                 sector_configs: List[SectorConfig] = [TRANSLATIONAL_SECTOR_CONFIG],
+                 sector_configs: Dict[str, SectorConfig] = {'TranslationalProteinSector':TRANSLATIONAL_SECTOR_CONFIG},
                  substrate_uptake_id: str = "EX_glc__D_e",
                  max_substrate_uptake_rate: Union[float, int] = 0,
                  min_substrate_uptake_rate: Union[float, int] = -11,
@@ -178,17 +178,18 @@ class PAMParametrizer():
         pam = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
 
         for vd in self.validation_data:
-            for sector in self.sector_configs:
-                if sector['sectorname'] in vd.sector_configs: continue
+            for sector_id, sector_config in self.sector_configs.items():
+                if sector_id in vd.sector_configs: continue
                 sub_upt_id = vd.id
 
                 #to prevent overflow metabolism, only select the lower growth rates to derive the equation
                 substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
-
-                vd.sector_configs[sector] = change_proteinsector_relation_from_growth_to_substrate_uptake(
+                print(sector_config)
+                print(pam.constraints[pam.TOTAL_PROTEIN_CONSTRAINT_ID].ub)
+                vd.sector_configs[sector_id] = change_proteinsector_relation_from_growth_to_substrate_uptake(
                     pamodel = pam,
-                    params = sector,
-                    sector_id = sector['sectorname'],
+                    params = sector_config,
+                    sector_id = sector_id,
                     substrate_uptake_id = sub_upt_id,
                     substrate_range = substrate_range
                 )
