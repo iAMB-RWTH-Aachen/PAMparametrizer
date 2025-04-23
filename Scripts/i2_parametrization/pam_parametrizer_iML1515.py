@@ -152,13 +152,13 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
                                             filename_extension, num_kcats_to_mutate,
                                             threshold_iteration)
-    sector_config = set_up_sector_config(pam_info_file = pam_info_file_path_out,
+    sector_configs = set_up_sector_config(pam_info_file = pam_info_file_path_out,
                                          sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
 
     return PAMParametrizer(pamodel=ecoli_pam,
                            validation_data=validation_data,
                            hyperparameters=hyperparameters,
-                           sector_config=sector_config,
+                           sector_configs=sector_configs,
                            substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
                            max_substrate_uptake_rate=max_substrate_uptake_rate,
                            min_substrate_uptake_rate=min_substrate_uptake_rate)
