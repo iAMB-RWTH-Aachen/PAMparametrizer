@@ -7,7 +7,8 @@ from Modules.PAM_parametrizer import SectorConfig
 from Modules.genetic_algorithm_parametrization import GAPOUniform
 from Modules.utils.sector_config_functions import (change_proteinsector_relation_from_growth_to_substrate_uptake,
                                                    get_model_simulations_vs_sector,
-                                                   perform_linear_regression)
+                                                   perform_linear_regression,
+                                                   change_sector_parameters_with_config_dict)
 
 from Scripts.pam_generation import setup_toy_pam
 
@@ -146,12 +147,15 @@ def test_fitness_evaluation_configures_translational_sector_correctly():
     tps_0 = sut.FitEval.model.sectors.get_by_id('TranslationalProteinSector').intercept
     tot_prot = sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub + tps_0
 
+
+
     # Apply
-    change_proteinsector_relation_from_growth_to_substrate_uptake(sut.FitEval.model,
-                                                 {'slope': slope, 'intercept': intercept},
-                                                 'R1')
-    # Assert
-    rxn = sut.FitEval.model.reactions.R1
+    change_sector_parameters_with_config_dict(pamodel=sut.FitEval.model,
+                                              sector_config={'slope': slope, 'intercept': intercept},
+                                              substrate_uptake_id='R3',
+                                              sector_id='TranslationalProteinSector'
+                                              )
+    rxn = sut.FitEval.model.reactions.R3
     coeff = sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].get_linear_coefficients([rxn.forward_variable])[rxn.forward_variable]
     assert sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub == tot_prot-intercept*1e3
     assert slope*1e3 == coeff
