@@ -241,7 +241,8 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                                                                   params:SectorParameterDict,
                                                                   sector_id:str,
                                                                   substrate_uptake_id: str = 'EX_glc__D_e',
-                                                                  substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1)
+                                                                  substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1),
+                                                                  sector_name: str = 'unused_enzymes'
                                                                   )-> SectorParameterDict:
     if sector_id not in pamodel.sectors:
         sectors = [s.id for s in pamodel.sectors]
@@ -257,13 +258,14 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
         intercept=params['intercept'],
         lin_rxn_id=pamodel.BIOMASS_REACTION
     )
+
     simulation_results_bms = get_model_simulations_vs_sector(pamodel,
                                                              sub_uptake_rxn = substrate_uptake_id,
                                                              rxn_id_to_relate_to = pamodel.BIOMASS_REACTION,
                                                              substrate_range = substrate_range,
                                                              intercept = params['intercept'], slope = params['slope'],
-                                                             sector_name='unused_enzymes')
+                                                             sector_name=sector_name)
     slope_glc, intercept_glc = perform_linear_regression(
-        x=simulation_results_bms[substrate_uptake_id], y=simulation_results_bms['unused_enzymes'])
+        x=simulation_results_bms[substrate_uptake_id], y=simulation_results_bms[sector_name])
 
     return {'slope': slope_glc, 'intercept': intercept_glc}
