@@ -35,8 +35,8 @@ class PAMParametrizer():
     #from Schmidt et al(2016):
     TRANSLATIONAL_SECTOR_CONFIG = SectorConfig(
         sectorname='TranslationalProteinSector',
-        slope_vs_mu= 0.04806975534478209, #g / g_cdw / h
-        intercept_vs_mu=0.04738115630907698,#g / g_cdw
+        slope= 0.04806975534478209, #g / g_cdw / h
+        intercept=0.04738115630907698,#g / g_cdw
         substrate_range= list(np.arange(-4,0,1))
     )
     TRANSL_SECTOR_INTERCEPT_vs_GLC = 0.046136644909661115#g / g_cdw
@@ -183,7 +183,6 @@ class PAMParametrizer():
         for vd in self.validation_data:
             for sector in self.sector_configs:
                 if sector['sectorname'] in vd.sector_configs: continue
-                print(sector)
                 sub_upt_id = vd.id
 
                 #to prevent overflow metabolism, only select the lower growth rates to derive the equation

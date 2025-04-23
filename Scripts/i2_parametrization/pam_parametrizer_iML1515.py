@@ -38,7 +38,7 @@ def set_up_validation_data(csources: list,
     for csource in csources:
         if csource == 'Glucose':
             validation_data = set_up_valid_data_glucose(VALID_DATA_PATH)
-            validation_data.sector_config = {'TranslationalProteinSector':{
+            validation_data.sector_configs = {'TranslationalProteinSector':{
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
             }}
