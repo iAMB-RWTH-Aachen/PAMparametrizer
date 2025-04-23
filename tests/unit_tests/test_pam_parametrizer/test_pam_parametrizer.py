@@ -237,13 +237,10 @@ def tests_pam_parametrizer_parses_enzymes_to_evaluate_for_all_bins_correctly():
     for bin_id, bin_info in bin_information.items():
         sut.run_pamodel_simulations_in_bin('R1',bin_id, bin_info)
     enzymes_to_evaluate_expected = ['E2', 'E5', 'E1']
-    for vd in sut.validation_data:
-        print(vd.sector_configs)
 
     # Act
     enzymes_to_evaluate_test = sut._determine_enzymes_to_evaluate_for_all_bins(nmbr_kcats_to_pick = 3)
 
-    print(enzymes_to_evaluate_test)
     # Assert
     assert all(enzyme_id in enzymes_to_evaluate_test for enzyme_id in enzymes_to_evaluate_expected), "Not all enzyme IDs are present"
 
@@ -262,7 +259,6 @@ def test_if_restart_genetic_algorithm_runs():
     files_to_remove = sut.restart_genetic_algorithm()
     json_files = sut._get_genetic_algorithm_json_files(subset = 'final_run')
     sut._remove_result_files(files_to_remove)
-
 
     # Assert
     assert 1 == len(json_files)

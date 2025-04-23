@@ -151,6 +151,9 @@ class ParametrizationResults:
 
     def add_best_individuals(self, run_id: str, best_indiv_enz_rxn_kcat: list, ga_error:float) -> None:
         self.best_individuals.loc[len(self.best_individuals)] = [run_id] + best_indiv_enz_rxn_kcat + [ga_error]
+        self.best_individuals = self.best_individuals.drop_duplicates(['run_id', 'enzyme_id', 'direction', 'rxn_id'],
+                                                                      keep = 'last')
+
     def add_computational_time(self, run_id: str, time_in_sec: float):
         self.computational_time.loc[len(self.computational_time)] = [run_id, time_in_sec, time_in_sec/3600]
 
