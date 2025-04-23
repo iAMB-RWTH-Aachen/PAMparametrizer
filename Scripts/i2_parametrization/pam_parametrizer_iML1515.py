@@ -1,13 +1,17 @@
 import os
 import sys
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, List
 import warnings
+
+from cobra.core.dictlist import DictList
+
 warnings.filterwarnings("ignore")
 
 from PAModelpy.configuration import Config
 from PAModelpy.utils.pam_generation import set_up_pam, increase_kcats_in_parameter_file
 
+from Modules.utils.pamparametrizer_setup import set_up_sector_config
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
 
@@ -34,10 +38,10 @@ def set_up_validation_data(csources: list,
     for csource in csources:
         if csource == 'Glucose':
             validation_data = set_up_valid_data_glucose(VALID_DATA_PATH)
-            validation_data.translational_sector_config = {
+            validation_data.sector_config = {'TranslationalProteinSector':{
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-            }
+            }}
             validation_data_objects.append(validation_data)
         elif csource in condition2uptake.keys():
             validation_data = set_up_valid_data_csource_not_glucose(
@@ -104,6 +108,7 @@ def set_up_hyperparameter(processes: int,
                                                                   config.BIOMASS_REACTION: 7}
     return hyperparams
 
+
 def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE):
     result_df = pd.DataFrame(columns= rxn_to_validate)
 
@@ -147,13 +152,16 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
                                             filename_extension, num_kcats_to_mutate,
                                             threshold_iteration)
+    sector_config = set_up_sector_config(pam_info_file = pam_info_file_path_out,
+                                         sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
 
     return PAMParametrizer(pamodel=ecoli_pam,
-                     validation_data=validation_data,
-                     hyperparameters=hyperparameters,
-                     substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
-                     max_substrate_uptake_rate=max_substrate_uptake_rate,
-                     min_substrate_uptake_rate=min_substrate_uptake_rate)
+                           validation_data=validation_data,
+                           hyperparameters=hyperparameters,
+                           sector_config=sector_config,
+                           substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
+                           max_substrate_uptake_rate=max_substrate_uptake_rate,
+                           min_substrate_uptake_rate=min_substrate_uptake_rate)
 
 if __name__ == "__main__":
     pam_info_file = os.path.join(

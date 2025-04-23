@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from typing import Union
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_iml
-from Scripts.i2_parametrization.pam_parametrizer_toy_model import set_up_pamparametrizer as set_up_pamparametrizer_toy
+from tests.pam_parametrizer_toy_model import set_up_pamparametrizer as set_up_pamparametrizer_toy
 from Scripts.i2_parametrization.pam_parametrizer_ecolicore import set_up_pamparametrizer as set_up_pamparametrizer_core
 
 
