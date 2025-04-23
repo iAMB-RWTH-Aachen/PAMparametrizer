@@ -23,10 +23,9 @@ def test_if_sector_config_run_simulations_gives_same_results_as_running_simulati
         assert all([solf == pytest.approx(testf, rel=1e-3) for solf, testf in zip(sol.fluxes, fluxes)])
 
 
-def test_if_sector_config_run_simulations_gives_same_results_as_running_simulations_no_sectors():
+def test_if_sector_config_run_simulations_gives_same_results_as_running_simulations():
     # Arrange
-    pam = set_up_ecoli_pam(total_protein=False, active_enzymes = False, unused_enzymes = False,
-                          sensitivity = False)
+    pam = set_up_ecoli_pam(sensitivity = False)
     substrate_rates = np.arange(-11,-5,1)
     substr_upt_id = 'EX_glc__D_e'
 
@@ -60,8 +59,15 @@ def test_get_translational_sector_config_returns_sector_correctly():
 ########################################################################################################################
 # HELPER FUNCTIONS
 ########################################################################################################################
-def set_up_ecoli_pam(sensitivity = False):
-    return set_up_pam(pam_info_file = os.path.join(
-        'tests', 'data', 'proteinAllocationModel_iML1515_EnzymaticData_dummy.xlsx'
-    ),
+def set_up_ecoli_pam(total_protein = 0.258,
+                     active_enzymes = True,
+                     unused_enzymes = True,
+                     sensitivity = False):
+    return set_up_pam(
+        pam_info_file = os.path.join(
+            'tests', 'data', 'proteinAllocationModel_iML1515_EnzymaticData_dummy.xlsx'
+        ),
+        total_protein = total_protein,
+        active_enzymes = True,
+        unused_enzymes = True,
         sensitivity = sensitivity)
