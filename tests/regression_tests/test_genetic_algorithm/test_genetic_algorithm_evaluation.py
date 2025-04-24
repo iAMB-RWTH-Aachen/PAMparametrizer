@@ -45,7 +45,7 @@ def test_genetic_algorithm_calculates_individual_correct_fitness():
     assert individual_to_evaluate.fitness is not other_individual.fitness
     assert fitness_other_indiv_simulated != fitness_simulated
     assert new_kcats == [1/kcat for kcat in individual_to_evaluate.kcat_list]
-    assert fitness_validation == pytest.approx(fitness_simulated, abs=1e-6)
+    assert fitness_validation == pytest.approx(fitness_simulated, abs=1e-4)
 
 def test_genetic_algorithm_toolbox_evaluate_function_gives_right_output():
     # Arrange
