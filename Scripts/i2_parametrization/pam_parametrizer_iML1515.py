@@ -27,7 +27,8 @@ def set_up_validation_data(csources: list,
                         'Gluconate': 'EX_glcn_e', 'Succinate': 'EX_succ_e', 'Galactose': 'EX_gal_e',
                         'Fructose': 'EX_fru_e'}
     model = set_up_pam(pam_info_file = pam_info_file,
-                       model = os.path.join('Models', 'iML1515.xml'))
+                       model = os.path.join('Models', 'iML1515.xml'),
+                       sensitivity = False)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls')
@@ -38,10 +39,15 @@ def set_up_validation_data(csources: list,
     for csource in csources:
         if csource == 'Glucose':
             validation_data = set_up_valid_data_glucose(VALID_DATA_PATH)
-            validation_data.sector_configs = {'TranslationalProteinSector':{
+            validation_data.sector_configs = {
+                'TranslationalProteinSector':{
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-            }}
+            },
+                'UnusedEnzymeSector': {
+                    'slope': model.sectors.get_by_id('UnusedEnzymeSector').ups_mu[0],
+                    'intercept': model.sectors.get_by_id('UnusedEnzymeSector').ups_0[0]
+                }}
             validation_data_objects.append(validation_data)
         elif csource in condition2uptake.keys():
             validation_data = set_up_valid_data_csource_not_glucose(
@@ -128,7 +134,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            pam_info_file: str = os.path.join(
-                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx'),
+                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iML1515',
@@ -154,7 +160,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                             threshold_iteration)
     sector_configs = set_up_sector_config(pam_info_file = pam_info_file_path_out,
                                          sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
-
     return PAMParametrizer(pamodel=ecoli_pam,
                            validation_data=validation_data,
                            hyperparameters=hyperparameters,
