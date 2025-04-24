@@ -619,13 +619,14 @@ class PAMParametrizer():
         self.parametrization_results.add_final_error(run_id= self.iteration,
                                                      final_error= self.final_error)
 
-    def save_final_diagnostics(self, figure:plt.Figure) -> None:
+    def save_final_diagnostics(self, figure:plt.Figure = None) -> None:
         """Save the results of all iterations to excel and png
 
         Args:
             figure: figure to save (progress figure)
         """
-        figure.savefig(self.result_figure_file, dpi=100, bbox_inches="tight")
+        if figure is not None:
+            figure.savefig(self.result_figure_file, dpi=100, bbox_inches="tight")
         sector_configs = pd.DataFrame(columns = ["substrate_uptake_id", "slope", "intercept", 'sector_id'])
         ga_weights = pd.DataFrame({'reaction':self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].keys(),
                                    'weight': self.hyperparameters.genetic_algorithm_hyperparams['error_weights'].values()} )
@@ -639,7 +640,7 @@ class PAMParametrizer():
                             "slope": sector_config['slope'],
                             "intercept": sector_config['intercept'],
                             "sector_id": sector_id
-                        })],
+                        }).to_frame().T],
                     ignore_index=True
                 )
 

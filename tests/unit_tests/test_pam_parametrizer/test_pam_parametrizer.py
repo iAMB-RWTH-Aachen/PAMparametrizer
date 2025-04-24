@@ -387,6 +387,50 @@ def test_pam_parametrizer_if_diagnostics_are_saved_to_dataframe():
     #remove produced files
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
+def test_pam_parametrizer_saves_sector_parameters_correcty_in_final_diagnostics():
+    # Arrange
+    bin_id = 1
+    bin_info = [0.001, 0.002, 0.001/5]
+
+    sut = PAMParametrizerMock()
+    sut._init_results_objects()
+    sut.iteration = 1
+
+    start_time = time.perf_counter()
+    sut.process_bin(bin_id, bin_information=bin_info, substrate_uptake_id='R1')
+    computational_time = time.perf_counter() - start_time
+
+    sut.final_error = 1
+    results_filename = (os.path.join('Results', '2_parametrization',
+                                     sut.hyperparameters.genetic_algorithm_filename_base + '_iteration_'+
+                                     str(sut.iteration) + '_bin_1.xlsx'))
+    final_diagnostics_file_name = sut.result_diagnostics_file
+    sector_parameters_reference = pd.read_excel(
+        os.path.join('tests','data', 'diagnostics_file_for_toy.xlsx'),
+        sheet_name='sector_parameters'
+    )
+
+    # Act
+    sut.save_diagnostics(computational_time,
+                         results_filename)
+    sut.save_final_diagnostics()
+
+    # Assert
+    assert os.path.exists(final_diagnostics_file_name), \
+        f'Diagnostic files is not saved in the expected location: {final_diagnostics_file_name}'
+
+
+    final_diagnostics = pd.read_excel(final_diagnostics_file_name, sheet_name =None)
+    assert 'sector_parameters' in final_diagnostics.keys(), \
+        ('Sector parameters are not saved in the final diagnostics file'
+        f'These are the sheets which are included in the diagnostics file: {final_diagnostics.keys()}')
+
+    sector_parameters = final_diagnostics['sector_parameters']
+    pd.testing.assert_frame_equal(sector_parameters, sector_parameters_reference)
+
+    #remove produced files
+    [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+    os.remove(final_diagnostics_file_name)
 
 def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     # Arrange
