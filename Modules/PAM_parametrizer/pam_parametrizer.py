@@ -184,8 +184,6 @@ class PAMParametrizer():
 
                 #to prevent overflow metabolism, only select the lower growth rates to derive the equation
                 substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
-                print(sector_config)
-                print(pam.constraints[pam.TOTAL_PROTEIN_CONSTRAINT_ID].ub)
                 vd.sector_configs[sector_id] = change_proteinsector_relation_from_growth_to_substrate_uptake(
                     pamodel = pam,
                     params = sector_config,
@@ -1108,7 +1106,6 @@ class PAMParametrizer():
         if len(esc_results_df) == 0: return self._get_random_enzymes_to_evaluate() #if infeasible get default parameter set to adjust
         esc_topn_df = self._select_topn_enzymes(esc_results_df,
                                                 nmbr_kcats_to_pick)
-        print(esc_topn_df)
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
 
         return enzymes_to_evaluate
