@@ -98,6 +98,7 @@ class PAMParametrizer():
             "Results",  "2_parametrization",
             "diagnostics",
             f"pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx")
+        self.calculate_sector_parameters_for_multiple_csources()
 
 
     def run(self, remove_subruns:bool = True, binned:str = "False") -> None:
@@ -128,7 +129,7 @@ class PAMParametrizer():
             A png image of the parametrization progress and an excel file with the resulting parameters
         """
         self._set_pamodel_no_sensitivities()
-        self.calculate_sector_parameters_for_multiple_csources()
+        # self.calculate_sector_parameters_for_multiple_csources()
 
         #setup plot to visualize progress
         fig, axs = self.plot_valid_data()
@@ -687,7 +688,7 @@ class PAMParametrizer():
         If the directories do not exist, they are created
 
         Args:
-            result_file_path: the path to the directory were the results should be stored
+            result_file_path: the path to the directory where the results should be stored
         """
         if not os.path.isdir(result_file_path):
             os.path.mkdir(result_file_path)
