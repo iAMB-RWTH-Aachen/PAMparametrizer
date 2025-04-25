@@ -100,6 +100,14 @@ class PAMParametrizer():
             f"pam_parametrizer_diagnostics_{hyperparameters.filename_extension}.xlsx")
         self.calculate_sector_parameters_for_multiple_csources()
 
+    @property
+    def sector_configs(self):
+        return self.sector_configs
+
+    @sector_configs.setter
+    def sector_configs(self, sector_configs:Dict[str, SectorConfig]):
+        self.sector_configs = sector_configs
+        self.calculate_sector_parameters_for_multiple_csources(reset=True)
 
     def run(self, remove_subruns:bool = True, binned:str = "False") -> None:
         """ Run the parametrization framework.
