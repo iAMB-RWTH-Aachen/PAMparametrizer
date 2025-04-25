@@ -4,8 +4,6 @@ import pandas as pd
 from typing import Tuple, List
 import warnings
 
-from cobra.core.dictlist import DictList
-
 warnings.filterwarnings("ignore")
 
 from PAModelpy.configuration import Config
@@ -45,7 +43,7 @@ def set_up_validation_data(csources: list,
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
             },
                 'UnusedEnzymeSector': {
-                    'slope': model.sectors.get_by_id('UnusedEnzymeSector').ups_mu[0],
+                    'slope': model.sectors.get_by_id('UnusedEnzymeSector').ups_mu,
                     'intercept': model.sectors.get_by_id('UnusedEnzymeSector').ups_0[0]
                 }}
             validation_data_objects.append(validation_data)
