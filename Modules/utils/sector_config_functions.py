@@ -202,7 +202,6 @@ def change_sector_parameters_with_config_dict(pamodel: PAModel,
                                      intercept=sector_config['intercept'],
                                      lin_rxn_id=substrate_uptake_id
                                      )
-
     return pamodel
 
     # pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub #reset

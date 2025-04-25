@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 import PAModelpy
 from PAModelpy import PAModel
 
-from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict, TransSectorConfig
+from Modules.utils.sector_config_functions import change_sector_parameters_with_config_dict, SectorParameterDict
 
 #######
 #SETUP METHODS
@@ -39,7 +39,7 @@ def get_results_from_simulations(pamodel: PAModel,
                                  substrate_ids: Union[str, list[str]] = ['EX_glc__D_e'],
                                  fluxes_to_save: list[str] = None,
                                  proteins_to_save:list[str] = None,
-                                 transl_sector_config: Union[dict[str,TransSectorConfig], bool]=True) -> dict[str, pd.DataFrame]:
+                                 transl_sector_config: Union[dict[str,SectorParameterDict], bool]=True) -> dict[str, pd.DataFrame]:
 
     if isinstance(substrate_ids, str):
         substrate_ids = [substrate_ids]
@@ -123,15 +123,16 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
 
 def _set_up_pamodel_for_simulations(pamodel:PAModel,
                                    substrate_id: str,
-                                   transl_sector_config:Union[bool, TransSectorConfig]) -> None:
+                                   transl_sector_config:Union[bool, SectorParameterDict]) -> None:
     if not isinstance(transl_sector_config, dict) and transl_sector_config:
         transl_sector_config = {'slope': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                                 'intercept': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]}
 
     if transl_sector_config is not False:
-        change_translational_sector_with_config_dict(pamodel=pamodel,
-                                                     transl_sector_config = transl_sector_config,
-                                                     substrate_uptake_id = substrate_id)
+        change_sector_parameters_with_config_dict(pamodel=pamodel,
+                                                     sector_config = transl_sector_config,
+                                                     substrate_uptake_id = substrate_id,
+                                                  sector_id = 'TranslationalProteinSector')
 
 def _set_up_solution_info(fluxes_to_save: list[str],
                           proteins_to_save:list[str],
