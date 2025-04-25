@@ -177,9 +177,9 @@ class PAMParametrizer():
 
     def calculate_sector_parameters_for_multiple_csources(self):
         pam = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
-        #open up total protein constraint to ensure that there is no protein burden
-
-        pam.total_protein_fraction = 1
+        # make total protein constraint less strict when calculating protein sectors
+        # to ensure protein burden is not affecting growth-rate to substrate uptake rate relation
+        pam.total_protein_fraction = 2
 
         for vd in self.validation_data:
             for sector_id, sector_config in self.sector_configs.items():
@@ -187,7 +187,10 @@ class PAMParametrizer():
                 sub_upt_id = vd.id
 
                 #to prevent overflow metabolism, only select the lower growth rates to derive the equation
-                substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
+                if 'substrate_range' in sector_config:
+                    substrate_range = sector_config['substrate_range']
+                else:
+                    substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
                 vd.sector_configs[sector_id] = change_proteinsector_relation_from_growth_to_substrate_uptake(
                     pamodel = pam,
                     params = sector_config,
