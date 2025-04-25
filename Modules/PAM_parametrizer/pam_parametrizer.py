@@ -177,6 +177,9 @@ class PAMParametrizer():
 
     def calculate_sector_parameters_for_multiple_csources(self):
         pam = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
+        #open up total protein constraint to ensure that there is no protein burden
+
+        pam.total_protein_fraction = 1
 
         for vd in self.validation_data:
             for sector_id, sector_config in self.sector_configs.items():
@@ -708,7 +711,10 @@ class PAMParametrizer():
                                                       sector_id = sector_id
                                                       )
 
-    def _get_substrate_range_lower_substrate_conc(self, validation_range:list[Union[int, float]], number_of_steps: int = 5) -> Iterable:
+    def _get_substrate_range_lower_substrate_conc(self,
+                                                  validation_range:list[Union[int, float]],
+                                                  number_of_steps: int = 5
+                                                  ) -> Iterable:
         #only loop over the low growth rates, to prevent overflow like metabolism to interfere with the derivation of a linear equation
         # Determine the range to loop over based on absolute values
         start = min(abs(validation_range[0]), abs(validation_range[1])) / 2
