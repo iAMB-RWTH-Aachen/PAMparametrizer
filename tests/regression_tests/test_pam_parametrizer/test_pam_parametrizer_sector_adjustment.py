@@ -16,5 +16,5 @@ def test_if_unused_protein_sector_is_configured_correctly_by_pamparametrizer():
     unused_enzymes_sut = sut.validation_data.EX_glc__D_e.sector_configs['UnusedEnzymeSector']
 
     # Assert
-    assert reference_unused_enzyme_sector.at['ups_0'] == pytest.approx(unused_enzymes_sut['intercept'])
-    assert reference_unused_enzyme_sector.at['ups_mu'] == pytest.approx(unused_enzymes_sut['slope'])
+    assert reference_unused_enzyme_sector.at['ups_0', 'Value'] == pytest.approx(unused_enzymes_sut['intercept'])
+    assert reference_unused_enzyme_sector.at['ups_mu', 'Value'] == pytest.approx(unused_enzymes_sut['slope'])
