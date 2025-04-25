@@ -1,11 +1,12 @@
 import os
 import pandas as pd
-from cobra import DictList
 
 from PAModelpy.utils import set_up_pam
 from Scripts.pam_generation import setup_toy_pam
 from Modules.PAM_parametrizer import PAMParametrizer
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
+from Modules.utils.pamparametrizer_setup import set_up_sector_config
+
 
 
 max_substrate_uptake_rate = 0.1
@@ -73,17 +74,21 @@ class PAMParametrizerMockEcoli(PAMParametrizer):
     Setting up pam parametrizer for the iML1515 PAM with only the translational protein sector as a predefined sector
     '''
     def __init__(self):
-        pam = set_up_pam(os.path.join('tests', 'data', 'proteinAllocationModel_iML1515_EnzymaticData_dummy.xlsx'),
+        pam_info_file = os.path.join('tests', 'data', 'proteinAllocationModel_iML1515_EnzymaticData_dummy.xlsx')
+        pam = set_up_pam(pam_info_file,
                          sensitivity = False)
         validation_data = self.set_up_validation_data(pam)
         hyperparameters = self.set_up_hyperparameter()
+        sector_configs = set_up_sector_config(pam_info_file = pam_info_file,
+                                         sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
 
         super().__init__(pamodel=pam,
                          validation_data=[validation_data],
                          hyperparameters=hyperparameters,
                          substrate_uptake_id = 'EX_glc__D_e',
                          max_substrate_uptake_rate=-0.1,
-                         min_substrate_uptake_rate = -11)
+                         min_substrate_uptake_rate = -11,
+                         sector_configs = sector_configs)
 
         self.result_figure_file = os.path.join('Results', '2_parametrization', 'progress','pam_parametrizer_progress_test.png')
 
@@ -95,8 +100,12 @@ class PAMParametrizerMockEcoli(PAMParametrizer):
         valid_data_df = valid_data_df.rename(
             columns={'EX_glc__D_e': 'EX_glc__D_e_ub'})
         valid_data_df = valid_data_df[valid_data_df.Strain == 'MG1655']
-        validation_data = ValidationData(valid_data_df, 'EX_glc__D_e',
-                                         [-11, -0.1])
+        validation_data = ValidationData(
+            valid_data = valid_data_df,
+            id = 'EX_glc__D_e',
+            validation_range = [-11, -0.1]
+        )
+
         validation_data._reactions_to_plot = []
         validation_data._reactions_to_validate = []
 
@@ -104,7 +113,7 @@ class PAMParametrizerMockEcoli(PAMParametrizer):
                     'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                     'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
                 }}
-        return DictList([validation_data])
+        return validation_data
 
     def set_up_hyperparameter(self):
         hyperparams = HyperParameters
