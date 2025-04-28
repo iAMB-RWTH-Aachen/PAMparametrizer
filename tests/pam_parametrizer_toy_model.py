@@ -28,7 +28,7 @@ def set_up_validation_data():
 
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
-                          filename_extension:str = 'toy_senz',
+                          filename_extension:str = 'toy_',
                           num_kcats_to_mutate:int=3):
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = 4
@@ -83,7 +83,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
               'min_substrate_uptake_rate': min_substrate_uptake_rate,
                 'sensitivity': sensitivity}
     if not sensitivity:
-        params['hyperparameters'].filename_extension = 'toy_no_senz'
         params['enzymes_to_evaluate'] = {'E3':{'reaction':'R3','kcat':1, 'sensitivity':0.5}, #should become 5
                            'E4':{'reaction':'R4','kcat':0.5, 'sensitivity':0.2},#should become 0.1
                            'E5':{'reaction':'R5','kcat':0.45, 'sensitivity':0.1}},#should become 0.25

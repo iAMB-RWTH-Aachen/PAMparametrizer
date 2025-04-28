@@ -79,6 +79,7 @@ class PAMParametrizerMockEcoli(PAMParametrizer):
                          sensitivity = False)
         validation_data = self.set_up_validation_data(pam)
         hyperparameters = self.set_up_hyperparameter()
+        hyperparameters
         sector_configs = set_up_sector_config(pam_info_file = pam_info_file,
                                          sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
 
@@ -119,6 +120,7 @@ class PAMParametrizerMockEcoli(PAMParametrizer):
         hyperparams = HyperParameters
         hyperparams.threshold_iteration = 3
         hyperparams.number_of_kcats_to_mutate = 3
+        hyperparams.filename_extension = 'iml_test'
         hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
         hyperparams.genetic_algorithm_filename_base = 'genetic_algorithm_run_test_'
         hyperparams.genetic_algorithm_hyperparams['print_progress'] = False
