@@ -83,19 +83,7 @@ the functionalities to perform the enzyme sensitivity analysis [sEnz](https://do
 The genetic algorithm makes use of the [DEAP toolbox](https://github.com/DEAP/deap). This modular toolbox includes all
 the tools needed to create different types of evolutionary algorithms, such as the genetic algorithm.
 
-The full list of dependencies is as follows:
-- PAModelpy==0.0.4.8
-- matplotlib==3.8.4
-- deap==1.4.1y
-- random
-- timepip
-- gurobipy==11.0.1
-- scipy==1.13.0
-- pytest==8.2.0
-- seaborn==0.13.2
-- scikit-learn==1.4.2
-- plotly
-
+The full list of dependencies can be found in requirements.txt
 All dependencies can be installed in one go by downloading this repository and running:
 
 `pip install -r requirements.txt`
