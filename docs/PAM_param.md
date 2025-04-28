@@ -52,29 +52,48 @@ of output. To orchestrate the data movement through the framework, the inputs an
 are organized in four different data classes in the `PAM_data_classes.py` file. Below follows a description of each of 
 the classes, and how it is used by the framework.
 
-### ValidationData
+### SectorConfig <USER INPUT>
+The main power of the PAM is that it contains sectors which represent proteins which are not included explicitely in 
+protein-constrained metabolic models, but do occupy a variable amount of protein space. Normally, 2 sectors are added:
+the UnusedEnzymeSector and the TranslationalProteinSector. The amount of proteins in these sectors are related to the (carbon)
+substrate uptake rate. This poses a challenge: the relation between carbon substrate and the amount of proteins in these 
+sectors is unique for each substrate. Nevertheless, when a metabolic model is not limited by the amount of proteins,
+there is a linear relation between the carbon uptake and the growth rate, depending on the way the microbe metabolizes the substrate.
+We can thus use the relationship between the growth rate and protein sector in not protein-limited regimes to compute the 
+relation between the protein sector and the various substrates. This relationship is stored in the input Excel file for the
+PAMparametrizer and provided to the PAMparametrizer object using the SectorConfig TypedDict:
+
+- **sectorname**: The sector identifier as present in the PAM
+- **slope**: relationship between sector (g/gCDW) and the growth rate (1/h)
+- **intercept**: sector (g/gCDW) at zero growth
+- **substrate_range**: range of substrate uptake rates in which the relation between sector and growth rate is valid
+
+### ValidationData <USER INPUT>
 The PAMparametrizer needs exchange fluxes to determine how good the simulations with the new parameter set are. These flux rates
 can be measured in different conditions, most commonly using different carbon sources. This poses a complex problem:
 how do we provide the framework with not only the experimental measurements, but also the precise conditions in which the
 measurements have been performed, and which reactions are most representative to see the progress? The ValidationData object 
-tries to streamline this data handling issue. For each condition to which the parameter set should be optimized a corresponding 
-ValidationData object can be created. It stores the following information:
+tries to streamline this data handling issue. For each condition to which the parameter set should be optimized, the corresponding 
+ValidationData object should be created. It stores the following information:
 
 - **id**: substrate uptake identifier
 - **valid_data**: dataframe containing the experimental measurements
 - **validation_range**: range of substrate uptake range to consider for validation
 - **reactions_to_validate**: reactions to use for error calculation
 - **reactions_to_plot**: reactions to use for visualization
-- **translational_sector_config**: configuration of the translational sector
+- **sector_config**: configuration of all sectors related to the substrate uptake rate (as SectorConfig)
 
-When the translational_sector_config is left empty, it will be automatically determined by linear fitting the translational
-protein sector vs the substrate uptake rate, assuming a similar growth rate to translational protein content relationship 
+When the sector_configs is left empty, it will be automatically determined using the relation between the sector and 
+the growth rate. The PAMparametrizer recalculates the sector parameters using the relation between the growth rate and 
+substrate uptake rate of a PAM with a large protein pool (similar to a genome-scale model). If the relation between the 
+sector parameters and the growth rate are unknown, only the translational sector is assumed to be related to the substrate uptake rate.
+The sector parameters are then obtained, assuming a similar growth rate to translational protein content relationship 
 as established for *E. coli*.
 
 In the PAMparametrizer object, all the ValidationData objects are stored and used by the framework to validate the new
 parametersets.
 
-### HyperParameters
+### HyperParameters <USER INPUT>
 A genetic algorithm is a very flexible tool for optimizing a set of parameters based on some type of error calculation.
 It can, however, be sensitive to different hyperparameters, such as the mutation probability and rate, the number of
 generations, the population size, etc. On top of that, the PAMparametrizer itself also needs some manual input. For
@@ -113,7 +132,7 @@ Below follows a summary off all the inputs you can change in this object, includ
 | print_progress                 | True                     | if True, progress of the genetic algorithm is printed                                                                                                                                                                                              |
 
 
-### ParametrizationResults
+### ParametrizationResults <Intermediate OUTPUT>
 The PAMparametrizer does not only need a complex input, but also generated a complex output. For this reason, the output
 is organized in two different data structures: (1) ParametrizationResults, to save the (intermediate) results of the entire
 framework, and (2) FluxResults, to save the (intermediate) results of the simulation of various conditions.
@@ -127,7 +146,7 @@ The ParametrizationResults object is initiated upon initiation of the PAMparamet
 - **computational_time**: dataframe to store the computational costs of each run
 - **final_errors**: dataframe to store the final error of each simulation
 
-### FluxResults
+### FluxResults <Intermediate OUTPUT>
 The FluxResults object is stored in the ParametrizationResults. It saves the results, mostly flux rates, of the simulations
 of a specific conditions, which can be used at a later time point to calculate the error to experimental data (stored in
 ValidationData). It stores the following:
