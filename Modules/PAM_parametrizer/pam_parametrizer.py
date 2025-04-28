@@ -1237,7 +1237,7 @@ class PAMParametrizer():
             #adjust color to visualize progress
             #get viridis color palette
             cmap = plt.get_cmap("viridis")
-            color = to_hex(cmap(self.iteration/(self.hyperparameters.threshold_iteration)))
+            color = to_hex(cmap(self.iteration / self.hyperparameters.threshold_iteration))
             norm = mpltlib.colors.BoundaryNorm(list(range(self.hyperparameters.threshold_iteration+1)), cmap.N)
 
         fluxes_dict = {}

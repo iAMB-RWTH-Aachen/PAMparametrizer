@@ -250,7 +250,6 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                        "\n\t".join(sectors)
                        )
 
-
     pamodel.change_sector_parameters(
         pamodel.sectors.get_by_id(sector_id),
         slope=params['slope'],
@@ -264,6 +263,7 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                                                              substrate_range = substrate_range,
                                                              intercept = params['intercept'], slope = params['slope'],
                                                              sector_name=sector_name)
+
     slope_glc, intercept_glc = perform_linear_regression(
         x=simulation_results_bms[substrate_uptake_id], y=simulation_results_bms[sector_name])
 
