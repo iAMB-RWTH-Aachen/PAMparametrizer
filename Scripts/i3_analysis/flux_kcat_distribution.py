@@ -36,7 +36,7 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'},
                                      legend = True):
     fig, ax = plt.subplots()
-    n_bins = 50
+    n_bins = 100
     i = 0
     cmap = plt.get_cmap("coolwarm")
 
