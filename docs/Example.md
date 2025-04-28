@@ -26,6 +26,8 @@ from PAModelpy.utils import set_up_pam, parse_reaction2protein
 #this repo
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
+from Modules.utils.pamparametrizer_setup import set_up_sector_config
+
 ```
 
 ### Step 0: Initiate the parameter set using GotEnzymes
@@ -48,13 +50,10 @@ folder, we advise you to parse your exchange rates in the following format:
 
 ### Step 2: Build the Protein Allocation Model
 With all the data in place, we are ready to build some models. We start building the Protein Allocation Model (PAM) with 
-the parameters we have gathered in step 0. There are ready-made scripts for building the *E. coli* PAM in `Scripts/pam_generation.py`
-(using EC numbers as enzyme identifiers, not including gene-protein-reaction associations (GPRAs)) and 
-`Scripst/pam_generation_uniprot_id.py` (using uniprot identifiers for individual peptides and thereby including GPRAs),
-but for completeness, we will describe here shortly how the PAM is initiated using the setup utilities from 
-[PAModelpy](https://github.com/iAMB-RWTH-Aachen/PAModelpy). As an input, we need to provide an excel file with the GPRAs
-and initial kcat values to create dictionaries which contain the mapping of the reactions to proteins to genes, and the path
-to the SBML model. For more details, please refer to the 
+the parameters we have gathered in step 0. For completeness, we will describe here shortly how the PAM is initiated using 
+the setup utilities from [PAModelpy](https://github.com/iAMB-RWTH-Aachen/PAModelpy). As an input, we need to provide
+an Excel file with the GPRAs and initial kcat values to create dictionaries which contain the mapping of the reactions 
+to proteins to genes, and the path to the SBML model. For more details, please refer to the 
 [PAModelpy documentation](https://pamodelpy.readthedocs.io/en/latest/PAM_setup_guide.html). 
 
 
@@ -63,7 +62,7 @@ to the SBML model. For more details, please refer to the
 config = Config()
 config.reset()
 
-pam = set_up_pam(os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_241209.xlsx'),
+pam = set_up_pam(os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx'),
                  os.path.join('Models', 'iML1515.xml'), 
                  configuration = config)
 ```
@@ -80,7 +79,18 @@ You do not need to provide the latter object when initiating the PAMparametrizer
 for sake of completeness. For a more detailed description of the data objects and their function, please refer to the 
 [introduction of the PAMparametrizer](./PAM_param.md)
 
-#### i. Get the ValidationData
+#### i. Parse the sector configuration
+The sector configuration helps the PAMparametrizer translate parameters which are related to the substrate uptake rate
+to different substrates. Did you use the setup methods in the preprocessing toolbox? Then this step is really easy:
+
+```python
+sector_configs = set_up_sector_config(
+    pam_info_file = os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx'),
+    sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector']
+)
+```
+
+#### ii. Get the ValidationData
 The ValidationData object stores experimental information about a single condition, which can be used to validate the model
 with. In Step 1 you have stored your experimental data in such a way, that it is easy to use by the PAMparametrizer. Now
 we will do the final steps to be able to feed the information to the PAMparametrizer. As we are only parametrizing on
@@ -114,17 +124,22 @@ validation_data._reactions_to_validate = RXNS_TO_VALIDATE
 ```
 
 In the case of glucose-limited growth in *E. coli* we actually know the relation between substrate uptake and the 
-translational sector. We can provide this information to the ValidationData object. If we do not provide this information,
+translational/unused enzymes sector. We can provide this information to the ValidationData object. If we do not provide this information,
 it will be determined automatically using the relation for *E. coli* as a default.
 
 ```python
-validation_data.translational_sector_config = {
-                'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
-                'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-            }
+validation_data.sector_configs = {
+                'TranslationalProteinSector':{
+                'slope': pam.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
+                'intercept': pam.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+            },
+                'UnusedEnzymeSector': {
+                    'slope': pam.sectors.get_by_id('UnusedEnzymeSector').ups_mu,
+                    'intercept': pam.sectors.get_by_id('UnusedEnzymeSector').ups_0[0]
+                }}
 ```
 
-#### ii. Define the HyperParameters
+#### iii. Define the HyperParameters
 The HyperParameters object can be used to change the behaviour of the PAMparametrizer and the genetic algorithm. In both
 cases, there are a lot of settings which can be adjusted. Most of these settings can be left at their defaults. Here, we 
 only change the name of the output and the duration of the parametrization, such that you can run this example easily on 
@@ -146,7 +161,7 @@ hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2
 hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
 ```
 
-#### iii. ParametrizationResults and FluxResults
+#### iv. ParametrizationResults and FluxResults
 Upon initialization of the PAMparametizer, a ParametrizationResults object will be generated. This will object will be empty
 upon generation. However, when the PAMparametrizer starts, it will initiate the attributes of the PAMparametrizer using
 the `PAMParametrizer._init_results_objects()` function. This also triggers the generation of one FluxResults object for 
@@ -162,17 +177,18 @@ However, if you have multiple conditions, you have to select the most representa
 progress.
 
 ```python
-pam_parametrizer = PAMParametrizer(pamodel=pamodel,
-                     validation_data=cobra.DictList(validation_data),
-                     hyperparameters=hyperparameters,
-                     substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
-                     max_substrate_uptake_rate=MAX_SUBSTRATE_UPTAKE_RATE,
-                     min_substrate_uptake_rate=MIN_SUBSTRATE_UPTAKE_RATE)
+pam_parametrizer = PAMParametrizer(pamodel=pam,
+                                   validation_data=cobra.DictList(validation_data),
+                                   hyperparameters=hyperparameters,
+                                   sector_configs = sector_configs,
+                                   substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
+                                   max_substrate_uptake_rate=MAX_SUBSTRATE_UPTAKE_RATE,
+                                   min_substrate_uptake_rate=MIN_SUBSTRATE_UPTAKE_RATE)
 ```
 
 ### Step 5: Run!
-We finally reached the point where we can run the framework. Depending on your hyperparameters, and the size of your model,
-this can take between 1 and 15 hours. So take this into account when doing this tutorial!
+We finally reached the point where we can run the framework. Depending on your hyperparameters, the performance of your
+system, and the size of your model, this can take between 15 and 30 hours. So take this into account when doing this tutorial!
 
 Optionally, you can run the framework on a cluster. In the `Scripts/Shell` directory, there are some example shell scripts
 which can be used to run the framework on a cluster with Slurm.
@@ -197,7 +213,7 @@ When the the parametrization is finished, you can find 2 files in the `Results` 
 - `pam_parametrizer_progress_glc.png`
 
 The former is the file containing the results of the parametrization. The PAMparametrizer saves the `Best_Individuals`,
-`Computation_Time`, `Final_Errors`, and `translational_sector`. For most users, the `Best_Individuals` and `Final_Errors`
+`Computation_Time`, `Final_Errors`,`reaction_weights`, and `sector_parameters`. For most users, the `Best_Individuals` and `Final_Errors`
 sheets will be most important, as these contain the k<sub>cat</sub> values for each enzyme-reaction relation resulting
 from each iteration of the genetic algorithm, and the final error between the simulations and experimental data, respectively.
 If you want to create a very pretty plot from these results, please adapt the `Scripts/i3_analysis/PAMparametrizer_progress_cleaned_figure.py`
@@ -239,6 +255,8 @@ For easy application, we saved this data in so-called *long* format.
 See the [previous example](#step-2-build-the-protein-allocation-model) on how to build the iML1515 PAM.
 
 ### Step 3: Create the data objects required for the PAMparametrizer
+#### i. Parse the sector configuration
+See the [previous example](#i-parse-the-sector-configuration) on how to build obtain the sector configuration.
 #### i. Get the ValidationData
 In the previous example you have seen how to build the ValidationData object for a single carbon source. For multiple
 carbon sources, we simply create more ValidationData objects. As we are working with MFA data in this example, the parsing
@@ -265,7 +283,7 @@ condition2uptake = {'Glycerol': 'EX_gly_e', 'Glucose': 'EX_glc__D_e', 'Acetate':
                         'Fructose': 'EX_fru_e'}
 
 #get the reactions in the model
-model_reactions = [rxn.id for rxn in pamodel.reactions]
+model_reactions = [rxn.id for rxn in pam.reactions]
 
 # only retain those carbon sources which are take up in the model
 filtered_condition2uptake = {}
@@ -302,10 +320,15 @@ for csource in filtered_condition2uptake.keys():
         validation_data._reactions_to_plot = RXNS_TO_VALIDATE
         validation_data._reactions_to_validate = [col for col in valid_data_df.columns if ('EX_' in col) and (col[-3:]!="_ub")]
 
-        validation_data.translational_sector_config = {
-                'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
-                'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-            }
+        validation_data.translational_sector_config = validation_data.sector_configs = {
+                'TranslationalProteinSector':{
+                'slope': pam.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
+                'intercept': pam.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
+            },
+                'UnusedEnzymeSector': {
+                    'slope': pam.sectors.get_by_id('UnusedEnzymeSector').ups_mu,
+                    'intercept': pam.sectors.get_by_id('UnusedEnzymeSector').ups_0[0]
+                }}
         validation_data_objects.append(validation_data)
     # the other carbon sources
     elif csource in condition2uptake.keys():
@@ -353,18 +376,19 @@ multiple carbon sources, it might not be straight forward to select a `substrate
 glucose-limited chemostat simulations as a reference condition for plotting, as this has the most (reliable) datapoints.
 
 ```python
-pam_parametrizer = PAMParametrizer(pamodel=pamodel,
-                     validation_data=cobra.DictList(validation_data_objects),
-                     hyperparameters=hyperparameters,
-                     substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
-                     max_substrate_uptake_rate=MAX_SUBSTRATE_UPTAKE_RATE,
-                     min_substrate_uptake_rate=MIN_SUBSTRATE_UPTAKE_RATE)
+pam_parametrizer = PAMParametrizer(pamodel=pam,
+                                   validation_data=cobra.DictList(validation_data_objects),
+                                   hyperparameters=hyperparameters,
+                                   sector_configs = sector_configs,
+                                   substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
+                                   max_substrate_uptake_rate=MAX_SUBSTRATE_UPTAKE_RATE,
+                                   min_substrate_uptake_rate=MIN_SUBSTRATE_UPTAKE_RATE)
 ```
 
 ### Step 5: Run!
 This time, running the PAMparametrizer will take substantially more time. Each time an error is calculated, the framework
 has to run simulations for all conditions and datapoints. You can expect the algorithm with this set of parameters to run
-for 1-2 hours. 
+for 20-30 hours. 
 
 Optionally, you can run the framework on a cluster. In the `Scripts/Shell` directory, there are some example shell scripts
 which can be used to run the framework on a cluster with Slurm.
@@ -390,9 +414,9 @@ When the the parametrization is finished, you can find 2 files in the `Results` 
 - `pam_parametrizer_diagnostics_csources.xlsx`
 - `pam_parametrizer_progress_csources.png`
 
-Again, the PAMparametrizer saves the `Best_Individuals`, `Computation_Time`, `Final_Errors`, `translational_sector`,
-and `weights` to the diagnostics Excel file. This time, besides, the `Best_Individuals` and `Final_Errors`, the `translational_sector`
-sheets also contains valuable information. As we did not provide the parametrization of the translational sector to 
+Again, the PAMparametrizer saves the `Best_Individuals`, `Computation_Time`, `Final_Errors`, `sector_parameters`,
+and `reaction_weights` to the diagnostics Excel file. This time, besides, the `Best_Individuals` and `Final_Errors`, the `sector_parameters`
+sheets also contains valuable information. As we did not provide the parametrization of the sectors to 
 the ValidationData objects, the pam parametrizer has calculated these parameters for us. This does not only result in an
 improved ActiveEnzymeSector, but also in an improved TranslationalProteinSector for each individual carbon source.
 
