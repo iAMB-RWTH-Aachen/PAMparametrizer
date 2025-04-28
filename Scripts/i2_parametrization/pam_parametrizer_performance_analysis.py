@@ -9,7 +9,7 @@ from Scripts.i2_parametrization.pam_parametrizer_ecolicore import set_up_pampara
 
 from datetime import date
 
-RESULT_FILE_PATH = os.path.join('Results', '3_parametrization',  f'pam_parametrizer_statistics_{date.today()}.xlsx')
+RESULT_FILE_PATH = os.path.join('Results', '2_parametrization',  f'pam_parametrizer_statistics_{date.today()}.xlsx')
 
 def parse_arguments():
     parser = argparse.ArgumentParser("pam_parametrizer_performance")
@@ -128,7 +128,8 @@ def analyse_parametrizer_performance():
     if iterations is None:
         iterations = 5
     if pam_info_file is None:
-        pam_info_file = os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250214.xlsx')
+        pam_info_file = os.path.join('Results','1_preprocessing',
+                                     'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
     if configuration is None:
         configurations = ['False', 'all', 'before']
     else:
@@ -154,13 +155,14 @@ def analyse_parametrizer_performance():
 
     # 1. Run different configuations of the toy model parametrization for n iterations and save the results
     for iteration in range(iterations):
-        best_individual_df, computational_performance_df = run_parametrization_workflow(iteration+1, iterations,
-                                 configurations, set_up_pamparametrizer,
-                                 processes,
-                                 gene_flow_events, 10,
-                                 best_individual_df, computational_performance_df,
-                                pam_info_file, min_substrate_uptake=min_substrate,
-                                 max_substrate_uptake=max_substrate)
+        best_individual_df, computational_performance_df = run_parametrization_workflow(
+            iteration+1, iterations,
+            configurations, set_up_pamparametrizer,
+            processes,
+            gene_flow_events, 10,
+            best_individual_df, computational_performance_df,
+            pam_info_file, min_substrate_uptake=min_substrate,
+            max_substrate_uptake=max_substrate)
 
     # 2. Calculate mean error and stdev for each method and for a single iteration
     error_per_iteration_config = get_statistics_from_df(best_individual_df,

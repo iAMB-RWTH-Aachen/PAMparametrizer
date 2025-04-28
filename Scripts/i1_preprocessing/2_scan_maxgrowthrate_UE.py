@@ -3,21 +3,22 @@ import os
 import pandas as pd
 from typing import Callable
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
-from Scripts.pam_generation_uniprot_id import set_up_ecoli_pam
 
+from PAModelpy.utils import set_up_pam
 
 MIN_SUBSTRATE_UPTAKE_RATE = -11
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MAX_MU_ECOLI = 0.7 #estimate
 MAX_MU_ECOLI_ALE = math.log(2)*1.63#from lenski experiment: ln(2)*1.63(doublings per hour)
 
-UE_0 = 0.0407# intercept for the unused protein to mu relation (unused enzymes at zero growth) in g/gDW
+UE_0 = 0.111925# intercept for the unused protein to mu relation (unused enzymes at zero growth) in g/gDW
 
 max_mu_for_UEmu_determination =[MAX_MU_ECOLI, #max growth
                                 MAX_MU_ECOLI+(MAX_MU_ECOLI_ALE-MAX_MU_ECOLI)/2, #intermediate timepoint
                                 MAX_MU_ECOLI_ALE, #max growth after ALE
                                 MAX_MU_ECOLI_ALE+(MAX_MU_ECOLI_ALE-MAX_MU_ECOLI)/2] #to check if there is still some unused protein left after ALE
-
+pam_info_file = os.path.join(
+        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
 
 def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
                                                intercept_unused_enzymes:float,
@@ -26,7 +27,7 @@ def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
                                                num_replicate_simulations:int = 3,
                                                setup_pamparametrizer_function: Callable = set_up_pamparametrizer,
                                                pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose'],
-                                                                                'threshold_iteration': 2,
+                                                                                'threshold_iteration': 5,
                                                                                 'processes':2,
                                                                                 'gene_flow_events': 2},
                                                ):
@@ -40,18 +41,14 @@ def scan_unused_enzyme_sector_max_growth_rates(max_mu_list:list,
         for iteration in range(num_replicate_simulations):
             print(f'\n===========\nStarting iteration number {iteration}')
             pam_parametrizer = setup_pamparametrizer_function(MIN_SUBSTRATE_UPTAKE_RATE,
-                                                      MAX_SUBSTRATE_UPTAKE_RATE,
-                                                      kcat_increase_factor=kcat_increase_factor,
-                                                      filename_extension=f'iML1515_UE_{i}_{iteration}',
+                                                              MAX_SUBSTRATE_UPTAKE_RATE,
+                                                              pam_info_file = pam_info_file,
+                                                              kcat_increase_factor=kcat_increase_factor,
+                                                              filename_extension=f'iML1515_UE_{i}_{iteration}', # change the filename to save the results in a recognizable name
                                                               **pam_parametrizer_kwargs)
-            # change the filename to save the results in a recognizable name
-
-            pam_parametrizer._pamodel.change_sector_parameters(
-                pam_parametrizer._pamodel.sectors.get_by_id('TranslationalProteinSector'),
-                slope=slope,
-                intercept=UE_0,
-                lin_rxn_id=pam_parametrizer._pamodel.BIOMASS_REACTION
-            )
+            pam_parametrizer.sector_configs['UnusedEnzymeSector']['slope'] = slope
+            #reset sector configuration
+            pam_parametrizer.calculate_sector_parameters_for_multiple_csources(reset=True)
 
             pam_parametrizer.run(remove_subruns=True, binned='False')
 
@@ -71,7 +68,7 @@ def reset_pam_parametrizer(parametrizer):
 
     # reset final errors for correct saving
     parametrizer.parametrization_results.final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
-    ecoli_pam = set_up_ecoli_pam()
+    ecoli_pam = set_up_pam(pam_info_file = pam_info_file)
     parametrizer._pamodel = ecoli_pam
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from Modules.utils.pamparametrizer_visualization import plot_simulation, plot_va
 from Modules.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as set_up_pamparametrizer_putida
-from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
+# from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
 
 
 
@@ -83,13 +83,27 @@ def recreate_progress_plot(best_individual_df:pd.DataFrame,
     plt.close(fig)
     if return_error_df: return error_df
 
-def create_empty_plot():
-    parametrizer =  set_up_pamparametrizer_ecoli(-12,-0.1)
+def create_empty_plot(plot_reference_simulations:bool = True):
+    parametrizer =  set_up_pamparametrizer_ecoli(-12,-0.1,
+                                                 pam_info_file = os.path.join(
+                                                     'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx'
+                                                 ))
     parametrizer._init_results_objects()
     substrate_rates = parametrizer._init_validation_df([parametrizer.min_substrate_uptake_rate,
                                                         parametrizer.max_substrate_uptake_rate])['EX_glc__D_e']
-    substrate_rates = sorted(substrate_rates)
-    fig, axs = plot_valid_data(parametrizer, fontsize=FONTSIZE, core =False)
+
+    fig, axs = plot_valid_data(parametrizer, fontsize=FONTSIZE)
+
+    if plot_reference_simulations:
+        substrate_rates = sorted(substrate_rates)
+        fluxes, substrates = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
+                                                                  substrate_rates=substrate_rates,
+                                                                  sensitivity=False)
+        fig, axs = plot_simulation(fig, axs, fluxes,
+                                   substrates.keys(),
+                                   parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
+                                   iteration=0, color='black')
+
     fig.set_size_inches(18.5, 10.5)
     return fig, axs
 
@@ -124,5 +138,5 @@ def main_mcecoli():
                            set_up_parametrizer=set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
-    main_ecoli()
+    create_empty_plot()
 
