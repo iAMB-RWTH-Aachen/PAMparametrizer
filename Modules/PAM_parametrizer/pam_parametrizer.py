@@ -186,10 +186,6 @@ class PAMParametrizer():
     def calculate_sector_parameters_for_multiple_csources(self, reset:bool = False):
         if 'TranslationalProteinSector' not in self.sector_configs:
             self.sector_configs['TranslationalProteinSector'] = self.TRANSLATIONAL_SECTOR_CONFIG
-        pam = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
-        # make total protein constraint less strict when calculating protein sectors
-        # to ensure protein burden is not affecting growth-rate to substrate uptake rate relation
-        pam.total_protein_fraction = 2
 
         for vd in self.validation_data:
             for sector_id, sector_config in self.sector_configs.items():
@@ -197,12 +193,9 @@ class PAMParametrizer():
                 sub_upt_id = vd.id
 
                 #to prevent overflow metabolism, only select the lower growth rates to derive the equation
-                if 'substrate_range' in sector_config:
-                    substrate_range = sector_config['substrate_range']
-                else:
-                    substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
+                substrate_range = self._get_substrate_range_lower_substrate_conc(vd.validation_range)
                 vd.sector_configs[sector_id] = change_proteinsector_relation_from_growth_to_substrate_uptake(
-                    pamodel = pam,
+                    pamodel = self.pamodel_no_sensitivity,
                     params = sector_config,
                     sector_id = sector_id,
                     substrate_uptake_id = sub_upt_id,

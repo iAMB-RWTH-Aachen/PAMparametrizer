@@ -3,6 +3,7 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from optlang.symbolics import Zero
 
 from PAModelpy import Config, PAModel
 
@@ -243,6 +244,11 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                                                                   substrate_range:Iterable[Union[int,float]] = np.arange(-4,0,1),
                                                                   sector_name: str = 'unused_enzymes'
                                                                   )-> SectorParameterDict:
+    # make total protein constraint less strict when calculating protein sectors
+    # to ensure protein burden is not affecting growth-rate to substrate uptake rate relation
+    pamodel = pamodel.copy(copy_with_pickle = True)
+    pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub = 1e3
+
     if sector_id not in pamodel.sectors:
         sectors = [s.id for s in pamodel.sectors]
         raise KeyError(f'{sector_id} is not in the sectors of the PAModel, '
