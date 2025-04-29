@@ -16,7 +16,8 @@ def save_sector_information_to_excel(
         lin_rxn_id:str,
         sector_id:Literal['Translational', 'UnusedEnzyme'],
         pam_data_file:str = None,
-        substrate_range: Iterable[Union[float, int]] = np.arange(-4,0,1)
+        substrate_range: Iterable[Union[float, int]] = np.arange(-4,0,1),
+        model_name:str='iML1515'
 )-> None:
     """Saves parameter information for a given protein allocation sector to an Excel file.
 
@@ -34,6 +35,7 @@ def save_sector_information_to_excel(
         pam_data_file (str, optional): Path to the input Excel file with PAM data. If None, attempts to load default.
         substrate_range (Iterable[Union[float, int]], optional): Substrate uptake values which are related to linear
             growth (no overflow-like metabolic phenotype). Defaults to np.arange(-4, 0, 1).
+        model_name (str, optional): name of the model for which the parameters are stored. Default is for E. coli (iML1515)
 
     Raises:
         KeyError: If no file path is provided and default file is not found.
@@ -46,7 +48,8 @@ def save_sector_information_to_excel(
         - Output file name is in the following format:
          'Results / 1_preprocessing / proteinAllocationModel_iML1515_EnzymaticData_<yymmdd>.xlsx')
     """
-    pam_parameter_information, output_file_path = _get_pam_parameter_information_from_excel(pam_data_file)
+    pam_parameter_information, output_file_path = _get_pam_parameter_information_from_excel(pam_data_file,
+                                                                                            model_name)
 
     slope_id, intercept_id = ('tps_mu', 'tps_0') if sector_id == 'Translational' else ('ups_mu', 'ups_0')
 
@@ -85,7 +88,9 @@ def save_sector_information_to_excel(
             df.to_excel(writer, sheet_name=sheet, index = False)
 
 
-def _get_pam_parameter_information_from_excel(pam_data_file: str)-> Tuple[dict[str, pd.DataFrame], str]:
+def _get_pam_parameter_information_from_excel(pam_data_file: str,
+                                              model_name: str
+                                              )-> Tuple[dict[str, pd.DataFrame], str]:
     """Loads PAM parameter information from an Excel file.
 
        If a file matching the current date exists in the default Results directory,
@@ -93,6 +98,7 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str)-> Tuple[dict[s
 
        Args:
            pam_data_file (str): Path to the PAM Excel file. If None and no default file exists, raises an error.
+           model_name (str): Identifier of the model for which the parameters are stored.
 
        Raises:
            KeyError: If no valid Excel file path is available.
@@ -104,7 +110,7 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str)-> Tuple[dict[s
        """
     current_date = datetime.datetime.now().strftime('%y%m%d')
     output_file_path = os.path.join('Results', '1_preprocessing',
-                                    f'proteinAllocationModel_iML1515_EnzymaticData_{current_date}.xlsx')
+                                    f'proteinAllocationModel_{model_name}_EnzymaticData_{current_date}.xlsx')
 
 
     if os.path.isfile(output_file_path): pam_data_file = output_file_path
