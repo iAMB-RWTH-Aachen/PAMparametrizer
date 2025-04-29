@@ -14,6 +14,8 @@ from Modules.PAM_parametrizer import ValidationData, HyperParameters, Parametriz
 from Modules.PAM_parametrizer import PAMParametrizer
 from Modules.utils.pam_generation import setup_pputida_pam
 from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
+from Modules.utils.pamparametrizer_setup import set_up_sector_config
+
 
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
@@ -165,12 +167,17 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                             filename_extension,
                                             num_kcats_to_mutate,
                                             threshold_iteration)
+
+    sector_configs = set_up_sector_config(pam_info_file = pam_info_file_path_out,
+                                         sectors_not_related_to_growth = ['UnusedEnzymeSector'])
     return PAMParametrizer(pamodel=pputida_pam,
-                     validation_data=validation_data,
-                     hyperparameters=hyperparameters,
-                     substrate_uptake_id='EX_glc__D_e',
-                     max_substrate_uptake_rate=max_substrate_uptake_rate,
-                     min_substrate_uptake_rate=min_substrate_uptake_rate)
+                           validation_data=validation_data,
+                           hyperparameters=hyperparameters,
+                           sector_configs = sector_configs,
+                           substrate_uptake_id='EX_glc__D_e',
+                           max_substrate_uptake_rate=max_substrate_uptake_rate,
+                           min_substrate_uptake_rate=min_substrate_uptake_rate
+                           )
 
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file: str = os.path.join(
