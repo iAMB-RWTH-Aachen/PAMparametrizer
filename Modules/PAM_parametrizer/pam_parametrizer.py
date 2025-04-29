@@ -184,6 +184,8 @@ class PAMParametrizer():
         plt.close(fig)
 
     def calculate_sector_parameters_for_multiple_csources(self, reset:bool = False):
+        if 'TranslationalProteinSector' not in self.sector_configs:
+            self.sector_configs['TranslationalProteinSector'] = self.TRANSLATIONAL_SECTOR_CONFIG
         pam = self.pamodel_no_sensitivity.copy(copy_with_pickle=True)
         # make total protein constraint less strict when calculating protein sectors
         # to ensure protein burden is not affecting growth-rate to substrate uptake rate relation
