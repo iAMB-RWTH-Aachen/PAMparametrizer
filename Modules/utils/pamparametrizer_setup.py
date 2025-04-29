@@ -4,6 +4,7 @@ import numpy as np
 from typing import Literal, Tuple, Iterable, Union, List, Dict
 import datetime
 import ast
+import warnings
 
 from Modules.utils.sector_config_functions import SectorParameterDict
 from Modules.PAM_parametrizer import SectorConfig
@@ -49,7 +50,9 @@ def save_sector_information_to_excel(
          'Results / 1_preprocessing / proteinAllocationModel_iML1515_EnzymaticData_<yymmdd>.xlsx')
     """
     pam_parameter_information, output_file_path = _get_pam_parameter_information_from_excel(pam_data_file,
-                                                                                            model_name)
+                                                                                            model_name,
+                                                                                            sector_id)
+
 
     slope_id, intercept_id = ('tps_mu', 'tps_0') if sector_id == 'Translational' else ('ups_mu', 'ups_0')
 
@@ -79,7 +82,8 @@ def save_sector_information_to_excel(
     with pd.ExcelWriter(output_file_path) as writer:
         for sheet, df in pam_parameter_information.items():
             if sheet == sector_id:
-                df = pd.concat([df,pd.DataFrame([substrate_range_row])])
+                if 'substrate_range' not in df.Parameter:
+                    df = pd.concat([df,pd.DataFrame([substrate_range_row])])
                 df = df.set_index('Parameter')
                 df['Value_for_growth'] = sector_vs_growthrate
                 df['Value'] = sector_vs_glucose
@@ -89,7 +93,8 @@ def save_sector_information_to_excel(
 
 
 def _get_pam_parameter_information_from_excel(pam_data_file: str,
-                                              model_name: str
+                                              model_name: str,
+                                              sector_id:str
                                               )-> Tuple[dict[str, pd.DataFrame], str]:
     """Loads PAM parameter information from an Excel file.
 
@@ -99,6 +104,7 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str,
        Args:
            pam_data_file (str): Path to the PAM Excel file. If None and no default file exists, raises an error.
            model_name (str): Identifier of the model for which the parameters are stored.
+           sector_id (str): Sector to be stored.
 
        Raises:
            KeyError: If no valid Excel file path is available.
@@ -113,8 +119,13 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str,
                                     f'proteinAllocationModel_{model_name}_EnzymaticData_{current_date}.xlsx')
 
 
-    if os.path.isfile(output_file_path): pam_data_file = output_file_path
-    elif pam_data_file is None: raise KeyError('Please provide a path to an excel file with information about the sector parameters')
+    if os.path.isfile(output_file_path):
+        pam_data = pd.read_excel(output_file_path, sheet_name = None)
+        if sector_id in pam_data.keys():
+            pam_data_file = output_file_path
+    elif pam_data_file is None:
+        warnings.warn('pam_data_file is not defined. Using the default from Data/proteinAllocationModel_EnzymaticData_empty.xlsx')
+        pam_data_file = os.path.join('Data','proteinAllocationModel_EnzymaticData_empty.xlsx' )
     pam_parameter_information = pd.read_excel(pam_data_file, sheet_name = None)
 
     return pam_parameter_information, output_file_path
