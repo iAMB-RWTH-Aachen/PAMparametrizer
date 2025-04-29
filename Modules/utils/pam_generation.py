@@ -254,6 +254,8 @@ def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
     model = read_sbml_model(model)
     #change medium to CGXII by removing 3,4-Dihydroxybenzoate
     model.reactions.get_by_id('EX_34dhbz_e').lower_bound = 0
+    #open up hydrogen uptake to prevent hydrogen limitation
+    model.reactions.get_by_id('EX_h_e').lower_bound = -100
 
     cglutanicum_pam = set_up_pam(pam_info_file,
                                  model = model,
