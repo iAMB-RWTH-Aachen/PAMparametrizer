@@ -13,11 +13,9 @@ from Modules.PAM_parametrizer import ValidationData, HyperParameters, Parametriz
 from Modules.PAM_parametrizer import PAMParametrizer
 from Modules.utils.pam_generation import setup_cglutanicum_pam
 from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
+from Modules.utils.pamparametrizer_setup import set_up_sector_config
 
 
-
-# import sys
-# sys.stdout = open('output.txt','wt')
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 
@@ -58,10 +56,11 @@ def set_up_validation_data(pam_info_file: str,
         validation_data._reactions_to_validate = ['Growth', 'EX_co2_e']
 
         if c_uptake_id == 'EX_glc__D_e':
-            validation_data.translational_sector_config = {
+            validation_data.sector_configs = {
+                'TranslationalProteinSector':{
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
                 'intercept': model.sectors.get_by_id('TranslationalProteinSector').tps_0[0]
-            }
+            }}
         validation_data_objects.append(validation_data)
 
     return validation_data_objects
@@ -91,7 +90,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                            min_substrate_uptake_rate:float =-10,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250227.xlsx'),
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250429.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iCGB21FR',
@@ -122,9 +121,13 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                                             filename_extension,
                                             num_kcats_to_mutate,
                                             threshold_iteration)
+
+    sector_configs = set_up_sector_config(pam_info_file = pam_info_file_path_out,
+                                         sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
     return PAMParametrizer(pamodel=pam,
                      validation_data=validation_data,
                      hyperparameters=hyperparameters,
+                           sector_configs = sector_configs,
                      substrate_uptake_id='EX_glc__D_e',
                      max_substrate_uptake_rate=max_substrate_uptake_rate,
                      min_substrate_uptake_rate=min_substrate_uptake_rate)
@@ -132,7 +135,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file:str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250227.xlsx')
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250429.xlsx')
                          ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
@@ -147,7 +150,7 @@ def run_parametrizations(n_iterations:int=5,
 
 if __name__ == "__main__":
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250227.xlsx')
+                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250429.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
 
