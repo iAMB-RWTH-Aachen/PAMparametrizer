@@ -98,12 +98,6 @@ def run_parametrization_workflow(iteration, iterations,
         pamodel_copy = parametrizer.pamodel.copy(copy_with_pickle = True)
         parametrizer.run(binned=configuration)
 
-        #need to reset best individual and computational performance df
-        parametrizer.parametrization_results.best_individuals = pd.DataFrame(columns=['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])
-        parametrizer.parametrization_results.computational_time = pd.DataFrame(columns=['run_id', 'time_s', 'time_h'])
-
-        #reset final errors for correct saving
-        parametrizer.parametrization_results.final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
         if len(configurations)>1:
             parametrizer.pamodel = pamodel_copy
 
