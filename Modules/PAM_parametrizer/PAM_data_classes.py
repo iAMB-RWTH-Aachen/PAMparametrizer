@@ -99,14 +99,13 @@ class HyperParameters:
 @dataclass
 class ParametrizationResults:
     substrate_uptake_reactions:list
-    esc_df: pd.DataFrame = None
-    bins_to_change: pd.DataFrame = pd.DataFrame(columns=['bin', 'split', 'merge'])
-    sensitive_enzymes: pd.DataFrame = pd.DataFrame(columns=['bin', 'mean_sensitivity', 'enzyme_id'])
+    esc_df: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=['bin', 'split', 'merge']))
+    sensitive_enzymes: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=['bin', 'mean_sensitivity', 'enzyme_id']))
     flux_results: DictList = None
-    _color = 440154
-    best_individuals = pd.DataFrame(columns = ['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error'])
-    computational_time = pd.DataFrame(columns = ['run_id', 'time_s', 'time_h'])
-    final_errors = pd.DataFrame(columns=['run_id', 'r_squared'])
+    _color: int = 440154
+    best_individuals: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=['run_id', 'enzyme_id', 'direction', 'rxn_id', 'kcat[s-1]', 'ga_error']))
+    computational_time: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=['run_id', 'time_s', 'time_h']))
+    final_errors: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=['run_id', 'r_squared']))
 
     def initiate_flux_results(self):
         self.flux_results = DictList([FluxResults(substr_rxn) for substr_rxn in self.substrate_uptake_reactions])
