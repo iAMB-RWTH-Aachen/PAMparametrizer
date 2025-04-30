@@ -11,7 +11,7 @@ from PAModelpy.utils import set_up_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as set_up_pamparam_pputida
 from Scripts.i2_parametrization.pam_parametrizer_iCGB21FR import set_up_pamparametrizer as set_up_pamparam_cglutanicum
-from Scripts.i2_parametrization.pam_parametrizer_yeast9 import set_up_pamparametrizer as set_up_pamparam_yeast9
+# from Scripts.i2_parametrization.pam_parametrizer_yeast9 import set_up_pamparametrizer as set_up_pamparam_yeast9
 
 
 
@@ -103,21 +103,21 @@ def scan_kcat_factors_cglutanicum():
                       substrate_reaction_id= 'EX_glc__D_e',
                       substrate_uptake_rates= np.arange(-20,1,1))
 
-def scan_kcat_factors_yeast9():
-    scan_kcat_factors(max_factor=10,
-                      min_factor=1,
-                      stepsize=1,
-                      scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_yeast9.png'),
-                      setup_pam_function=setup_yeast_pam,
-                      pam_info_file=os.path.join(
-                          'Results', '1_preprocessing','proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'
-                      ),
-                      setup_pamparametrizer_function=set_up_pamparam_yeast9,
-                      substrate_reaction_id= 'r_1714',
-                      substrate_uptake_rates= np.arange(-20,1,1))
+# def scan_kcat_factors_yeast9():
+#     scan_kcat_factors(max_factor=10,
+#                       min_factor=1,
+#                       stepsize=1,
+#                       scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_yeast9.png'),
+#                       setup_pam_function=setup_yeast_pam,
+#                       pam_info_file=os.path.join(
+#                           'Results', '1_preprocessing','proteinAllocationModel_yeast9_EnzymaticData_TurnUp.xlsx'
+#                       ),
+#                       setup_pamparametrizer_function=set_up_pamparam_yeast9,
+#                       substrate_reaction_id= 'r_1714',
+#                       substrate_uptake_rates= np.arange(-20,1,1))
 
 if __name__ == '__main__':
     # scan_kcat_factors_iML1515()
-    # scan_kcat_factors_pputida()
-    scan_kcat_factors_cglutanicum()
+    scan_kcat_factors_pputida()
+    # scan_kcat_factors_cglutanicum()
     # scan_kcat_factors_yeast9()

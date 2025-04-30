@@ -143,10 +143,9 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            threshold_iteration:int =10,
                            c_sources:list = ['Glucose'],
                            kcat_increase_factor: int = 1):
-    if kcat_increase_factor != 1:
-        pam_info_file_path_out = os.path.join(
+    pam_info_file_path_out = os.path.join(
             'Results', '2_parametrization', 'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx')
-
+    if kcat_increase_factor != 1:
         increase_kcats_in_parameter_file(kcat_increase_factor,
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
@@ -190,7 +189,7 @@ def run_parametrizations(n_iterations:int=5,
         pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
                                                   pam_info_file = pam_info_file,
                                                   filename_extension = f'iJN1463_{i}',
-                                                  kcat_increase_factor= 7,
+                                                  kcat_increase_factor= 9,
                                                   c_sources=['Glycerol', 'Glucose', 'Succinate', 'Fructose', 'm-Xylene',
                                                              'Toluene', 'Benzoate', 'Octanoate'])
         #
