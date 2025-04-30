@@ -21,7 +21,7 @@ Also, make sure you have the following information
 - Regular expression to recognize gene-ids (e.g., `r'\b([b|s]\d{4})\b'` for the b1234 locus tags in *E. coli*)
 - Potential exceptions in identifier/mapping format (an example is `s0001` which is used for unknown gene)
 
-## 2. Building the protein sectors
+## 2. Building the Protein Sectors
 You can find scripts to help you build the protein sectors in `Scripts/i1_preprocessing`. The scripts can be run in random
 order, although we suggest starting with the ActiveEnzymesSector.
 
@@ -167,7 +167,7 @@ limited, it is wise to use data that the PAMparametrizer cannot use as validatio
  - Measurements for growth on different cultivation media composition (minimal versus complex)
  - Intracellular flux measurements
 
-## 4. Building and Running the PAMparametrizer
+## 4. Working with the PAMparametrizer
 ### 4.1 Building and running the PAMparametrizer
 **Instructions**: [PAMparamertizer setup instructions](Example.md)
 **Examples**: `Scripts/i2_parametrization`
@@ -200,6 +200,103 @@ simulated behaviours. Nevertheless, as each parametrization can take anywhere be
 5 different PAMs should sample the solution space properly without burdening your computer or HPC too much.
 
 ## 5. Analyzing the Paramaterization Results
-### 5.1 The output
-### 5.2 Prebuilt analyses
+Be aware that the PAMparametrizer and the genetic algorithm are two separate software objects. The PAMparametrizer is a 
+workflow that utilizes the genetic algorithm to optimize the turnover number in a PAM. The PAMparametrizer uses
+the output of the genetic algorithm to improve the model simulations. To ensure there is a proper distinction between the two,
+the results are saved separately. Please bear this difference in mind when reading through the following sections.
 
+
+### 5.1 The output
+The PAMparametrizer stores the output of the parametrization process in two files:
+ - `Results/2_parametrization/diagnostics/pam_parametrizer_diagnostics_<your-filename-extension>.xlsx`
+ - `Results/2_parametrization/progress/pam_parametrizer_progress_<your-filename-extension>.png`
+
+The `pam_parametrizer_diagnostics` file contains the output of the genetic algorithm and some configurations,
+such as weights on specific reactions and the configurations of the protein sectors for different outputs.
+The `pam_parametrizer_progress` file shows the simulation results after every round of parametrization for a selected substrate
+and selected reactions. It allows you a quick look into the simulation results and how they match to experimental observations.
+It is the same plot that is shown when the PAMparametrizer is run in real time.
+
+The `pam_parametrizer_diagnostics` file is build up out of different sheets, each storing information about a specific feature or process.
+Below the content and layout of each sheet is discussed.
+
+#### 5.1.1 Best_Individuals
+**Format**
+
+| run_id | enzyme_id| direction|rxn_id| kcat[s-1                   |ga_error|
+|--------|-----------------------------------|-----------------------------------|----|----------------------------|-----------------------------------|
+| iteration of the genetic algorithm | enzyme id | 'f' or 'b'|reaction id| modified kcat value in 1/s | final R<super>2</super> value of the genetic algorithm|
+
+
+**Source**: genetic algorithm
+
+**Interpretation**:
+Each time the genetic algorithm is run, it returns a list of reaction-direction-enzyme relationships and the optimized
+k<sub>cat</sub> values (represented as the 'best individual' within a population of alternative k<sub>cat</sub> values.
+The `Best_Individual` sheets stores the information about each run of the genetic algorithm, which means that a 
+reaction-direction-enzyme relationship can occur multiple times with different k<sub>cat</sub> values. This information
+can be easily transformed to a parameter Excel file (`Scripts/i3_analysis/create_new_AES_from_parametrization_results.py`)
+or directly to a PAM using the parameter file which was used during the parametrization 
+(`create_pamodel_from_diagnostics_file` from `Modules/utils/pam_generation.py`).
+
+#### 5.1.2 Computational_time
+**Format**
+
+| run_id | time_s    | time_h    |
+|--------|-----------|-----------|
+| iteration of the genetic algorithm | time in s | time in h |
+
+
+**Source**: PAMparametrizer
+
+**Interpretation**: wall-clock time used for each iteration of the PAMparametrizer
+
+
+#### 5.1.3 Final_Errors
+**Format**:
+
+| run_id | r_squared | 
+|--------|-----------|
+| iteration of the genetic algorithm | final R<super>2</super> after reparametrization| 
+
+
+**Source**: PAMparametrizer.parametrization_results
+
+**Interpretation**: 
+Increasing R<super>2</super> with the iteration means that the fit of the simulation results to the experimental 
+measurement is iteratively improving. Please note that the [R<super>2</super> of the genetic algorithm](#511-best_individuals) 
+can be different, due to weighing of specific reactions. The weighing is only used in the genetic algorithm. In the 
+genetic algorithm the R<super>2</super> expresses the fitness of a specific solution, and this value is optimized,
+while it is only used as a way to quantify the progress in the PAMparametrizer.
+
+#### 5.1.4 sector_parameters
+**Format**:
+                                         
+| substrate_uptake_id | slope | intercept | sector_id                       |                   
+|---------------------|-------|-----------|---------------------------------| 
+| exchange reaction id of substrate|slope between substrate uptake rate and protein fraction of this sector|intercept of ""| sector id as defined in the PAM |
+                           
+**source**: PAMparametrizer.validation_data
+
+**Interpretation**: 
+The amount of protein is associated to a specific protein sector is dependent on the substrate uptake rate. The exact parametrization
+of this relation depends on the relation between substrate uptake rate and growth rate, as discussed in **INSERT PUBLICATION SUPPLEMENTS**.
+The PAMparametrizer calculates the slope and intercept for all substrate-dependent protein sectors during the parametrization.
+This sheet stores this sector configuration for your convenience, so you can easily use it for building condition-dependent PAMs.
+
+#### 5.1.5 reaction_weights                                                       
+**Format**:                                               
+                                                          
+| reaction                | weight                                                                 |
+|-------------------------|------------------------------------------------------------------------|
+| reaction id of reaction | weight used for calculating R<super>2</super> in the genetic algorithm |
+
+**Source**: PAMparametrizer.hyperparameters
+
+**Interpretation**:
+As discussed in [step 3.3](#33-which-conditions), it is desired to implement a weighing scheme to parametrize certain (non-linear)
+conditions. With such a scheme you can prioritize the fit of the simulation results to specific reactions related to a specific 
+phenotype. In this sheet, these configurations are stored, so you can trace back which settings were used to obtain a specific
+set of parameters.
+
+### 5.2 Prebuilt analyses
