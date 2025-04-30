@@ -300,3 +300,21 @@ phenotype. In this sheet, these configurations are stored, so you can trace back
 set of parameters.
 
 ### 5.2 Prebuilt analyses
+The results of the PAMparametrizer can be analyzed in various ways: for each alternative parametrization you can study
+the prediction accuracy for growth on various conditions, you can see how the k<sub>cat</sub> values of the alternative
+relate to each other, you can study the sensitivities in the model, etc. In this repository, there are several tools to 
+help you with this. Below, we provide an overview of the analyses which can be done.
+
+#### 5.2.1 k<sub>cat</sub> distribution
+
+| What                                   | example script                                  | function                                      | What you learn                                   |
+|----------------------------------------|-------------------------------------------------|-----------------------------------------------|--------------------------------------------------|
+| plotting kcat histogram                | `Scripts/i3_analysis/flux_kcat_distribution.py` | `create_kcat_histogram_old_vs_new` | Are the alternatives similar distributed?        |
+|                                        |                                                 |`create_kcat_joyplot_old_vs_new`| Does the mean kcat value agree with expectations |
+| statistics of kcat distribution        |`Scripts/i3_analysis/flux_kcat_distribution.py`|`create_kcat_histogram_old_vs_new`| same as previous                                 |
+| functional distribution of kcat change |`Figures/Scripts/Figure1_iml1515_kcat_analysis.py`|`create_kcat_change_per_cog_barplot`| In which pathway the kcats are changed most?     |
+
+#### 5.2.2 Flux prediction accuracy
+TODO
+#### 5.2.3 Protein Prediction accuracy
+TODO
