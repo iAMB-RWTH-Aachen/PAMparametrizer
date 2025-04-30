@@ -79,7 +79,6 @@ class PAMParametrizerMockEcoli(PAMParametrizer):
                          sensitivity = False)
         validation_data = self.set_up_validation_data(pam)
         hyperparameters = self.set_up_hyperparameter()
-        hyperparameters
         sector_configs = set_up_sector_config(pam_info_file = pam_info_file,
                                          sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
 
