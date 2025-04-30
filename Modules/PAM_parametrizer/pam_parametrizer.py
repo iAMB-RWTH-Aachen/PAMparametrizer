@@ -11,7 +11,7 @@ import pandas as pd
 import re
 from cobra import DictList
 from collections import defaultdict
-from typing import List, Dict, Literal
+from typing import List, Dict, Literal, Optional
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
@@ -45,13 +45,13 @@ class PAMParametrizer():
 
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
-                 hyperparameters: HyperParameters = HyperParameters(),
-                 sector_configs: Dict[str, SectorConfig] = {'TranslationalProteinSector':TRANSLATIONAL_SECTOR_CONFIG},
+                 hyperparameters: Optional[HyperParameters] = None,
+                 sector_configs: Optional[Dict[str, SectorConfig]] = None,
                  substrate_uptake_id: str = "EX_glc__D_e",
                  max_substrate_uptake_rate: Union[float, int] = 0,
                  min_substrate_uptake_rate: Union[float, int] = -11,
                  sensitivity: bool = True,
-                 enzymes_to_evaluate:list = []):
+                 enzymes_to_evaluate:Optional[list] = None):
 
         self.core_genetic_algorithm = None
 
@@ -64,8 +64,9 @@ class PAMParametrizer():
         self._set_total_protein_constraint_to_equality()
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
-        self.hyperparameters = hyperparameters
-        self.sector_configs = sector_configs
+        self.hyperparameters = hyperparameters if hyperparameters is not None else HyperParameters()
+        self.sector_configs = sector_configs if sector_configs is not None else {
+            'TranslationalProteinSector': self.TRANSLATIONAL_SECTOR_CONFIG}
 
         self.substrate_uptake_ids = [csource_data.id for csource_data in validation_data]
 
@@ -83,7 +84,7 @@ class PAMParametrizer():
 
         self.sensitivity = sensitivity
         if not sensitivity:
-            self.enzymes_to_evaluate = enzymes_to_evaluate
+            self.enzymes_to_evaluate = enzymes_to_evaluate if enzymes_to_evaluate is not None else []
 
         # attributes for keeping track of the workflow
         self.iteration = 0
@@ -651,6 +652,7 @@ class PAMParametrizer():
                         }).to_frame().T],
                     ignore_index=True
                 )
+
 
         with pd.ExcelWriter(self.result_diagnostics_file) as writer:
             # Write each DataFrame to a specific sheet
