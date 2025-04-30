@@ -16,14 +16,14 @@ from Figures.Scripts.Figure2_sensitivity_error import (get_fluxomics_data,
 from Scripts.i3_analysis.flux_kcat_distribution import create_flux_histogram_old_vs_new
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iML1515 as plot_intracell_flux_distribution_ecoli
 
-N_ALT_MODELS = 8
+N_ALT_MODELS = 10
 FONTSIZE = 16
 
 ECOLI_PHENOTYPE_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes')
 
 MODEL_FILE_PATH = os.path.join('Models', 'iML1515.xml')
 
-PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
+PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
 PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                      'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 

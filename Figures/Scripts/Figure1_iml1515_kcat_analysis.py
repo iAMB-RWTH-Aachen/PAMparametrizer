@@ -63,11 +63,12 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      cumulative: bool = False,
                                      other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'},
                                      legend = True,
-                                     fontsize =16):
+                                     fontsize =16,
+                                     cmap: dict=None):
     # fig, ax = plt.subplots()
-    n_bins = 50
+    n_bins = 200
     i = 0
-    cmap = plt.get_cmap("coolwarm")
+    if cmap is None: cmap = plt.get_cmap("coolwarm")
 
     for label, data_file_path in zip(label_names, data_file_paths):
         aes_parameter_df = pd.read_excel(data_file_path, sheet_name='ActiveEnzymes')
@@ -79,11 +80,14 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         hist, bins = np.histogram(kcat_values, bins=n_bins)
         logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
 
-        if label in other_colors.keys():
+        if label in other_colors.keys() and not isinstance(cmap, dict):
             color = other_colors[label]
         else:
             i += 1
-            color = to_hex(cmap(i/ (len(data_file_paths)-len(other_colors))))
+            if not isinstance(cmap, dict):
+                color = to_hex(cmap(i/ (len(data_file_paths)-len(other_colors))))
+            else:
+                color = cmap[label]
         bin_heights, bin_borders, _ = ax.hist(kcat_values, bins = logbins, histtype='step',
                                               stacked=True, fill=False, label= label, color=color, cumulative=cumulative)
         calculate_distribution_statistics(bin_heights, bin_borders)
@@ -104,11 +108,12 @@ def create_kcat_change_per_cog_barplot(original_pam_kcat_file: str,
                                        diagnostic_files: List[str],
                                        ax: plt.Axes,
                                        legend=True,
-                                       fontsize = 16):
+                                       fontsize = 16,
+                                       cmap = None):
     individual_info_with_cog = get_kcat_changes_per_cog(original_pam_kcat_file,
                                        model_file,
                                        diagnostic_files)
-    return create_cog_barplot(individual_info_with_cog, ax, legend=legend, fontsize=fontsize)
+    return create_cog_barplot(individual_info_with_cog, ax, legend=legend, fontsize=fontsize, cmap=cmap)
 
 def get_kcat_changes_per_cog(original_pam_kcat_file:str,
                              model_file:str,
@@ -178,10 +183,15 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
     cog_info_relative['negative_change'] = cog_info_relative['kcat_change'].apply(lambda x: x if x < 0 else 0)
 
     # Sum of changes grouped by alternative and COG description
+
+    print(cog_info_relative[cog_info_relative['COG description']=='Amino acid transport and metabolism'])
+    print(cog_info_relative[cog_info_relative['alternative']=='5'])
+
     cog_summary = cog_info_relative.groupby(['COG description', 'alternative']).agg({
         'positive_change': 'sum',
         'negative_change': 'sum'
     }).reset_index()
+    print(cog_summary)
 
     # Reshape the data for plotting
     cog_summary_long = pd.melt(
@@ -195,12 +205,13 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
-                       plotting_threshold=5*1e11,
+                       plotting_threshold=1e9,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
                        xlabel=r'$\sum \frac{k_{cat,new}-k_{cat,old}}{k_{cat,old}}$',
-                       other_colors:dict={}):
+                       other_colors:dict={},
+                       cmap:dict = None):
     # only plot the most important cogs
     cog_summary_long = cog_summary_long.groupby('COG description').filter(
         lambda x: x['Change'].abs().sum() > plotting_threshold
@@ -221,11 +232,12 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     y_positions = np.arange(0, len(cog_order) * spacing_factor, spacing_factor)
 
     # Get unique alternatives and define a color mapping using coolwarm
-    alternatives = cog_summary_long['alternative'].unique()
-    model_colors = sns.color_palette("coolwarm", n_colors=len(alternatives)-len(other_colors))
-    alternative_colors = {
-        **{l: c for l, c in zip([f'Alternative {i + 1}' for i in range(len(alternatives)-len(other_colors))], model_colors)},
-        **other_colors}
+    if cmap is None:
+        alternatives = cog_summary_long['alternative'].unique()
+        model_colors = sns.color_palette("coolwarm", n_colors=len(alternatives)-len(other_colors))
+        cmap = {
+            **{l: c for l, c in zip([f'Alternative {i + 1}' for i in range(len(alternatives)-len(other_colors))], model_colors)},
+            **other_colors}
 
 
     # Plot each alternative separately
@@ -241,19 +253,19 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
 
         # Apply dodge effect by shifting bars horizontally
         # Ensure the number of y-positions matches the data length
-        y_pos_positive = np.array(y_pos_alt[:len(positive_data)]) + (i - len(alternatives) / 2) * bar_width
-        y_pos_negative = np.array(y_pos_alt[:len(negative_data)]) + (i - len(alternatives) / 2) * bar_width
+        y_pos_positive = np.array(y_pos_alt[:len(positive_data)]) + (i - len(cog_summary_long['alternative'].unique()) / 2) * bar_width
+        y_pos_negative = np.array(y_pos_alt[:len(negative_data)]) + (i - len(cog_summary_long['alternative'].unique()) / 2) * bar_width
 
         # Plot positive changes
         if isinstance(alt, str): label =alt
         else: label = f'Alternative {alt}'
         ax.barh(y_pos_positive, positive_data['Change'].values,
-                color=alternative_colors[alt], label=label,
+                color=cmap[label], label=label,
                 height=bar_width, align='center')
 
         # Plot negative changes
         ax.barh(y_pos_negative, negative_data['Change'].values,
-                color=alternative_colors[alt], height=bar_width, align='center')
+                color=cmap[label], height=bar_width, align='center')
 
     # Add a vertical reference line at 0
     ax.axvline(0, color='black', linestyle='--', linewidth=1)
@@ -271,6 +283,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # Label axes
     ax.set_xlabel(xlabel, fontsize=fontsize * 1.5)
     # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
+    ax.grid(color='0.95')
 
     # Add legend (ensuring all alternatives are included)
     if legend:
@@ -292,7 +305,8 @@ def recreate_progress_plot(best_indiv_files:list[str],
                            pamparam_kwargs: dict = {'max_substrate_uptake_rate':-0.1},
                            rxns_to_plot: List[str] = None,
                            substrate_uptake_id:str = 'EX_glc__D_e',
-                           other_measurements: bool = False
+                           other_measurements: bool = False,
+                           cmap:dict = None
                            ):
     j=0
 
@@ -325,7 +339,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
         fig, axs, color = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                    parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                    iteration=j + 1, max_iteration=len(best_indiv_files), label = label,
-                                   return_color=True)
+                                          color = cmap[label],return_color=True)
         if other_measurements:
             print('plotting other carbon sources')
             plot_flux_vs_experiment(axs[len(rxns_to_plot)], parametrizer,
@@ -348,10 +362,10 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
                                                            kwargs)
 
 def main():
-    NUM_ALT_MODELS = 8
+    NUM_ALT_MODELS = 10
     FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
+                                  'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                       'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
@@ -363,6 +377,13 @@ def main():
     parameter_files = [os.path.join('Results', '3_analysis', 'parameter_files',
                                     f'proteinAllocationModel_EnzymaticData_iML1515_{model}.xlsx') for model in
                        range(1, NUM_ALT_MODELS + 1)]
+
+    model_colors = sns.color_palette("coolwarm", n_colors=NUM_ALT_MODELS)
+    other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'}
+    cmap = {
+        **{l: c for l, c in
+           zip([f'Alternative {i + 1}' for i in range(NUM_ALT_MODELS)], model_colors)},
+        **other_colors}
 
     #create a pretty figure
     fig = plt.figure(figsize=(30, 30))
@@ -388,9 +409,10 @@ def main():
         if i==0 or i==1:
             kwargs={'sharex':axs1[i+1]}
         axs1[i]= fig.add_subplot(gs_inner_top[row, col], **kwargs)
-    line, line_axs = recreate_progress_plot(diagnostic_files,
+    line, line_axs = recreate_progress_plot(diagnostic_files[:3],
                                            labels=[f'Alternative {i}' for i in range(1, NUM_ALT_MODELS + 1)],
-                                            fig=fig, axs=axs1, legend=False, fontsize=FONTSIZE)
+                                            fig=fig, axs=axs1, legend=False, fontsize=FONTSIZE,
+                                            cmap = cmap)
     #share x and y axis labels for progress plot
     ax_group = fig.add_subplot(gs_inner_l[0])
     ax_group.set_xticks([])
@@ -409,7 +431,7 @@ def main():
                                                      label_names=['GotEnzymes', 'After preprocessing'] \
                                                                  + [f'Alternative {i}' for i in
                                                                     range(1, NUM_ALT_MODELS + 1)],
-                                                     legend=False, fontsize=FONTSIZE)
+                                                     legend=False, fontsize=FONTSIZE, cmap = cmap)
 
     # create a legend
     legend_ax = fig.add_subplot(gs_inner_r[1])
@@ -432,7 +454,8 @@ def main():
     bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,
                                                 MODEL_FILE,
                                                 diagnostic_files,
-                                                ax3, legend=False)
+                                                ax3, legend=False,
+                                                cmap = cmap)
     # Get the current position of ax3
     # pos = ax3.get_position()
 

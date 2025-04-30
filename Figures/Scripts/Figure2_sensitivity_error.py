@@ -13,7 +13,7 @@ from PAModelpy.utils import set_up_pam
 
 from Scripts.pam_generation import setup_ecoli_pam as set_up_ecoli_pam_curated
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import RXNS_TO_VALIDATE, get_reactions2plot_pathway_mapping
-from Modules.utils.sector_config_functions import change_translational_sector_with_config_dict
+from Modules.utils.sector_config_functions import change_sector_parameters_with_config_dict
 
 from Modules.utils.pamparametrizer_analysis import (get_results_from_simulations,
                                                     calculate_error_for_reactions, calculate_r_squared_for_reaction,
