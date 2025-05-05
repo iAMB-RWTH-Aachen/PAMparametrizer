@@ -111,5 +111,6 @@ def main_sfig_ecoli_intracell_flux():
     )
 
 if __name__ == '__main__':
-    main_sfig_ecoli_intracell_flux()
-    main_sfig_error_progression()
+    # main_sfig_ecoli_intracell_flux()
+    # main_sfig_error_progression()
+    main_sfig_flux_distribution()

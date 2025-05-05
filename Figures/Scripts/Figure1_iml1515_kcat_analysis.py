@@ -66,7 +66,7 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      fontsize =16,
                                      cmap: dict=None):
     # fig, ax = plt.subplots()
-    n_bins = 200
+    n_bins = 50
     i = 0
     if cmap is None: cmap = plt.get_cmap("coolwarm")
 
@@ -88,8 +88,8 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                 color = to_hex(cmap(i/ (len(data_file_paths)-len(other_colors))))
             else:
                 color = cmap[label]
-        bin_heights, bin_borders, _ = ax.hist(kcat_values, bins = logbins, histtype='step',
-                                              stacked=True, fill=False, label= label, color=color, cumulative=cumulative)
+        bin_heights, bin_borders, _ = sns.histplot(kcat_values, bins = logbins, element='poly', ax=ax,
+                                               fill=False, label= label, color=color, cumulative=cumulative)
         calculate_distribution_statistics(bin_heights, bin_borders)
 
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
@@ -183,15 +183,10 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
     cog_info_relative['negative_change'] = cog_info_relative['kcat_change'].apply(lambda x: x if x < 0 else 0)
 
     # Sum of changes grouped by alternative and COG description
-
-    print(cog_info_relative[cog_info_relative['COG description']=='Amino acid transport and metabolism'])
-    print(cog_info_relative[cog_info_relative['alternative']=='5'])
-
     cog_summary = cog_info_relative.groupby(['COG description', 'alternative']).agg({
         'positive_change': 'sum',
         'negative_change': 'sum'
     }).reset_index()
-    print(cog_summary)
 
     # Reshape the data for plotting
     cog_summary_long = pd.melt(
@@ -205,7 +200,7 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
-                       plotting_threshold=1e9,
+                       plotting_threshold=1e12,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
@@ -271,7 +266,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     ax.axvline(0, color='black', linestyle='--', linewidth=1)
 
     # make x-axis logaritmic
-    # ax.set_xscale('symlog')
+    ax.set_xscale('symlog')
     # ax.set_xlim([-2.5 * 1e9, 2.5 * 1e9])
 
     # Adjust y-axis labels
@@ -409,7 +404,7 @@ def main():
         if i==0 or i==1:
             kwargs={'sharex':axs1[i+1]}
         axs1[i]= fig.add_subplot(gs_inner_top[row, col], **kwargs)
-    line, line_axs = recreate_progress_plot(diagnostic_files[:3],
+    line, line_axs = recreate_progress_plot(diagnostic_files,
                                            labels=[f'Alternative {i}' for i in range(1, NUM_ALT_MODELS + 1)],
                                             fig=fig, axs=axs1, legend=False, fontsize=FONTSIZE,
                                             cmap = cmap)
@@ -456,25 +451,6 @@ def main():
                                                 diagnostic_files,
                                                 ax3, legend=False,
                                                 cmap = cmap)
-    # Get the current position of ax3
-    # pos = ax3.get_position()
-
-    # Shrink the axis to fit inside the GridSpec boundaries
-    # ax3.set_position([pos.x0 + 0.2, pos.y0 + 0.2, pos.width - 0.2, pos.height - 0.2])
-
-    # # create a legend
-    # legend_ax = fig.add_subplot(gs_main[2])
-    # legend_ax.axis("off")  # Hide axes
-    #
-    # # Manually create a legend based on the entries of the histogram
-    # handles, labels = [], []
-    # for ax in [line_axs[0], ax2]:
-    #     h, l = ax.get_legend_handles_labels()
-    #     print(h,l)
-    #     if l not in labels:
-    #         handles.extend(h)
-    #         labels.extend(l)
-    # legend_ax.legend(handles, labels, loc="center", ncol=len(labels), frameon=False)
 
     #Add alphabet annotations
     #first 4 axes are added in reverse, and must ignore additional axis for x/y label config
