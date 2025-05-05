@@ -6,7 +6,7 @@ from typing import Tuple, Callable
 
 from PAModelpy.utils.pam_generation import set_up_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
-from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
+# from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
 
 from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
 from Modules.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
@@ -129,21 +129,21 @@ def main_ecoli():
     alternative_param_files = PAM_KCAT_FILES
     recreate_progress_plot(alternative_param_files, labels, fig_file_path, legend=True)
 
-def main_mcecoli():
-    PAM_DATA_FILE_PATH = os.path.join('Results', '2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
-    # PAM_KCAT_FILES = [os.path.join('Results', '3_analysis', 'parameter_files',
-    #                                f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
-    #                   range(1, 11)]
-    PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
-                                   f'pam_parametrizer_diagnostics_mcML1515_1.xlsx')]
-    labels = [f'Alternative 1' ]
-    fig_file_path = os.path.join('Results', '3_analysis', 'pam-parametrizer_alternatives_cleaned_figure_mcpam.png')
-
-    alternative_param_files = PAM_KCAT_FILES
-    recreate_progress_plot(alternative_param_files,
-                           labels, fig_file_path,
-                           legend=True,
-                           setup_parametrizer = set_up_pamparametrizer_mcpam)
+# def main_mcecoli():
+#     PAM_DATA_FILE_PATH = os.path.join('Results', '2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
+#     # PAM_KCAT_FILES = [os.path.join('Results', '3_analysis', 'parameter_files',
+#     #                                f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
+#     #                   range(1, 11)]
+#     PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
+#                                    f'pam_parametrizer_diagnostics_mcML1515_1.xlsx')]
+#     labels = [f'Alternative 1' ]
+#     fig_file_path = os.path.join('Results', '3_analysis', 'pam-parametrizer_alternatives_cleaned_figure_mcpam.png')
+#
+#     alternative_param_files = PAM_KCAT_FILES
+#     recreate_progress_plot(alternative_param_files,
+#                            labels, fig_file_path,
+#                            legend=True,
+#                            setup_parametrizer = set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
     main_ecoli()

@@ -7,7 +7,7 @@ import os
 
 from PAModelpy.utils import set_up_pam
 
-PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
+PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
 SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 MODEL_FILE = os.path.join('Models', 'iML1515.xml')
 SUBSTRATE_ID = 'EX_glc__D_e'

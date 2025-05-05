@@ -77,7 +77,7 @@ def get_reactions2plot_pathway_mapping(flux_df):
 def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
                                    result_fig_path:str = None,
                                    fontsize:int=16,
-                                   gs=None,
+                                   gs0=None,
                                    fig =None,
                                    cbar:bool =True,
                                    vrange: Tuple[int, int] = None):
@@ -94,7 +94,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
     # Create heatmap
 
     if fig is None: fig= plt.figure(figsize=(15, 10))
-    if gs is None: gs = gridspec.GridSpec(1,1)
+    if gs0 is None: gs0 = gridspec.GridSpec(1,1)[0]
 
     #plot growth rate with different colorbar
     if 'Growth' in rxns_to_plot:
@@ -103,7 +103,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
         gs = gridspec.GridSpecFromSubplotSpec(
             1, 6,  # total 6 columns
-            subplot_spec=gs[0],
+            subplot_spec=gs0,
             width_ratios=[5, 0.2, 0.2, 0.2,0.5, 0.2],  # main heatmap, last col, gap, cbars, gap, cbar
             wspace=0  # no space between heatmaps
         )
@@ -171,10 +171,6 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
     # draw line after experimental data
     ax_main.axhline(y=1, color='black', linewidth=2)
     ax_main.set_xticklabels(ax_main.get_xticklabels(), rotation=45, ha='right')
-    # After drawing, forcefully update labels if needed
-    # ax_main.set_yticks(np.arange(len(flux_df.index)))
-    # ax_main.set_yticklabels(flux_df.index, rotation=90, ha='right', va='center')
-    # ax_main.tick_params(axis='y', labelrotation=90)
     ax_main.set_ylabel("")
     ax_main.tick_params(axis='both', labelsize=fontsize-1)
 
@@ -208,11 +204,6 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
     ax_top.tick_params(axis='x', bottom=False, top=True, labelbottom=False, labeltop=True)
     ax_top.spines['bottom'].set_visible(False)
 
-    # plt.title("Flux comparison heatmap")
-    # ax_main.set_xlabel("Reaction", fontsize=fontsize)
-    # ax.tick_params(axis='y', labelrotation=90)
-
-    # ax.set_ylabel("Model", fontsize=fontsize)
 
     if result_fig_path is not None:
         print(f'Saving figure to {result_fig_path}')
@@ -239,9 +230,10 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
                                             PAM_KCAT_FILES_IJN)
     fig_out = None
     if gs is None: fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_pputida.png')
+    print(gs)
     ax = plot_flux_heatmap_for_pathways(flux_df,
                                    result_fig_path=fig_out,
-                                   gs=gs,
+                                   gs0=gs,
                                    fig=fig,
                                    cbar=cbar,
                                    vrange = vrange
@@ -250,7 +242,7 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
 
 
 def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None):
-    NUM_MODELS = 8
+    NUM_MODELS = 10
     PAM_KCAT_FILES_IML = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                        f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
@@ -272,7 +264,7 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None):
         fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_ecoli.png')
     ax = plot_flux_heatmap_for_pathways(flux_df,
                                    result_fig_path=fig_out,
-                                   gs=gs,
+                                   gs0=gs,
                                    fig=fig,
                                    cbar=cbar,
                                    vrange = vrange
@@ -299,7 +291,7 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
     if gs is None:fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_cglutanicum.png')
     ax = plot_flux_heatmap_for_pathways(flux_df,
                                    result_fig_path=fig_out,
-                                   gs=gs,
+                                   gs0=gs,
                                    fig=fig,
                                    vrange = vrange,
                                    cbar = cbar)
