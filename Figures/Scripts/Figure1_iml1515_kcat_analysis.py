@@ -88,7 +88,7 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                 color = to_hex(cmap(i/ (len(data_file_paths)-len(other_colors))))
             else:
                 color = cmap[label]
-        bin_heights, bin_borders, _ = sns.histplot(kcat_values, bins = logbins, element='poly', ax=ax,
+        bin_heights, bin_borders, _ = ax.hist(kcat_values, bins = logbins, histtype='step',
                                                fill=False, label= label, color=color, cumulative=cumulative)
         calculate_distribution_statistics(bin_heights, bin_borders)
 
