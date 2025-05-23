@@ -1,7 +1,8 @@
 __pycache__/
 Data/Cglutanicum_phenotypes/Corynebacterium glutamicum
 Modules/PAM_parametrizer/__pycache__/
-Scripts/__pycache__/
+*/__pycache__/
 Scripts/i1_preprocessing/.ipynb_checkpoints
 Scripts/i3_analysis/.ipynb_checkpoints
 Scripts/SoF1
+*.pyc
