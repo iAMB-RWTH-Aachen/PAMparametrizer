@@ -360,7 +360,7 @@ def main():
     NUM_ALT_MODELS = 10
     FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
+                                  'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                       'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
