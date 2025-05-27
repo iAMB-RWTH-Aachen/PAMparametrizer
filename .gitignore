@@ -6,3 +6,5 @@ Modules/PAM_parametrizer/__pycache__/
 Scripts/i3_analysis/.ipynb_checkpoints
 Scripts/SoF1
 *.pyc
+*.~lock.
+*.xlsx#
