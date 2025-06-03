@@ -9,6 +9,7 @@ warnings.filterwarnings("ignore")
 from PAModelpy.configuration import Config
 from PAModelpy.utils.pam_generation import set_up_pam, increase_kcats_in_parameter_file
 
+from Modules.utils.pam_generation import turn_of_exchanges
 from Modules.utils.pamparametrizer_setup import set_up_sector_config
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.PAM_parametrizer import PAMParametrizer
@@ -148,8 +149,10 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                      pam_info_file_path_out=pam_info_file_path_out)
 
 
-    ecoli_pam = set_up_pam(pam_info_file = pam_info_file_path_out, model = os.path.join('Models', 'iML1515.xml'))
+    ecoli_pam = set_up_pam(pam_info_file = pam_info_file_path_out,
+                           model = os.path.join('Models', 'iML1515.xml'))
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
+    turn_of_exchanges(ecoli_pam, exchanges_to_exclude = ['EX_ac_e'])
 
     validation_data = set_up_validation_data(c_sources,
                                              pam_info_file=pam_info_file)

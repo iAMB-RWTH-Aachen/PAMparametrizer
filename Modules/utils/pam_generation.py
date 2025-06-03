@@ -1,7 +1,7 @@
 import pandas as pd
 import re
 import os
-from typing import Union, Tuple, Literal
+from typing import Union, Tuple, Literal, List
 from cobra.io.sbml import read_sbml_model
 
 # load PAMpy modules
@@ -266,3 +266,11 @@ def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
                                  unused_enzymes = unused_enzymes,
                                  sensitivity = sensitivity)
     return cglutanicum_pam
+
+def turn_of_exchanges(model: PAModel,
+                          exchanges_to_exclude:List[str]
+                          ) -> None:
+    exchanges_to_exclude.append(model.medium)
+    for exchange in model.exchanges:
+        if exchange.id not in exchanges_to_exclude:
+            model.change_reaction_bounds(exchange.id, 0,0)

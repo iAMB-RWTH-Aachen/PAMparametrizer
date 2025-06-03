@@ -84,7 +84,7 @@ def scan_kcat_factors_pputida():
                       scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_iJN1463.png'),
                       setup_pam_function=setup_pputida_pam,
                       pam_info_file=os.path.join(
-                          'Results', '1_preprocessing', 'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx'
+                          'Results', '1_preprocessing', 'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx'
                       ),
                       setup_pamparametrizer_function=set_up_pamparam_pputida,
                       substrate_reaction_id= 'EX_glc__D_e',

@@ -135,7 +135,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate):
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250429.xlsx'),
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
@@ -145,8 +145,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            kcat_increase_factor: int = 1):
     pam_info_file_path_out = os.path.join(
             'Results', '2_parametrization', 'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx')
-    if kcat_increase_factor != 1:
-        increase_kcats_in_parameter_file(kcat_increase_factor,
+    increase_kcats_in_parameter_file(kcat_increase_factor,
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
