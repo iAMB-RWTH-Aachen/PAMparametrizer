@@ -702,10 +702,10 @@ class PAMParametrizer():
             result_file_path: the path to the directory where the results should be stored
         """
         if not os.path.isdir(result_file_path):
-            os.path.mkdir(result_file_path)
+            os.mkdir(result_file_path)
         for subdir in ['progress', 'diagnostics']:
             if not subdir in os.listdir(result_file_path):
-                os.path.mkdir(os.path.join(result_file_path, 'progress'))
+                os.mkdir(os.path.join(result_file_path, subdir))
 
     def _change_sector_parameters_for_substrate(self,
                                                 substrate_uptake_id: str,
@@ -733,7 +733,7 @@ class PAMParametrizer():
         substrate_range = np.arange(start, end, step)
 
         # Adjust the sign if the original range was negative
-        if validation_range[0] < 0 and validation_range[1] < 0:
+        if validation_range[0] <= 0 and validation_range[1] <= 0:
             substrate_range = -substrate_range[::-1]
         return substrate_range
 

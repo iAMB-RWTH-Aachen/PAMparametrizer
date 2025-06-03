@@ -16,7 +16,7 @@ def extract_locus_tags(text:str,
 
 
 def create_id_mapper_from_model(model: CobraModel,
-                                rxn_annotation_keys: list[str]=['kegg.reaction', 'ec-code'],
+                                rxn_annotation_keys: list[str]=['kegg.reaction', 'ec-code', ],
                                 met_annotation_key: str='kegg.compound',
                                 exclude:List[str]=['Growth', 'ATPM']
                                 ) -> pd.DataFrame:
@@ -43,7 +43,7 @@ def create_id_mapper_from_model(model: CobraModel,
     mapped_to_kegg = 0
 
     for rxn in model.reactions:
-        if any(ex in rxn.id.lower() for ex in ['ex','biomass', 'sink']) or rxn.id in exclude:
+        if any(ex in rxn.id.lower() for ex in ['ex', 'sink']) or rxn.id in exclude:
             continue
 
         entry = {
@@ -85,7 +85,6 @@ def create_genetokeggid_mapper(model:CobraModel) -> pd.DataFrame:
 def replace_locustags_in_text(text:str,
                               id_map:Dict[str, str]
                               )-> str:
-    if pd.isna(text): return np.nan
     for old_id, new_id in id_map.items():
         text = text.replace(old_id, new_id)
     return text
@@ -109,6 +108,7 @@ def map_kcat_values_to_reaction_protein_association(id_mapper: pd.DataFrame,
         right_on=['gene', 'reaction_id'],
         how='left'
     )
+    print(id_mapper.columns)
     mapped_gene = merged_by_gene.dropna(subset=['kcat_values'])
     unmapped = merged_by_gene[merged_by_gene['kcat_values'].isna()]
     print(f'Mapped {len(mapped_gene )} '
@@ -131,6 +131,7 @@ def map_kcat_values_to_reaction_protein_association(id_mapper: pd.DataFrame,
     # Remove duplicates already in mapped_gene
     already_mapped_rxns = set(mapped_gene['rxn_id'])
     merged_by_ec = merged_by_ec[~merged_by_ec['rxn_id'].isin(already_mapped_rxns)]
+    print(merged_by_ec.columns)
 
     # Combine and clean
     combined = pd.concat([mapped_gene, merged_by_ec], ignore_index=True)

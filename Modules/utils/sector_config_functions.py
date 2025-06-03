@@ -3,8 +3,7 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from optlang.symbolics import Zero
-
+import warnings
 from PAModelpy import Config, PAModel
 
 SectorParameterDict = dict[Literal['slope', 'intercept'], float]
@@ -270,7 +269,20 @@ def change_proteinsector_relation_from_growth_to_substrate_uptake(pamodel:PAMode
                                                              intercept = params['intercept'], slope = params['slope'],
                                                              sector_name=sector_name)
 
-    slope_glc, intercept_glc = perform_linear_regression(
-        x=simulation_results_bms[substrate_uptake_id], y=simulation_results_bms[sector_name])
+    if simulation_results_bms.empty or simulation_results_bms[substrate_uptake_id].nunique() <= 1:
+        warnings.warn(
+            f"Infeasible model or insufficient data when simulating for substrate uptake: {substrate_uptake_id} "
+            f"and sector '{sector_id}'. Returning input params as fallback."
+        )
+        return params
+
+    try:
+        slope_glc, intercept_glc = perform_linear_regression(
+            x=simulation_results_bms[substrate_uptake_id],
+            y=simulation_results_bms[sector_name]
+        )
+    except ValueError as e:
+        raise ValueError(
+            f"Failed to perform linear regression for sector {sector_id} on substrate {substrate_uptake_id}: {e}")
 
     return {'slope': slope_glc, 'intercept': intercept_glc}

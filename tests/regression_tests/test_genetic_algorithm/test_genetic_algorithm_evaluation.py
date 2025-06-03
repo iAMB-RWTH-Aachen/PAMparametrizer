@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pandas as pd
 import numpy as np
 import pytest
@@ -174,6 +176,20 @@ def test_genetic_algorithm_evaluate_reset_old_model_kcats():
         assert ori_coeff == pytest.approx(fiteval_coeff, rel=1e-3)
 
 
+def test_genetic_algorithm_toolbox_evaluate_function_returns_nan_upon_infeasibility():
+    # Arrange
+    sut = GeneticAlgorithmMock()
+    toolbox = sut._init_deap_toolbox()
+    population = sut.get_initial_population()
+    sut.FitEval.model = create_infeasible_mock_model()
+
+    # Act
+    fitnesses_from_ga = [fit._wsum() for fit in map(toolbox.evaluate, population)]
+
+    # Assert
+    assert len(population) == len(fitnesses_from_ga)
+    assert all([np.isnan(fit) for fit in fitnesses_from_ga])
+
 
 ##################################################################################################################
 #HELPER FUNCTIONS
@@ -252,3 +268,41 @@ def get_toy_model_simulations_other_csource(toy_model,
     toy_model.change_reaction_bounds('R9', 0, 1e6)
     toy_model.change_reaction_bounds('R1', -1e6, 1e6)
     return fluxes_df, reactions_to_save
+
+def create_infeasible_mock_model():
+    # Create the mock model
+    mock_model = MagicMock()
+
+    # --- Simulate change_reaction_bounds behavior
+    mock_model.change_reaction_bounds = MagicMock()
+
+    # --- Simulate optimize method
+    mock_model.optimize = MagicMock()
+
+    # --- Simulate solver with status
+    mock_model.solver.status = 'infeasible'  # You can switch this to 'optimal' for other tests
+
+    # --- Simulate reaction access and variables
+    mock_reaction = MagicMock()
+    mock_reaction.forward_variable = MagicMock(name='forward_var')
+    mock_reaction.reverse_variable = MagicMock(name='reverse_var')
+    mock_model.reactions.get_by_id.return_value = mock_reaction
+
+    # --- Simulate constraint handling
+    mock_model.TOTAL_PROTEIN_CONSTRAINT_ID = 'total_protein'
+    total_protein_constraint = MagicMock()
+    total_protein_constraint.ub = 1000.0  # some default value
+
+    # Assign constraints dictionary
+    mock_constraint = MagicMock()
+    mock_model.constraints = {
+        'total_protein': total_protein_constraint,
+        'EC_E3_f': mock_constraint(),
+        'EC_E3_b': mock_constraint(),
+        'EC_E4_f': mock_constraint(),
+        'EC_E4_b': mock_constraint(),
+        'EC_E5_f': mock_constraint(),
+        'EC_E5_b': mock_constraint()
+    }
+    mock_constraint.set_linear_coefficients = MagicMock()
+    return mock_model

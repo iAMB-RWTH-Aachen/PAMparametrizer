@@ -47,7 +47,7 @@ def save_sector_information_to_excel(
     Notes:
         - ParameterDict = dict[Literal['slope', 'intercept'], float]
         - Output file name is in the following format:
-         'Results / 1_preprocessing / proteinAllocationModel_iML1515_EnzymaticData_<yymmdd>.xlsx')
+         'Results / 1_preprocessing / proteinAllocationModel_iML1515_EnzymaticData_<yymmdd>.xlsx'
     """
     pam_parameter_information, output_file_path = _get_pam_parameter_information_from_excel(pam_data_file,
                                                                                             model_name,
@@ -65,7 +65,7 @@ def save_sector_information_to_excel(
         'substrate_range': list(substrate_range)
     })
 
-    sector_vs_glucose = pd.Series({
+    sector_vs_substrate = pd.Series({
         'id_list':lin_rxn_id,
         slope_id:param_vs_lin_rxn['slope'],
         intercept_id:param_vs_lin_rxn['intercept'],
@@ -86,9 +86,9 @@ def save_sector_information_to_excel(
                     df = pd.concat([df,pd.DataFrame([substrate_range_row])])
                 df = df.set_index('Parameter')
                 df['Value_for_growth'] = sector_vs_growthrate
-                df['Value'] = sector_vs_glucose
+                df['Value'] = sector_vs_substrate
                 #change order for better readability
-                df = df.reset_index()[['Parameter','Value','Value_for_growth','Unit','Description']]
+                df = df.reset_index().drop_duplicates(subset = 'Parameter')[['Parameter','Value','Value_for_growth','Unit','Description']]
             df.to_excel(writer, sheet_name=sheet, index = False)
 
 

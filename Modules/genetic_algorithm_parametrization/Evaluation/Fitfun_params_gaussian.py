@@ -409,14 +409,12 @@ class FitnessEvaluation():
             self.model.constraints[f'EC_{enz_id}_{dir}'].set_linear_coefficients({
                 var:(kcat_values[i])})
 
-
-
     def _calculate_simulation_error(self, flux_df: pd.DataFrame, substrate_reaction:str):
         error = []
         weights = []
 
         if len(flux_df)==0:#if all rates were infeasible: r_squared should be really bad
-            return -1
+            return np.nan
         for rxn in self.reactions_with_data[substrate_reaction]:
             #only select the rows which are filled with data
             ref_data_rxn = self.valid_data[substrate_reaction].dropna(axis = 0, subset = rxn)
