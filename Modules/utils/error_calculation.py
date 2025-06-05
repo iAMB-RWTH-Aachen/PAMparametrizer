@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Union, Iterable
-import traceback
-
-from sympy.logic.inference import valid
+from PAModelpy import PAModel
 
 
 def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataFrame,
@@ -97,4 +95,3 @@ def calculate_symmetric_mean_absolute_percentage_error(y_true:Iterable[float],
 
     smape_value = np.mean(numerator / denominator) * 100
     return smape_value
-

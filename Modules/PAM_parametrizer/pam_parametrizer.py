@@ -319,7 +319,9 @@ class PAMParametrizer():
         if substrate_uptake_rates is None: return
         for substrate_uptake_id, substrate_rates in substrate_uptake_rates.items():
             self.run_pamodel_simulations_in_bin(substrate_uptake_reaction=substrate_uptake_id,
-                                                bin_id = bin_id, substrate_uptake_rates =substrate_rates)
+                                                bin_id = bin_id,
+                                                substrate_uptake_rates =substrate_rates
+                                                )
             # calculate the error for the different exchange rates
             self.calculate_error(bin_id, substrate_uptake_id)
         # if there is no solution, continue to the next bin
@@ -456,9 +458,11 @@ class PAMParametrizer():
             validation_df = self._get_validation_data_to_validate(valid_data)
 
             error += [nanaverage(self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
-                                                         validation_df=validation_df,
-                                                         reactions_to_validate= reactions_to_validate,
-                                                         bin_id="final"))]
+                                                                     validation_df=validation_df,
+                                                                     reactions_to_validate= reactions_to_validate,
+                                                                     bin_id="final"
+                                                                     )
+                                 )]
 
             #remove the simulations from the result dataframe
             self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,"final")
@@ -1030,7 +1034,6 @@ class PAMParametrizer():
         # calculate error for different exchange rates
         error = []
         flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
-
 
         if len(flux_df) == 0:  # means model is infeasible
             return -1

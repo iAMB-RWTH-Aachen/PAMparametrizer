@@ -29,6 +29,7 @@ def set_up_validation_data(csources: list,
                        model = os.path.join('Models', 'iML1515.xml'),
                        sensitivity = False)
     model_reactions = [rxn.id for rxn in model.reactions]
+    inactive_exchanges = [rxn.id for rxn in model.exchanges if rxn.id not in model.medium and rxn.id != 'EX_ac_e']
 
     VALID_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls')
     valid_data_csources, condition2uptake = get_validation_data_df_other_csources(condition2uptake, model_reactions)
@@ -38,6 +39,7 @@ def set_up_validation_data(csources: list,
     for csource in csources:
         if csource == 'Glucose':
             validation_data = set_up_valid_data_glucose(VALID_DATA_PATH)
+            validation_data.inactive_exchanges = inactive_exchanges
             validation_data.sector_configs = {
                 'TranslationalProteinSector':{
                 'slope': model.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
@@ -152,7 +154,6 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
     ecoli_pam = set_up_pam(pam_info_file = pam_info_file_path_out,
                            model = os.path.join('Models', 'iML1515.xml'))
     ecoli_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
-    turn_of_exchanges(ecoli_pam, exchanges_to_exclude = ['EX_ac_e'])
 
     validation_data = set_up_validation_data(c_sources,
                                              pam_info_file=pam_info_file)
@@ -171,7 +172,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_info_file = os.path.join(
-        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
+        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx')
 
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 from PAModelpy.configuration import Config
 from PAModelpy import TransEnzymeSector, UnusedEnzymeSector, CustomSector
-from typing import Union, Callable, TypedDict, Iterable
+from typing import Union, Callable, TypedDict, Iterable, List
 import os
 from cobra import DictList
 import random
@@ -33,12 +33,19 @@ class ValidationData:
     id: str
     validation_range: list
     sampled_valid_data: pd.DataFrame = None
+    inactive_exchanges:Union[List, None] = field(default_factory=list)
     sector_configs: dict = field(default_factory=dict)
     _reactions_to_validate : list = field(default_factory=list)
     biomass_reaction_extension : str = 'BIOMASS'
     exchange_reaction_extension: str = 'EX'
     _reactions_to_plot = [Config.ACETATE_EXCRETION_RXNID, Config.CO2_EXHANGE_RXNID, Config.OXYGEN_UPTAKE_RXNID, Config.BIOMASS_REACTION]
 
+    def __post_init__(self):
+        self._add_inactive_exchanges_to_validation_df()
+
+    def _add_inactive_exchanges_to_validation_df(self) -> None:
+        for ex_rxn in self.inactive_exchanges:
+            self.valid_data[ex_rxn] = 0
 
     def _get_biomass_reactions(self) -> list:
         return [data for data in self.valid_data.columns
