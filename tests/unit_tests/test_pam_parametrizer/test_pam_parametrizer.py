@@ -236,7 +236,7 @@ def tests_pam_parametrizer_parses_enzymes_to_evaluate_for_all_bins_correctly():
     bin_information = {1: [0.07, 0.08, 0.01 / 5], 2: [0.08, 0.09, 0.01 / 5], 3: [0.09, 0.1, 0.01 / 5]}
     for bin_id, bin_info in bin_information.items():
         sut.run_pamodel_simulations_in_bin('R1',bin_id, bin_info)
-    enzymes_to_evaluate_expected = ['E2', 'E5', 'E1']
+    enzymes_to_evaluate_expected = ['E2', 'E3', 'E1']
 
     # Act
     enzymes_to_evaluate_test = sut._determine_enzymes_to_evaluate_for_all_bins(nmbr_kcats_to_pick = 3)
