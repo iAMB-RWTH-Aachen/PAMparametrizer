@@ -9,9 +9,11 @@ from matplotlib.colors import to_hex
 from PAModelpy.PAModel import PAModel
 import pandas as pd
 import re
+from scipy.optimize import minimize_scalar
 from cobra import DictList
 from collections import defaultdict
 from typing import List, Dict, Literal, Optional
+import warnings
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
@@ -42,6 +44,7 @@ class PAMParametrizer():
     TRANSL_SECTOR_INTERCEPT_vs_GLC = 0.046136644909661115#g / g_cdw
     TRANSL_SECTOR_SLOPE_vs_GLC = -0.004340256958025938 #g / mmol_glc / h
     MEASURED_PROTEIN_FRACTION = 0.55*0.55
+    MAXIMAL_INTERCEPT_UE = 0.67 #g_unusedprotein/g_p, as determined by O'Brien et al (2016)
 
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
@@ -51,6 +54,7 @@ class PAMParametrizer():
                  max_substrate_uptake_rate: Union[float, int] = 0,
                  min_substrate_uptake_rate: Union[float, int] = -11,
                  sensitivity: bool = True,
+                 minimal_unused_enzymes: float = 0.37,#g_ue/g_p
                  enzymes_to_evaluate:Optional[list] = None):
 
         self.core_genetic_algorithm = None
@@ -67,6 +71,7 @@ class PAMParametrizer():
         self.hyperparameters = hyperparameters if hyperparameters is not None else HyperParameters()
         self.sector_configs = sector_configs if sector_configs is not None else {
             'TranslationalProteinSector': self.TRANSLATIONAL_SECTOR_CONFIG}
+        self.minimal_unused_enzymes = minimal_unused_enzymes
 
         self.substrate_uptake_ids = [csource_data.id for csource_data in validation_data]
 
@@ -203,7 +208,6 @@ class PAMParametrizer():
                     substrate_range = substrate_range
                 )
 
-
     def perform_iteration_in_bins(self, start_time:float) -> list:
         self._init_results_objects()
         # 1. Get the binned substrate values and adjust binsize if required
@@ -258,8 +262,62 @@ class PAMParametrizer():
 
         return files_to_remove
 
+    def optimize_sector_yintercept(self,
+                                  sector_id: str='UnusedEnzymeSector',
+                                    throw_warning: bool = False
+                                  ):
+        """
+            Optimize the y-intercept of a linear relation in a specified protein sector,
+            keeping the x-intercept fixed. Updates sector parameters in validation_data.
+            """
+        def calculate_simulation_error(intercept):
+            try:
+                slope = -intercept / y0  # enforce x-intercept constraint
+                self.pamodel_no_sensitivity.change_sector_parameters(sector,
+                                                                     slope = slope,
+                                                                     intercept = intercept,
+                                                                     lin_rxn_id= vd.id
+                                                                     )
+                fluxes, substrate_rates = self.run_simulations_to_plot(vd.id,
+                                                                       substrate_rates=vd.sampled_valid_data[f'{vd.id}_ub'])
+
+                for substrate_rate, simulation_result in zip(substrate_rates, fluxes):
+                    self.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
+                                                                          bin_id='intercept',
+                                                                          substrate_reaction_id= vd.id,
+                                                                          substrate_uptake_rate= substrate_rate,
+                                                                          fluxes_abs=False)
+                error = self._calculate_error_for_validation_data(valid_data=vd, bin_id='intercept')
+                self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id=vd.id,
+                                                                             bin_id='intercept'
+                                                                             )
+                return error
+            except Exception as e:
+                if throw_warning: warnings.warn(f"Simulation failed for intercept {intercept} on {vd.id}: {e}")
+                return float('inf')  # penalize failure
+
+
+        sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
+
+        for vd in self.validation_data:
+            sector_params = vd.sector_configs[sector_id].copy()
+            y0 = sector_params['intercept']/sector_params['slope']
+            minimal_intercept = self.minimal_unused_enzymes*self._pamodel.total_protein_fraction
+            res = minimize_scalar(
+                calculate_simulation_error,
+                bounds=(minimal_intercept, self.MAXIMAL_INTERCEPT_UE),  # adjust upper bound as needed
+                method='bounded'
+            )
+            if not res.success:
+                if throw_warning: warnings.warn(f"Optimization failed for {vd.id}: {res.message}")
+                continue
+            sector_params['intercept'] = res.x
+            sector_params['slope'] = res.x/y0
+            vd.sector_configs[sector_id] = sector_params
+
     def evaluate_and_save_results_of_iteration(self, start_time_iteration:float, files_to_remove:list,
                                                remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
+
         self.reparametrize_pam()
         if self._pamodel_is_feasible:
             self._init_results_objects()
@@ -453,23 +511,27 @@ class PAMParametrizer():
 
         error = []
         for valid_data in self.validation_data:
-            substrate_uptake_id = valid_data.id
-            reactions_to_validate = valid_data._reactions_to_validate
-            validation_df = self._get_validation_data_to_validate(valid_data)
-
-            error += [nanaverage(self._calculate_error_for_reactions(substrate_uptake_id = substrate_uptake_id,
-                                                                     validation_df=validation_df,
-                                                                     reactions_to_validate= reactions_to_validate,
-                                                                     bin_id="final"
-                                                                     )
-                                 )]
-
+            error += [self._calculate_error_for_validation_data(valid_data)]
             #remove the simulations from the result dataframe
-            self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id,"final")
+            self.parametrization_results.remove_simulations_from_flux_df(valid_data.id,"final")
         final_error = np.nanmean(error)
         print("The final error is ", final_error)
 
         return final_error
+
+    def _calculate_error_for_validation_data(self,
+                                             valid_data:ValidationData,
+                                             bin_id: str = 'final'
+                                             ) -> float:
+        substrate_uptake_id = valid_data.id
+        reactions_to_validate = valid_data._reactions_to_validate
+        validation_df = self._get_validation_data_to_validate(valid_data)
+
+        return nanaverage(self._calculate_error_for_reactions(substrate_uptake_id=substrate_uptake_id,
+                                                              validation_df=validation_df,
+                                                              reactions_to_validate=reactions_to_validate,
+                                                              bin_id=bin_id
+                                                              ))
 
     def determine_most_sensitive_enzymes(self, bin_id: Union[str, float, int], nmbr_kcats_to_pick: int) -> pd.DataFrame:
         """

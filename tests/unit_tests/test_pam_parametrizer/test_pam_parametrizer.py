@@ -7,6 +7,7 @@ import os
 from typing import Callable
 
 import pytest
+from unittest.mock import MagicMock, patch
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.utils import calculate_r_squared_for_reaction
 from Scripts.pam_generation import setup_toy_pam
@@ -431,6 +432,41 @@ def test_pam_parametrizer_saves_sector_parameters_correcty_in_final_diagnostics(
     #remove produced files
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
     os.remove(final_diagnostics_file_name)
+
+def test_pam_parametrizer_yintercept_optimization_successful():
+    #Arrange
+    sut = PAMParametrizerMock()
+    vd = sut.validation_data.get_by_id('R1')
+
+    # Patch run_simulations and error calculation to return dummy values
+    with patch.object(sut, 'run_simulations_to_plot', return_value=([[1.0], [2.0], [3.0]], [10, 20, 30])), \
+         patch.object(sut.parametrization_results, 'add_fluxes_from_fluxdict'), \
+         patch.object(sut.parametrization_results, 'remove_simulations_from_flux_df'), \
+         patch.object(sut, '_calculate_error_for_validation_data', return_value=0.1):
+        #Act
+        sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector', throw_warning=True)
+        #Assert
+        updated_params = vd.sector_configs['UnusedEnzymeSector']
+        assert 'intercept' in updated_params
+        assert 'slope' in updated_params
+        assert updated_params['intercept'] >= 0.05  # minimal_intercept
+
+def test_pam_parametrizer_yintercept_optimization_fails():
+    #Arrange
+    sut = PAMParametrizerMock()
+    vd = sut.validation_data.get_by_id('R1')
+
+    # Patch run_simulations and error calculation to return dummy values
+    with patch.object(sut, 'run_simulations_to_plot', side_effect=RuntimeError("Sim fail")), \
+         patch.object(sut.parametrization_results, 'add_fluxes_from_fluxdict'), \
+         patch.object(sut.parametrization_results, 'remove_simulations_from_flux_df'), \
+         patch.object(sut, '_calculate_error_for_validation_data', return_value=1.0):
+        #Act
+        sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector', throw_warning=True)
+
+        # Assert
+        sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector', throw_warning=True)
+        assert True  # test passes if it doesn't crash
 
 def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     # Arrange

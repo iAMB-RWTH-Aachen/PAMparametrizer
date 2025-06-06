@@ -51,12 +51,20 @@ class PAMParametrizerMock(PAMParametrizer):
 
 
 
-        validation_data.sector_configs = {'TranslationalProteinSector':SectorConfig(
+        validation_data.sector_configs = {
+            'TranslationalProteinSector':SectorConfig(
             sectorname = 'TranslationalProteinSector',
             slope = 0.01*1e-3,
             intercept = 0.01*1e-3,
             substrate_range = [-1e-3,-2*1e-3]
-        )}
+            ),
+            'UnusedEnzymeSector': SectorConfig(
+                sectorname='UnusedEnzymeSector',
+                slope=-0.001 * 1e-3,
+                intercept=0.01 * 1e-3,
+                substrate_range=[-1e-3, -2 * 1e-3]
+            )
+        }
         return validation_data
 
     def set_up_hyperparameter_mock(self):
