@@ -20,3 +20,16 @@ def test_if_unused_protein_sector_is_configured_correctly_by_pamparametrizer():
                                                                                 abs = 1e-3)
     assert reference_unused_enzyme_sector.at['ups_mu', 'Value'] == pytest.approx(unused_enzymes_sut['slope'],
                                                                                  abs = 1e-3)
+
+def test_if_yintercept_UE_is_correctly_reconfigured_by_pamparametrizer():
+    #Arrange
+    sut = PAMParametrizerMockEcoli()
+
+    # Act
+    sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector')
+
+    # Assert
+    for vd in sut.validation_data:
+        params = vd.sector_configs['UnusedEnzymeSector']
+        assert params['intercept'] >= sut.minimal_unused_enzymes * sut._pamodel.total_protein_fraction
+        assert isinstance(params['slope'], float)
