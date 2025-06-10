@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import pytest
+from time import time
 
 from tests.pam_parametrizer_mock import PAMParametrizerMockEcoli
 
@@ -33,3 +34,14 @@ def test_if_yintercept_UE_is_correctly_reconfigured_by_pamparametrizer():
         params = vd.sector_configs['UnusedEnzymeSector']
         assert params['intercept'] >= sut.minimal_unused_enzymes * sut._pamodel.total_protein_fraction
         assert isinstance(params['slope'], float)
+
+def test_if_yintercept_UE_is_fast_enough():
+    #Arrange
+    sut = PAMParametrizerMockEcoli()
+    start = time()
+    # Act
+    sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector')
+    print(time()-start)
+
+    # Assert
+    assert False
