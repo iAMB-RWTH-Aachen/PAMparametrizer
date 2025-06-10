@@ -301,6 +301,7 @@ class PAMParametrizer():
 
         for vd in self.validation_data:
             sector_params = vd.sector_configs[sector_id].copy()
+            print(sector_params)
             y0 = sector_params['intercept']/sector_params['slope']
             minimal_intercept = self.minimal_unused_enzymes*self._pamodel.total_protein_fraction
             res = minimize_scalar(
@@ -314,11 +315,13 @@ class PAMParametrizer():
             sector_params['intercept'] = res.x
             sector_params['slope'] = res.x/y0
             vd.sector_configs[sector_id] = sector_params
+            print(res.x, res.x/y0, sector_params)
 
     def evaluate_and_save_results_of_iteration(self, start_time_iteration:float, files_to_remove:list,
                                                remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
 
         self.reparametrize_pam()
+        self.optimize_sector_yintercept()
         if self._pamodel_is_feasible:
             self._init_results_objects()
             # visualize results
