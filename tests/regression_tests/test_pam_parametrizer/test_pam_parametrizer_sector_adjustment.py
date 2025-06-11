@@ -41,7 +41,5 @@ def test_if_yintercept_UE_is_fast_enough():
     start = time()
     # Act
     sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector')
-    print(time()-start)
+    assert time()-start < 15*60 #less than 15 min
 
-    # Assert
-    assert False

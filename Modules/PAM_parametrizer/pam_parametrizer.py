@@ -6,6 +6,7 @@ import random
 import matplotlib.pyplot as plt
 import matplotlib as mpltlib
 from matplotlib.colors import to_hex
+from multiprocessing import Pool
 from PAModelpy.PAModel import PAModel
 import pandas as pd
 import re
@@ -270,30 +271,42 @@ class PAMParametrizer():
             Optimize the y-intercept of a linear relation in a specified protein sector,
             keeping the x-intercept fixed. Updates sector parameters in validation_data.
             """
-        from functools import lru_cache
+        sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
 
+
+        for vd in self.validation_data:
+            with Pool() as pool:
+                pool.starmap(self._optimize_sector_yintercept_for_validation_data,
+                                       [(vd, sector_id, throw_warning) for vd in self.validation_data])
+
+
+    def _optimize_sector_yintercept_for_validation_data(self,
+                                                        vd: ValidationData,
+                                                        sector_id: str,
+                                                        throw_warning: bool):
         cache = {}
         def calculate_simulation_error(intercept):
-            #avoid running multiple simulations with the same intercept
+            # avoid running multiple simulations with the same intercept
             rounded = round(intercept, 3)  # rounding to prevent float precision issues
             if rounded in cache:
                 return cache[rounded]
             try:
                 slope = -intercept / y0  # enforce x-intercept constraint
                 self.pamodel_no_sensitivity.change_sector_parameters(sector,
-                                                                     slope = slope,
-                                                                     intercept = intercept,
-                                                                     lin_rxn_id= vd.id
+                                                                     slope=slope,
+                                                                     intercept=intercept,
+                                                                     lin_rxn_id=vd.id
                                                                      )
                 fluxes, substrate_rates = self.run_simulations_to_plot(vd.id,
-                                                                       substrate_rates=vd.sampled_valid_data[f'{vd.id}_ub'],
+                                                                       substrate_rates=vd.sampled_valid_data[
+                                                                           f'{vd.id}_ub'],
                                                                        sensitivity=False)
 
                 for substrate_rate, simulation_result in zip(substrate_rates, fluxes):
                     self.parametrization_results.add_fluxes_from_fluxdict(flux_dict=simulation_result,
                                                                           bin_id='intercept',
-                                                                          substrate_reaction_id= vd.id,
-                                                                          substrate_uptake_rate= substrate_rate,
+                                                                          substrate_reaction_id=vd.id,
+                                                                          substrate_uptake_rate=substrate_rate,
                                                                           fluxes_abs=False)
                 error = self._calculate_error_for_validation_data(valid_data=vd, bin_id='intercept')
                 self.parametrization_results.remove_simulations_from_flux_df(substrate_uptake_id=vd.id,
@@ -305,25 +318,24 @@ class PAMParametrizer():
                 if throw_warning: warnings.warn(f"Simulation failed for intercept {intercept} on {vd.id}: {e}")
                 return float('inf')  # penalize failure
 
+        sector_params = vd.sector_configs[sector_id].copy()
+        y0 = sector_params['intercept'] / sector_params['slope']
+        minimal_intercept = self.minimal_unused_enzymes * self._pamodel.total_protein_fraction
+        res = minimize_scalar(
+            calculate_simulation_error,
+            bounds=(minimal_intercept, self.MAXIMAL_INTERCEPT_UE * self._pamodel.total_protein_fraction),
+            # adjust upper bound as needed
+            method='bounded',
+            options={'xatol': 1e-3}
+        )
+        if not res.success:
+            if throw_warning: warnings.warn(f"Optimization failed for {vd.id}: {res.message}")
+            return
+        sector_params['intercept'] = res.x
+        sector_params['slope'] = res.x / y0
+        vd.sector_configs[sector_id] = sector_params
 
-        sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
 
-        for vd in self.validation_data:
-            sector_params = vd.sector_configs[sector_id].copy()
-            y0 = sector_params['intercept']/sector_params['slope']
-            minimal_intercept = self.minimal_unused_enzymes*self._pamodel.total_protein_fraction
-            res = minimize_scalar(
-                calculate_simulation_error,
-                bounds=(minimal_intercept, self.MAXIMAL_INTERCEPT_UE*self._pamodel.total_protein_fraction),  # adjust upper bound as needed
-                method='bounded',
-                options={'xatol': 1e-3}
-            )
-            if not res.success:
-                if throw_warning: warnings.warn(f"Optimization failed for {vd.id}: {res.message}")
-                continue
-            sector_params['intercept'] = res.x
-            sector_params['slope'] = res.x/y0
-            vd.sector_configs[sector_id] = sector_params
 
     def evaluate_and_save_results_of_iteration(self, start_time_iteration:float, files_to_remove:list,
                                                remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
