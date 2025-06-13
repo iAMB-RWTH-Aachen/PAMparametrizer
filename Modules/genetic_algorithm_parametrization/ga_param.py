@@ -184,14 +184,17 @@ class Genetic_Algorithm():
             # Evaluate the individuals with an invalid fitness
             fitnesses = map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
-                if fit._wsum() is np.NaN:
-                    ind.kcat_list = elite_kcat
-                    ind.fitness = elite[0].fitness
+                if np.isnan(fit._wsum()):
+                    # Replace infeasible individual with a deep clone of elite
+                    elite_clone = toolbox.clone(elite[0])
+                    ind[:] = elite_clone[:]
+                    for attr in elite_clone.__dict__:
+                        setattr(ind, attr, deepcopy(getattr(elite_clone, attr)))
+                    ind.fitness = elite_clone.fitness
                 else:
                     ind.fitness = fit
 
-                # store fitness
-                fitness_dict[ind_str(ind.kcat_list)] = fit
+                fitness_dict[ind_str(ind.kcat_list)] = ind.fitness
 
 
             # The population is entirely replaced by the offspring and the elite

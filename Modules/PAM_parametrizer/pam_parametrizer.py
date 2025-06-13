@@ -362,6 +362,10 @@ class PAMParametrizer():
                                                                           substrate_uptake_rate=substrate_rate,
                                                                           fluxes_abs=False)
             self.final_error = self.calculate_final_error()
+            if pd.isna(self.final_error):
+                print("Newly parametrized model was not feasible, reverting changes")
+                self.revert_parametrization()
+                return
 
 
             self.save_diagnostics(computational_time=time.perf_counter() - start_time_iteration)
@@ -688,10 +692,19 @@ class PAMParametrizer():
             # need to convert the coefficient to the actual kcat
             new_kcat = 1 / (row["value"] * 3600 * 1e-6)
             direction = row["direction"]
-
             self._change_kcat_value_for_enzyme(enzyme_id= row["id"], kcat_dict = {row["rxn_id"]:
                                                                            {direction: new_kcat}
                                                                        })
+
+    def revert_parametrization(self) -> None:
+        for enzyme, rxn2kcat_info in self.enzymes_to_evaluate.items():
+            for rxn2kcat in rxn2kcat_info:
+                self._change_kcat_value_for_enzyme(enzyme_id=enzyme,
+                                                   kcat_dict={
+                                                       rxn2kcat['reaction']: {
+                                                           d: 1/(kcat * 3600 * 1e-6) for d, kcat in rxn2kcat['kcats'].items()
+                                                       }
+                                                   })
 
 
     def save_diagnostics(self, computational_time: float,
@@ -1121,7 +1134,7 @@ class PAMParametrizer():
         flux_df = self.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
 
         if len(flux_df) == 0:  # means model is infeasible
-            return -1
+            return np.nan
         # check if we want to calculate the error for a single bin
         if bin_id is not None: flux_df = flux_df[flux_df["bin"] == bin_id]
 

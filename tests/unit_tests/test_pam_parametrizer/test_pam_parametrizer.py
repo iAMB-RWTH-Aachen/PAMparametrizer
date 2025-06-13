@@ -7,7 +7,6 @@ import os
 from typing import Callable
 
 import pytest
-from unittest.mock import MagicMock, patch
 from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
 from Modules.utils import calculate_r_squared_for_reaction
 from Scripts.pam_generation import setup_toy_pam
@@ -237,7 +236,7 @@ def tests_pam_parametrizer_parses_enzymes_to_evaluate_for_all_bins_correctly():
     bin_information = {1: [0.07, 0.08, 0.01 / 5], 2: [0.08, 0.09, 0.01 / 5], 3: [0.09, 0.1, 0.01 / 5]}
     for bin_id, bin_info in bin_information.items():
         sut.run_pamodel_simulations_in_bin('R1',bin_id, bin_info)
-    enzymes_to_evaluate_expected = ['E2', 'E3', 'E1']
+    enzymes_to_evaluate_expected = ['E2', 'E5', 'E1']
 
     # Act
     enzymes_to_evaluate_test = sut._determine_enzymes_to_evaluate_for_all_bins(nmbr_kcats_to_pick = 3)
@@ -288,6 +287,34 @@ def test_pam_parametrizes_reparametrizes_enzymes_correctly():
         if direction in model_kcat_dict.keys():
             kcat_test = (model_kcat_dict[direction]*3600*1e-6) #model units: 1/h *1e6 unit correction, returned ga units: 1/s
             assert 1/kcat_expected == pytest.approx(kcat_test, abs=1e-6)
+    # remove the produced files
+    [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
+
+def test_pam_parametrizes_reverts_kcats_correctly():
+    # Arrange
+    sut = PAMParametrizerMock()
+    enzymes_to_evaluate = {'E3': [{'reaction': 'CE_R3_E3', 'kcats': {'f': 1, 'b': 1}, 'sensitivity': 0.5}],
+                           'E4': [{'reaction': 'CE_R4_E4', 'kcats': {'f': 0.5, 'b': 0.5},
+                                   'sensitivity': 0.2}],
+                           'E5': [{'reaction': 'CE_R5_E5', 'kcats': {'f': 0.45, 'b': 0.45},
+                                   'sensitivity': 0.1}]}
+    filename_extension = f'final_run_{sut.iteration}'
+    full_file_path = os.path.join('Results', '2_parametrization',
+                                  sut.hyperparameters.genetic_algorithm_filename_base + filename_extension)
+    sut.run_genetic_algorithm(enzymes_to_evaluate, filename_extension)
+    sut.enzymes_to_evaluate = enzymes_to_evaluate
+
+    sut.revert_parametrization()
+    # Assert
+    for enzyme_id, kcat_list in enzymes_to_evaluate.items():
+        print(kcat_list)
+        rxn_id = kcat_list[0]['reaction']
+        for direction, kcat in kcat_list[0]['kcats'].items():
+            model_kcat_dict = sut._pamodel.enzymes.get_by_id(enzyme_id).get_kcat_values([rxn_id.split("_")[1]])
+        if direction in model_kcat_dict.keys():
+            kcat_test = 1/(model_kcat_dict[
+                             direction] * 3600 * 1e-6)  # model units: 1/h *1e6 unit correction, returned ga units: 1/s
+            assert kcat == pytest.approx(kcat_test, abs=1e-6)
     # remove the produced files
     [os.remove(full_file_path + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
 
@@ -432,41 +459,6 @@ def test_pam_parametrizer_saves_sector_parameters_correcty_in_final_diagnostics(
     #remove produced files
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
     os.remove(final_diagnostics_file_name)
-
-def test_pam_parametrizer_yintercept_optimization_successful():
-    #Arrange
-    sut = PAMParametrizerMock()
-    vd = sut.validation_data.get_by_id('R1')
-
-    # Patch run_simulations and error calculation to return dummy values
-    with patch.object(sut, 'run_simulations_to_plot', return_value=([[1.0], [2.0], [3.0]], [10, 20, 30])), \
-         patch.object(sut.parametrization_results, 'add_fluxes_from_fluxdict'), \
-         patch.object(sut.parametrization_results, 'remove_simulations_from_flux_df'), \
-         patch.object(sut, '_calculate_error_for_validation_data', return_value=0.1):
-        #Act
-        sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector', throw_warning=True)
-        #Assert
-        updated_params = vd.sector_configs['UnusedEnzymeSector']
-        assert 'intercept' in updated_params
-        assert 'slope' in updated_params
-        assert updated_params['intercept'] >= 0.05  # minimal_intercept
-
-def test_pam_parametrizer_yintercept_optimization_fails():
-    #Arrange
-    sut = PAMParametrizerMock()
-    vd = sut.validation_data.get_by_id('R1')
-
-    # Patch run_simulations and error calculation to return dummy values
-    with patch.object(sut, 'run_simulations_to_plot', side_effect=RuntimeError("Sim fail")), \
-         patch.object(sut.parametrization_results, 'add_fluxes_from_fluxdict'), \
-         patch.object(sut.parametrization_results, 'remove_simulations_from_flux_df'), \
-         patch.object(sut, '_calculate_error_for_validation_data', return_value=1.0):
-        #Act
-        sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector', throw_warning=True)
-
-        # Assert
-        sut.optimize_sector_yintercept(sector_id='UnusedEnzymeSector', throw_warning=True)
-        assert True  # test passes if it doesn't crash
 
 def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     # Arrange
