@@ -186,6 +186,7 @@ class PAMParametrizer():
                 # files_to_remove = self.perform_iteration_in_bins(start)
                 self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
+        self.optimize_sector_yintercept()
 
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
@@ -341,7 +342,6 @@ class PAMParametrizer():
                                                remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
 
         self.reparametrize_pam()
-        self.optimize_sector_yintercept()
         if self._pamodel_is_feasible:
             self._init_results_objects()
             # visualize results
