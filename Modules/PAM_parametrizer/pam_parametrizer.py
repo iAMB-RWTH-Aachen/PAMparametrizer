@@ -192,6 +192,7 @@ class PAMParametrizer():
                 self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
 
+        self.optimize_sector_yintercept()
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
 
@@ -276,9 +277,8 @@ class PAMParametrizer():
         sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
 
 
-        for vd in self.validation_data:
-            with Pool() as pool:
-                pool.starmap(self._optimize_sector_yintercept_for_validation_data,
+        with Pool() as pool:
+            pool.starmap(self._optimize_sector_yintercept_for_validation_data,
                                        [(vd, sector_id, throw_warning) for vd in self.validation_data])
 
 
@@ -337,6 +337,9 @@ class PAMParametrizer():
             return
         sector_params['intercept'] = res.x
         sector_params['slope'] = res.x / y0
+
+        print('new_sector parameters for', sector_id, vd.id)
+        print(sector_params)
         vd.sector_configs[sector_id] = sector_params
 
 
@@ -345,7 +348,6 @@ class PAMParametrizer():
                                                remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
 
         self.reparametrize_pam()
-        self.optimize_sector_yintercept()
         if self._pamodel_is_feasible:
             self._init_results_objects()
             # visualize results
