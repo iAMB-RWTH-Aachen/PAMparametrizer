@@ -278,6 +278,7 @@ class FitnessEvaluation():
         error = []
 
         for substrate_uptake_id, fluxes_df in fluxes.items():
+            old_bounds = self.model.get_reaction_bounds(substrate_uptake_id)
             for sector_id, config_dict in self.sector_configs[substrate_uptake_id].items():
                 change_sector_parameters_with_config_dict(pamodel = self.model,
                                                           sector_config = config_dict,
@@ -310,12 +311,8 @@ class FitnessEvaluation():
             error += [self._calculate_simulation_error(fluxes_df, substrate_uptake_id)]
 
             # reset substrate_uptake_rate
-            if self.substrate_uptake_rates[substrate_uptake_id][0]<0:
-                self.model.change_reaction_bounds(substrate_uptake_id,
-                                              lower_bound=0, upper_bound=1e6)
-            else:
-                self.model.change_reaction_bounds(substrate_uptake_id,
-                                              lower_bound=-1e6, upper_bound=0)
+            self.model.change_reaction_bounds(substrate_uptake_id,
+                                              lower_bound=old_bounds[0], upper_bound=old_bounds[1])
 
         #average fitness:
         fitness = float(np.nanmean(error))

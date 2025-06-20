@@ -50,7 +50,7 @@ class PAMParametrizer():
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
                  hyperparameters: Optional[HyperParameters] = None,
-                 sector_configs: Optional[Dict[str, SectorConfig]] = None,
+                 sector_configs: Optional[Union[Dict[str, SectorConfig], bool]] = None,
                  substrate_uptake_id: str = "EX_glc__D_e",
                  max_substrate_uptake_rate: Union[float, int] = 0,
                  min_substrate_uptake_rate: Union[float, int] = -11,
@@ -70,8 +70,14 @@ class PAMParametrizer():
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
         self.hyperparameters = hyperparameters if hyperparameters is not None else HyperParameters()
-        self.sector_configs = sector_configs if sector_configs is not None else {
-            'TranslationalProteinSector': self.TRANSLATIONAL_SECTOR_CONFIG}
+
+        if sector_configs is None:
+            sector_configs =  {
+        'TranslationalProteinSector': self.TRANSLATIONAL_SECTOR_CONFIG}
+        elif not sector_configs: #sector should not be changed
+            sector_configs = {}
+
+        self.sector_configs = sector_configs
         self.minimal_unused_enzymes = minimal_unused_enzymes
 
         self.substrate_uptake_ids = [csource_data.id for csource_data in validation_data]
@@ -89,8 +95,7 @@ class PAMParametrizer():
         self.error_fraction_to_deviate_between_runs = 0.1
 
         self.sensitivity = sensitivity
-        if not sensitivity:
-            self.enzymes_to_evaluate = enzymes_to_evaluate if enzymes_to_evaluate is not None else []
+        self.enzymes_to_evaluate = enzymes_to_evaluate if enzymes_to_evaluate is not None else []
 
         # attributes for keeping track of the workflow
         self.iteration = 0
@@ -186,15 +191,11 @@ class PAMParametrizer():
                 # files_to_remove = self.perform_iteration_in_bins(start)
                 self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
-        self.optimize_sector_yintercept()
 
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
 
     def calculate_sector_parameters_for_multiple_csources(self, reset:bool = False):
-        if 'TranslationalProteinSector' not in self.sector_configs:
-            self.sector_configs['TranslationalProteinSector'] = self.TRANSLATIONAL_SECTOR_CONFIG
-
         for vd in self.validation_data:
             for sector_id, sector_config in self.sector_configs.items():
                 if sector_id in vd.sector_configs and not reset: continue
@@ -319,6 +320,8 @@ class PAMParametrizer():
                 if throw_warning: warnings.warn(f"Simulation failed for intercept {intercept} on {vd.id}: {e}")
                 return float('inf')  # penalize failure
 
+        if not sector_id in vd.sector_configs: return
+
         sector_params = vd.sector_configs[sector_id].copy()
         y0 = sector_params['intercept'] / sector_params['slope']
         minimal_intercept = self.minimal_unused_enzymes * self._pamodel.total_protein_fraction
@@ -342,6 +345,7 @@ class PAMParametrizer():
                                                remove_subruns:bool, fig: plt.Figure, axs: plt.Axes):
 
         self.reparametrize_pam()
+        self.optimize_sector_yintercept()
         if self._pamodel_is_feasible:
             self._init_results_objects()
             # visualize results
@@ -464,7 +468,6 @@ class PAMParametrizer():
             substrate_uptake_reaction: id of the substrate uptake reaction
         """
 
-        print("Substrate uptake rate ", substrate_uptake_rate, " mmol/gcdw/h")
         with self._pamodel:
             # change glucose uptake rate
             if substrate_uptake_rate < 0:
@@ -1223,7 +1226,7 @@ class PAMParametrizer():
         esc_topn_df = self._select_topn_enzymes(esc_results_df,
                                                 nmbr_kcats_to_pick)
         enzymes_to_evaluate = self._parse_enzymes_to_evaluate(esc_topn_df)
-
+        self.enzymes_to_evaluate = enzymes_to_evaluate
         return enzymes_to_evaluate
 
     def _get_mutated_kcat_values_from_genetic_algorithm(self, results_filename:str = None):
@@ -1343,7 +1346,7 @@ class PAMParametrizer():
 
         for substrate_id in self.substrate_uptake_ids:
             if substrate_id == self.substrate_uptake_id: substrate_range = None
-            else: substrate_range = self.validation_data.get_by_id(substrate_id).valid_data[substrate_id]
+            else: substrate_range = self.validation_data.get_by_id(substrate_id).valid_data[f'{substrate_id}_ub']
 
 
             fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
@@ -1398,6 +1401,8 @@ class PAMParametrizer():
         else:
             pamodel = self.pamodel_no_sensitivity
 
+        previous_bounds = pamodel.get_reaction_bounds(substrate_uptake_id)
+
         #change the sector parameters for correct relation between substrate uptake rate, ribosome content and unused proteins
         self._change_sector_parameters_for_substrate(substrate_uptake_id,
                                                      pamodel)
@@ -1423,11 +1428,7 @@ class PAMParametrizer():
                                                                          bin_id= "no bins")
 
             # reset substrate_uptake_rate
-            if substrate<0:
-                pamodel.change_reaction_bounds(substrate_uptake_id,
-                                              lower_bound=0, upper_bound=1e6)
-            else:
-                pamodel.change_reaction_bounds(substrate_uptake_id,
-                                              lower_bound=-1e6, upper_bound=0)
+            pamodel.change_reaction_bounds(substrate_uptake_id,
+                                              lower_bound=previous_bounds[0], upper_bound=previous_bounds[1])
 
         return fluxes, substrate_range
