@@ -39,7 +39,7 @@ def scan_kcat_factors(max_factor:int,
                       stepsize:Union[float, int] = 1,
                       setup_pam_function: Callable = set_up_pam,
                       pam_info_file: str = os.path.join(
-                          'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx'
+                          'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx'
                       ),
                       setup_pamparametrizer_function: Callable = set_up_pamparametrizer,
                       pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose']},
@@ -117,7 +117,7 @@ def scan_kcat_factors_cglutanicum():
 #                       substrate_uptake_rates= np.arange(-20,1,1))
 
 if __name__ == '__main__':
-    # scan_kcat_factors_iML1515()
-    scan_kcat_factors_pputida()
+    scan_kcat_factors_iML1515()
+    # scan_kcat_factors_pputida()
     # scan_kcat_factors_cglutanicum()
     # scan_kcat_factors_yeast9()
