@@ -277,14 +277,20 @@ class PAMParametrizer():
             keeping the x-intercept fixed. Updates sector parameters in validation_data.
             """
         with Pool() as pool:
-            pool.starmap(self._optimize_sector_yintercept_for_validation_data,
+            new_configs = pool.starmap(self._optimize_sector_yintercept_for_validation_data,
                                        [(vd, sector_id, throw_warning) for vd in self.validation_data])
+        # Apply results back to original validation data because multiuprocessing works on copies of the original objects
+        for vd_id, updated_params in new_configs:
+            if updated_params is not None:
+                for vd in self.validation_data:
+                    if vd.id == vd_id:
+                        vd.sector_configs[sector_id] = updated_params
 
 
     def _optimize_sector_yintercept_for_validation_data(self,
                                                         vd: ValidationData,
                                                         sector_id: str,
-                                                        throw_warning: bool):
+                                                        throw_warning: bool) -> Tuple[str, SectorConfig]:
         cache = {}
         def calculate_simulation_error(intercept):
             # avoid running multiple simulations with the same intercept
@@ -341,6 +347,7 @@ class PAMParametrizer():
         print('new_sector parameters for', sector_id, vd.id)
         print(sector_params)
         vd.sector_configs[sector_id] = sector_params
+        return (vd.id, sector_params)
 
 
 
