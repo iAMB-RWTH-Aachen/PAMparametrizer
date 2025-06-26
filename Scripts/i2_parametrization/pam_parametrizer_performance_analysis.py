@@ -92,6 +92,7 @@ def run_parametrization_workflow(iteration, iterations,
                                               filename_extension= str(iteration),
                                               num_kcats_to_mutate = num_kcats_to_mutate,
                                               c_sources = ['Glucose'],
+                                              threshold_iteration = 15,
                                               kcat_increase_factor=3#, 'Glycerol', 'Acetate']
                                               #['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
                                               )
