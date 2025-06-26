@@ -66,7 +66,12 @@ class FitnessEvaluation(FitnessEvaluation):
         """
 
         if kcat_list == []:
-            kcats = np.random.lognormal(mean = np.log10(self.KCAT_MU), sigma = np.log10(self.KCAT_SIGMA), size = self.NUM_KCATS)
+            kcats = [kcat
+                     if kcat<DIFUSSIONLIMIT  else DIFUSSIONLIMIT
+                     for kcat in np.random.lognormal(mean = np.log10(self.KCAT_MU),
+                                                     sigma = np.log10(self.KCAT_SIGMA),
+                                                     size = self.NUM_KCATS)
+                     ]
             # individual.kcat_list = list(kcats)
             return kcats
 
@@ -98,7 +103,6 @@ class FitnessEvaluation(FitnessEvaluation):
 
         :return: float new_kcat: mutated kcat value (sampled from normal distribution)
         """
-        stdev = kcat/self.sigma_denominator
         if toolbox is not None:
             # mutate an individual with a mutation rate based on the sensitivity of the individual enzymes
             # the new value is samples from a gaussian distribution with mu being the original kcat value and
@@ -121,7 +125,10 @@ class FitnessEvaluation(FitnessEvaluation):
         :return: new_kcats: list with mutated kcat values
         """
         if random.random() < indpb:
-            new_kcats = [np.random.uniform(0, kcat*2)if kcat * 2 < DIFUSSIONLIMIT else DIFUSSIONLIMIT for kcat in kcat_list ]
+            new_kcats = []
+            for kcat in kcat_list:
+                max_kcat = kcat*2 if kcat * 2 < DIFUSSIONLIMIT else DIFUSSIONLIMIT
+                new_kcats.append(np.random.uniform(0, max_kcat))
         else:
             new_kcats = kcat_list
         return new_kcats

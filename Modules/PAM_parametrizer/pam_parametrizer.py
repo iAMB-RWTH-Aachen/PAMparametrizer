@@ -65,8 +65,8 @@ class PAMParametrizer():
         self.pamodel_no_sensitivity = pamodel.copy(copy_with_pickle = True)
         self.pamodel_no_sensitivity.sensitivity = False
 
-        #change total protein constraint to equality constraint for better fittinh
-        self._set_total_protein_constraint_to_equality()
+        #change total protein constraint to equality constraint for better fitting
+        # self._set_total_protein_constraint_to_equality()
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
         self.hyperparameters = hyperparameters if hyperparameters is not None else HyperParameters()
@@ -274,9 +274,6 @@ class PAMParametrizer():
             Optimize the y-intercept of a linear relation in a specified protein sector,
             keeping the x-intercept fixed. Updates sector parameters in validation_data.
             """
-        sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
-
-
         with Pool() as pool:
             pool.starmap(self._optimize_sector_yintercept_for_validation_data,
                                        [(vd, sector_id, throw_warning) for vd in self.validation_data])

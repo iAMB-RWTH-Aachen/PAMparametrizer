@@ -12,11 +12,12 @@ from Modules.PAM_parametrizer import SectorConfig
 
 def save_sector_information_to_excel(
         param_vs_lin_rxn: SectorParameterDict,
-        param_vs_growth: SectorParameterDict,
-        biomass_rxn:str,
         lin_rxn_id:str,
         sector_id:Literal['Translational', 'UnusedEnzyme'],
+        biomass_rxn:str=None,
+        param_vs_growth: SectorParameterDict = None,
         pam_data_file:str = None,
+        output_file_path: str = None,
         substrate_range: Iterable[Union[float, int]] = np.arange(-4,0,1),
         model_name:str='iML1515'
 )-> None:
@@ -51,13 +52,18 @@ def save_sector_information_to_excel(
     """
     pam_parameter_information, output_file_path = _get_pam_parameter_information_from_excel(pam_data_file,
                                                                                             model_name,
-                                                                                            sector_id)
+                                                                                            sector_id,
+                                                                                            output_file_path=output_file_path)
 
 
     slope_id, intercept_id = ('tps_mu', 'tps_0') if sector_id == 'Translational' else ('ups_mu', 'ups_0')
 
-
-    sector_vs_growthrate = pd.Series({
+    if param_vs_growth is None:
+        sector_vs_growthrate = pam_parameter_information[sector_id].set_index('Parameter').Value_for_growth
+    else:
+        if biomass_rxn is None:
+            raise KeyError('Please provide the biomass reaction id')
+        sector_vs_growthrate = pd.Series({
         'id_list':biomass_rxn,
         slope_id:param_vs_growth['slope'],
         intercept_id:param_vs_growth['intercept'],
@@ -69,7 +75,7 @@ def save_sector_information_to_excel(
         'id_list':lin_rxn_id,
         slope_id:param_vs_lin_rxn['slope'],
         intercept_id:param_vs_lin_rxn['intercept'],
-        'mol_mass':pam_parameter_information['Translational'].set_index('Parameter').loc['mol_mass', 'Value'],
+        'mol_mass':pam_parameter_information[sector_id].set_index('Parameter').loc['mol_mass', 'Value'],
                 })
 
     substrate_range_row = {
@@ -78,7 +84,7 @@ def save_sector_information_to_excel(
         'Unit':'mmol/gDW/h',
         'Description': 'Range of values of susbstrate uptake which are associated with linear growth regime (no fermentation)'
     }
-
+    print(output_file_path)
     with pd.ExcelWriter(output_file_path) as writer:
         for sheet, df in pam_parameter_information.items():
             if sheet == sector_id:
@@ -89,12 +95,14 @@ def save_sector_information_to_excel(
                 df['Value'] = sector_vs_substrate
                 #change order for better readability
                 df = df.reset_index().drop_duplicates(subset = 'Parameter')[['Parameter','Value','Value_for_growth','Unit','Description']]
+                print(df)
             df.to_excel(writer, sheet_name=sheet, index = False)
 
 
 def _get_pam_parameter_information_from_excel(pam_data_file: str,
                                               model_name: str,
-                                              sector_id:str
+                                              sector_id:str,
+                                              output_file_path: str = None
                                               )-> Tuple[dict[str, pd.DataFrame], str]:
     """Loads PAM parameter information from an Excel file.
 
@@ -115,7 +123,8 @@ def _get_pam_parameter_information_from_excel(pam_data_file: str,
                - Path to the Excel file used.
        """
     current_date = datetime.datetime.now().strftime('%y%m%d')
-    output_file_path = os.path.join('Results', '1_preprocessing',
+    if output_file_path is None:
+        output_file_path= os.path.join('Results', '1_preprocessing',
                                     f'proteinAllocationModel_{model_name}_EnzymaticData_{current_date}.xlsx')
 
 
