@@ -293,6 +293,7 @@ class PAMParametrizer():
                 return cache[rounded]
             try:
                 slope = -intercept / y0  # enforce x-intercept constraint
+                sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
                 self.pamodel_no_sensitivity.change_sector_parameters(sector,
                                                                      slope=slope,
                                                                      intercept=intercept,

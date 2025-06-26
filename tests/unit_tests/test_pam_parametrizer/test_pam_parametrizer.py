@@ -460,6 +460,25 @@ def test_pam_parametrizer_saves_sector_parameters_correcty_in_final_diagnostics(
     [os.remove(results_filename[:-5] + file_type) for file_type in ['.json', '.xlsx', '.pickle']]
     os.remove(final_diagnostics_file_name)
 
+
+def test_if_updated_sector_params_are_saved_in_final_diagnostic_file():
+    sut = PAMParametrizerMock()
+    sut.result_diagnostics_file = sut.result_diagnostics_file.split('.')[0] + f'test.xlsx'
+    updated_sector_config = {'slope': 1, 'intercept': 1}
+
+    # Act
+    sut.validation_data.get_by_id('R1').sector_configs['UnusedEnzymeSector'] = updated_sector_config
+    sut.save_final_diagnostics()
+
+    #Assert
+    sector_df = pd.read_excel(sut.result_diagnostics_file, 'sector_parameters')
+    assert os.path.exists(sut.result_diagnostics_file)
+    assert len(sector_df)==2 # Translational Protein and Unused Enzymes sector
+    assert sector_df[sector_df.sector_id == 'UnusedEnzymeSector']['slope'].iloc[0] == updated_sector_config['slope']
+    assert sector_df[sector_df.sector_id == 'UnusedEnzymeSector']['intercept'].iloc[0] == updated_sector_config['intercept']
+
+    [os.remove(file) for file in [sut.result_diagnostics_file]]
+
 def test_pam_parameterizer_gets_correct_error_for_multiple_carbon_sources():
     # Arrange
     sut = PAMParametrizerMock()
