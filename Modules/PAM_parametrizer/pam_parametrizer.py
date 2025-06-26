@@ -279,8 +279,13 @@ class PAMParametrizer():
         with Pool() as pool:
             new_configs = pool.starmap(self._optimize_sector_yintercept_for_validation_data,
                                        [(vd, sector_id, throw_warning) for vd in self.validation_data])
+
+        filtered_configs = [c for c in new_configs if c is not None]
+        #in case the sector is not defined in any validation data
+        if len(filtered_configs)==0: return
+
         # Apply results back to original validation data because multiuprocessing works on copies of the original objects
-        for vd_id, updated_params in new_configs:
+        for vd_id, updated_params in filtered_configs:
             if updated_params is not None:
                 for vd in self.validation_data:
                     if vd.id == vd_id:
