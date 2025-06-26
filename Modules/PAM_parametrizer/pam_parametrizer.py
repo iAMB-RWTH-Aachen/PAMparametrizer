@@ -193,6 +193,8 @@ class PAMParametrizer():
 
 
         self.optimize_sector_yintercept()
+        fig = self.plot_simulation(fig=fig, axs=axs, color="#fe5700", sensitivity = False)
+
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
 
