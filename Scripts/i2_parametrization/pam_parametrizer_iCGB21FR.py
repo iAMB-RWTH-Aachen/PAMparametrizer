@@ -90,7 +90,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                            min_substrate_uptake_rate:float =-10,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250429.xlsx'),
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iCGB21FR',
@@ -135,7 +135,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file:str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250429.xlsx')
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx')
                          ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
@@ -150,7 +150,7 @@ def run_parametrizations(n_iterations:int=5,
 
 if __name__ == "__main__":
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250429.xlsx')
+                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
 
