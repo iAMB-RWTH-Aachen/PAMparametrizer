@@ -26,7 +26,7 @@ config.reset()
 def set_up_validation_data(csources: List[str] = None,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx')
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx')
                            ) -> list[ValidationData]:
 
     condition2uptake = {'Glycerol': 'EX_glyc_e', 'Glucose': 'EX_glc__D_e',
@@ -151,9 +151,9 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
     pputida_pam = setup_pputida_pam(pam_info_file)
     #close off all exchanges not necessary for medium, as pputida doesn't exchange anything
-    for exchange in pputida_pam.exchanges:
-        if exchange.id not in pputida_pam.medium:
-            pputida_pam.change_reaction_bounds(exchange.id, 0,0)
+    # for exchange in pputida_pam.exchanges:
+    #     if exchange.id not in pputida_pam.medium:
+    #         pputida_pam.change_reaction_bounds(exchange.id, 0,0)
 
     pputida_pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
@@ -167,7 +167,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                             threshold_iteration)
 
     sector_configs = set_up_sector_config(pam_info_file = pam_info_file_path_out,
-                                         sectors_not_related_to_growth = ['UnusedEnzymeSector'])
+                                         sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
     return PAMParametrizer(pamodel=pputida_pam,
                            validation_data=validation_data,
                            hyperparameters=hyperparameters,
@@ -180,7 +180,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250429.xlsx')
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx')
                          ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                 'proteinAllocationModel_iJN1463_EnzymaticData_250429.xlsx')
+                                 'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
     # set_up_validation_data(pam_info_file=pam_info_file)
