@@ -3,6 +3,7 @@ import os
 import numpy as np
 
 from PAModelpy import CatalyticEvent
+from Modules.utils.pamparametrizer_setup import save_sector_information_to_excel
 
 
 RESULT_PARAMETRIZATION_FILE = os.path.join('Results', '2_parametrization', 'pam_parametrizer_diagnostics_iML1515_randomized.xlsx')
@@ -18,7 +19,7 @@ def search_index_in_parameter_file(df:pd.DataFrame, protein:str, reaction:str, d
 
 def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
                                   result_file_path:str = RESULT_PARAMETRIZATION_FILE,
-                                  new_aes_suffix: str = NEW_AES_SUFFIX):
+                                  new_aes_suffix: str = NEW_AES_SUFFIX) -> str:
 
     parameter_files = pd.read_excel(old_param_file, sheet_name=None)
     aes_parameter_file =parameter_files['ActiveEnzymes']
@@ -50,6 +51,26 @@ def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
             if sheet != 'ActiveEnzymes':
                 df.to_excel(writer, sheet_name = sheet, index=False)
 
+    return result_file
+
+def change_unused_enzymes_sector_in_excel(result_file_path: str,
+                                          output_file_path: str,
+                                          carbon_source: str) -> None:
+    parametrization_results = pd.read_excel(
+        result_file_path, sheet_name='sector_parameters')
+    sector_params = parametrization_results.loc[
+        ((parametrization_results.substrate_uptake_id == carbon_source) &
+         (parametrization_results.sector_id == 'UnusedEnzymeSector'))
+    ].rename({'substrate_uptake_id': 'lin_rxn_id'},
+             axis=1)[['slope', 'intercept']].to_dict('records')[0]
+
+    save_sector_information_to_excel(param_vs_lin_rxn = sector_params,
+                                     lin_rxn_id=carbon_source,
+                                     sector_id='UnusedEnzyme',
+                                     pam_data_file = output_file_path,
+                                     output_file_path = output_file_path
+                                     )
+
 def gaussian(x, mean, amplitude, standard_deviation):
     return amplitude * np.exp( - (x - mean)**2 / (2*standard_deviation ** 2))
 
@@ -57,11 +78,20 @@ if __name__ == '__main__':
     # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
     #
-    for file_nmbr in range(1,11):
-        suffix = f'iML1515_{file_nmbr}'
-        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx')
-        create_new_aes_parameter_file(result_file_path= result_file,
-                                      new_aes_suffix= suffix)
+    for file_nmbr in range(1,6):
+        suffix = f'iABA974_{file_nmbr}'
+        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_iABA974_{file_nmbr}.xlsx')
+        output_file_path = create_new_aes_parameter_file(
+            old_param_file=os.path.join(
+                'Results', '2_parametrization', 'proteinAllocationModel_iABA974_EnzymaticData_multi.xlsx'
+            ),
+            result_file_path= result_file,
+            new_aes_suffix= suffix)
+
+
+        change_unused_enzymes_sector_in_excel(result_file_path=result_file,
+                                              output_file_path = output_file_path,
+                                              carbon_source='EX_co2_e')
     # result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
     #                            f'pam_parametrizer_diagnostics_mciML1515.xlsx')
     # create_new_aes_parameter_file(result_file_path= result_file,
