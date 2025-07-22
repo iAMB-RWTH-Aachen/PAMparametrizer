@@ -193,8 +193,6 @@ class PAMParametrizer():
 
 
         self.optimize_sector_yintercept()
-        fig = self.plot_simulation(fig=fig, axs=axs, color="#fe5700", sensitivity = False)
-
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
 
@@ -277,25 +275,14 @@ class PAMParametrizer():
             keeping the x-intercept fixed. Updates sector parameters in validation_data.
             """
         with Pool() as pool:
-            new_configs = pool.starmap(self._optimize_sector_yintercept_for_validation_data,
+            pool.starmap(self._optimize_sector_yintercept_for_validation_data,
                                        [(vd, sector_id, throw_warning) for vd in self.validation_data])
-
-        filtered_configs = [c for c in new_configs if c is not None]
-        #in case the sector is not defined in any validation data
-        if len(filtered_configs)==0: return
-
-        # Apply results back to original validation data because multiuprocessing works on copies of the original objects
-        for vd_id, updated_params in filtered_configs:
-            if updated_params is not None:
-                for vd in self.validation_data:
-                    if vd.id == vd_id:
-                        vd.sector_configs[sector_id] = updated_params
 
 
     def _optimize_sector_yintercept_for_validation_data(self,
                                                         vd: ValidationData,
                                                         sector_id: str,
-                                                        throw_warning: bool) -> Tuple[str, SectorConfig]:
+                                                        throw_warning: bool):
         cache = {}
         def calculate_simulation_error(intercept):
             # avoid running multiple simulations with the same intercept
@@ -304,7 +291,6 @@ class PAMParametrizer():
                 return cache[rounded]
             try:
                 slope = -intercept / y0  # enforce x-intercept constraint
-                sector = self.pamodel_no_sensitivity.sectors.get_by_id(sector_id)
                 self.pamodel_no_sensitivity.change_sector_parameters(sector,
                                                                      slope=slope,
                                                                      intercept=intercept,
@@ -352,7 +338,6 @@ class PAMParametrizer():
         print('new_sector parameters for', sector_id, vd.id)
         print(sector_params)
         vd.sector_configs[sector_id] = sector_params
-        return (vd.id, sector_params)
 
 
 
@@ -1305,7 +1290,7 @@ class PAMParametrizer():
     #################################################################################################################
 
     def plot_valid_data(self):
-        # plot flux changes with glucose uptake
+        # plot flux changes with substrate uptake
         reactions_to_plot = self.validation_data.get_by_id(self.substrate_uptake_id)._reactions_to_plot
 
         num_reactions = len(reactions_to_plot) + 1
@@ -1357,7 +1342,6 @@ class PAMParametrizer():
 
         fluxes_dict = {}
         substrate_range_dict = {}
-
         for substrate_id in self.substrate_uptake_ids:
             if substrate_id == self.substrate_uptake_id: substrate_range = None
             else: substrate_range = self.validation_data.get_by_id(substrate_id).valid_data[f'{substrate_id}_ub']
@@ -1372,9 +1356,10 @@ class PAMParametrizer():
                 substrate_range_dict[substrate_id] = substrate_range
 
 
+
         alpha = 1
         #only plot detailed info for the 'main' substrate
-        if len(substrate_range_dict)!=0: #only plot if the model is feasible
+        if self.substrate_uptake_id in substrate_range_dict: #only plot if the model is feasible
             for r, ax in zip(self.validation_data.get_by_id(self.substrate_uptake_id)._reactions_to_plot, axs.flatten()[:-1]):
                 # plot data
                 line = ax.plot(substrate_range_dict[self.substrate_uptake_id].values(),

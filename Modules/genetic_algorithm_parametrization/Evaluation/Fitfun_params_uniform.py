@@ -67,7 +67,7 @@ class FitnessEvaluation(FitnessEvaluation):
 
         if kcat_list == []:
             kcats = [kcat
-                     if kcat<DIFUSSIONLIMIT  else DIFUSSIONLIMIT
+                     if kcat<DIFUSSIONLIMIT else DIFUSSIONLIMIT
                      for kcat in np.random.lognormal(mean = np.log10(self.KCAT_MU),
                                                      sigma = np.log10(self.KCAT_SIGMA),
                                                      size = self.NUM_KCATS)
