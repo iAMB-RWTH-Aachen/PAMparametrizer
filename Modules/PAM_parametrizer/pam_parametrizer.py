@@ -191,7 +191,6 @@ class PAMParametrizer():
                 # files_to_remove = self.perform_iteration_in_bins(start)
                 self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
-
         self.optimize_sector_yintercept()
         self.save_final_diagnostics(figure = fig)
         plt.close(fig)
@@ -230,9 +229,8 @@ class PAMParametrizer():
 
         #reset the validation dataframe for the entire range of substrate uptake rates
         self._init_validation_df()
+
         # 3. Restart genetic algorithm using populations from bins
-
-
         files_to_remove = self.restart_genetic_algorithm()
 
         return files_to_remove
