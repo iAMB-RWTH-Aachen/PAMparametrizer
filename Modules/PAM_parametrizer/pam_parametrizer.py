@@ -191,7 +191,6 @@ class PAMParametrizer():
                 # files_to_remove = self.perform_iteration_in_bins(start)
                 self.evaluate_and_save_results_of_iteration(start, files_to_remove, remove_subruns, fig, axs)
 
-
         self.optimize_sector_yintercept()
         fig = self.plot_simulation(fig=fig, axs=axs, color="#fe5700", sensitivity = False)
 
