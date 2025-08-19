@@ -23,7 +23,7 @@ from Modules.utils.sector_config_functions import change_sector_parameters_with_
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
 DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
-DIFUSSIONLIMIT = 1e6
+DIFUSSIONLIMIT = 1e6 * 3600 # 1e6 [1/s] *3600 [s/h]
 
 # seed random number generator
 random.seed()
@@ -161,7 +161,7 @@ class FitnessEvaluation():
         if kcat_list == []:
             kcats = np.random.lognormal(mean = np.log10(self.KCAT_MU), sigma = np.log10(self.KCAT_SIGMA), size = self.NUM_KCATS)
             # individual.kcat_list = list(kcats)
-            kcats = [kcat if kcat < DIFUSSIONLIMIT else DIFUSSIONLIMIT for kcat in kcats]
+            kcats = [kcat if 1/kcat > DIFUSSIONLIMIT else 1/DIFUSSIONLIMIT for kcat in kcats]
             return kcats
 
         for i, kcat in enumerate(kcat_list):
@@ -392,7 +392,7 @@ class FitnessEvaluation():
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
             new_kcat = float(np.random.normal(loc=kcat, scale=stdev))
-            return new_kcat if new_kcat < DIFUSSIONLIMIT else DIFUSSIONLIMIT
+            return new_kcat if 1/new_kcat < DIFUSSIONLIMIT else 1/DIFUSSIONLIMIT
 
 
     def _change_kcat_values_for_individual(self, individual, kcat_values: list = []):

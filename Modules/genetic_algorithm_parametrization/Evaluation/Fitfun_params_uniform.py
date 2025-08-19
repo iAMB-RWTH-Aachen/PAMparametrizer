@@ -14,12 +14,11 @@ from pathlib import Path
 import os
 from os.path import dirname, abspath
 
-from .Fitfun_params_gaussian import FitnessEvaluation
+from .Fitfun_params_gaussian import FitnessEvaluation, DIFUSSIONLIMIT
 
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
 DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
-DIFUSSIONLIMIT = 1e6
 
 # seed random number generator
 random.seed()
@@ -67,7 +66,7 @@ class FitnessEvaluation(FitnessEvaluation):
 
         if kcat_list == []:
             kcats = [kcat
-                     if kcat<DIFUSSIONLIMIT else DIFUSSIONLIMIT
+                     if 1/kcat<DIFUSSIONLIMIT else 1/DIFUSSIONLIMIT
                      for kcat in np.random.lognormal(mean = np.log10(self.KCAT_MU),
                                                      sigma = np.log10(self.KCAT_SIGMA),
                                                      size = self.NUM_KCATS)
@@ -112,7 +111,7 @@ class FitnessEvaluation(FitnessEvaluation):
             # scale needs to be positive, so prevent negative values
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
-            max_kcat = kcat*2 if kcat*2<DIFUSSIONLIMIT else DIFUSSIONLIMIT
+            max_kcat = kcat*2 if 1/(kcat*2)<DIFUSSIONLIMIT else 1/DIFUSSIONLIMIT
             return float(np.random.uniform(0,max_kcat))
 
     def _mut_kcat_uniform(self, kcat_list:list, indpb:float):
@@ -127,7 +126,7 @@ class FitnessEvaluation(FitnessEvaluation):
         if random.random() < indpb:
             new_kcats = []
             for kcat in kcat_list:
-                max_kcat = kcat*2 if kcat * 2 < DIFUSSIONLIMIT else DIFUSSIONLIMIT
+                max_kcat = kcat*2 if 1/(kcat * 2) < DIFUSSIONLIMIT else 1/DIFUSSIONLIMIT
                 new_kcats.append(np.random.uniform(0, max_kcat))
         else:
             new_kcats = kcat_list
