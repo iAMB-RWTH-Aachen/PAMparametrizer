@@ -183,8 +183,8 @@ class PAMParametrizer():
             self.evaluate_and_save_results_of_iteration(start_time_iteration, files_to_remove, remove_subruns, fig, axs)
 
             if self._error_is_converging() and (self.iteration+1 <= self.hyperparameters.threshold_iteration):
-                self.hyperparameters.number_of_kcats_to_mutate = len(self._pamodel.enzymes)
-                print("Pick random enzymes to mutate because error is converging")
+                self.hyperparameters.number_of_kcats_to_mutate *= 2
+                print(f"Pick more enzymes ({self.hyperparameters.number_of_kcats_to_mutate} instead of {self.hyperparameters.number_of_kcats_to_mutate/2}) to mutate because error is converging")
                 self.iteration +=1
                 files_to_remove = self.perform_iteration_without_bins()
 
