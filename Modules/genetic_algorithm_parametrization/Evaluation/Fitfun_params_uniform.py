@@ -10,15 +10,8 @@ import random
 import deap.base
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import os
-from os.path import dirname, abspath
 
 from .Fitfun_params_gaussian import FitnessEvaluation, DIFUSSIONLIMIT
-
-# set standard paths
-FILE_PATH = Path(abspath(dirname(__file__)))
-DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
 
 # seed random number generator
 random.seed()
