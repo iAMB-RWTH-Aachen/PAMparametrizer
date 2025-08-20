@@ -23,7 +23,7 @@ from Modules.utils.sector_config_functions import change_sector_parameters_with_
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
 DATA_PATH = FILE_PATH.parents[0].joinpath("Data")
-DIFUSSIONLIMIT = 1e6 * 3600 # 1e6 [1/s] *3600 [s/h]
+DIFUSSIONLIMIT = 1e6 * 3600 * 1e-6 # 1e6 [1/s] *3600 [s/h] *1e-6 to correct for scaling in the PAM (prevent issues with solver tolerance)
 
 # seed random number generator
 random.seed()
