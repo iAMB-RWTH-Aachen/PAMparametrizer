@@ -4,7 +4,8 @@ from an initial parametrization. Based on model simulations and the effect of in
 simulated growth rate, enzymes are selected. The parameters of these enzymes will be optimized by a genetic
 algorithm, which aims to maximize the fit of the simulations to experimentally observed phenotypes by means
 of an R<sup>2</sup> value. The whole workflow is repeated until a user-defined maximum number of iterations or error 
-threshold is reached.
+threshold is reached. As a final step, the amount of unused enzyme sector at zero growth is optimized to determine the 
+quantitative protein burden.
 
 ## Software Structure
 The PAM parametrizer is organized as follows:
@@ -43,6 +44,7 @@ The `PAMparametrizer` is run with the `run` function. The workflow is organized 
 >>5. Parse the results of the genetic algorithm, save intermediate results to excel file
 >>6. Reparametrize the model with optimized parameters
 >>7. Plot the progress
+>Optimize the unused enzyme sector at zero growth
 >Save the resulting png file and parameters to excel
 
 

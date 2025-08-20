@@ -30,10 +30,33 @@ from Modules.utils.pamparametrizer_setup import set_up_sector_config
 
 ```
 
-### Step 0: Initiate the parameter set using GotEnzymes
+### Step 0: Initiate the sectors
+The protein sectors are important determinants of the simulated metabolic phenotype in a PAM. t is therefore important 
+to get a good starting point before starting parametrization.The coarse-grained sectors determine the quantitative effect 
+of the protein burden, e.g.,the protein fraction available for metabolic enzymes, while the active enzyme sector determines
+the qualitative effect of individual enzymes, e.g., which protein has more or less influence on the protein burden. 
+
+#### Step 0.1 Initialize the active enzyme parameter set using GotEnzymes
 We first need to get our initial parameter set. For this, we use the reactions and proteins which are available in the model,
 uniprot and GotEnzymes. In order to parse everything properly, we need to juggle the identifiers of the proteins and reactions.
 Please refer to `Scripts/i1_preprocessing/0_parse_kcat_values_GotEnzymes.ipynb` for an example notebook on how to do this.
+
+#### Step 0.1 The Translational Protein Sector
+This sector is based on quantitative information about the protein fraction allocated to the translational machinery at different growth rates.
+Parametrization requires quantitative proteomics data, which is often not available. For model organisms, however, this relationship is often known
+and studied. The relationship between translational protein and growth rate/substrate uptake from a closely related organism can be used for parametrization,
+and will be adjusted to match the growth-to-substrate uptake rate relation in the organism under study. Please refer to 
+`Scripts/i1_preprocessing/0_translational_sector_config.ipynb` for the notebook to derive the Translational Protein Sector parameters for *E. coli*. 
+
+#### Step 0.2 The Unused Enzyme Sector
+The initial relation between the substrate uptake rate and unused enzyme sector is derived with the following assumptions:
+
+- At zero growth, 37% of all proteins are unused [(Bruggeman, et al., 2023)](https://onlinelibrary.wiley.com/doi/abs/10.1002/bies.202300015)
+- After adaptive laboratory evolution to optimize growth, all enzymes are used to their full capacity [(Utrilla, et al., 2016)](https://linkinghub.elsevier.com/retrieve/pii/S2405471216301119)
+
+To derive unused enzymes sector parameters for *E. coli* using these assumptions, please refer to `Scripts/i1_preprocessing/0_unused_enzyme_determination.ipynb`.
+Please note that the amount of unused enzymes at zero growth does NOT include UNDERused enzymes. The amount of un- AND underused 
+enzymes is fitted after optimizing the k<sub>cat</sub> value distribution in the PAMParametrizer.
 
 ### Step 1: Organize the data
 The parametrizer needs data to validate the model with. This data is stored in Excel files and should be parsed in a format
@@ -43,7 +66,7 @@ file there are measurements of different exchange rates from different experimen
 If you want to use this example for your microbe, or adapt any off the set-up scripts available in the `Scripts/i2_parametrization`
 folder, we advise you to parse your exchange rates in the following format:
 
-| \<Biomass reaction id\> | \<substrate uptake id\>           | \<other exchane reaction id\>     |
+| \<Biomass reaction id\> | \<substrate uptake id\>           | \<other exchange reaction id\>    |
 |-------------------------|-----------------------------------|-----------------------------------|
 | ....                    | Check the direction in the model! | Check the direction in the model! |
 
@@ -85,7 +108,7 @@ to different substrates. Did you use the setup methods in the preprocessing tool
 
 ```python
 sector_configs = set_up_sector_config(
-    pam_info_file = os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx'),
+    pam_info_file = os.path.join('Results','1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx'),
     sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector']
 )
 ```
@@ -188,7 +211,7 @@ pam_parametrizer = PAMParametrizer(pamodel=pam,
 
 ### Step 5: Run!
 We finally reached the point where we can run the framework. Depending on your hyperparameters, the performance of your
-system, and the size of your model, this can take between 15 and 30 hours. So take this into account when doing this tutorial!
+system, and the size of your model, this can take between 5 and 30 hours. So take this into account when doing this tutorial!
 
 Optionally, you can run the framework on a cluster. In the `Scripts/Shell` directory, there are some example shell scripts
 which can be used to run the framework on a cluster with Slurm.
@@ -207,7 +230,7 @@ This is an example of a progress plot with only glucose as a carbon source:
 ![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_1.png)
 
 ### Step 6: Analyze the Results
-When the the parametrization is finished, you can find 2 files in the `Results` directory:
+When the parametrization is finished, you can find 2 files in the `Results` directory:
 
 - `pam_parametrizer_diagnostics_glc.xlsx`
 - `pam_parametrizer_progress_glc.png`
@@ -236,8 +259,8 @@ a single carbon source, but many if you add them all up. Therefore, we will walk
 multiple carbon sources. In this case we also use intracellular fluxes measured by Metabolic Flux Analysis (MFA).
 This is not recommended, as the accuracy of these measurements is low and this strongly affects the parametrization.
 
-### Step 0: Initiate the parameter set
-As described in the previous example, you can use `Scripts/i1_preprocessing/0_parse_kcat_values_GotEnzymes.ipynb` script to obtain the initial
+### Step 0: Initiate the sectors
+As described in the [previous example](#step-0-initiate-the-sectors), you can use the scripts in `Scripts/i1_preprocessing` script to obtain the initial
 set of parameters. 
 
 ### Step 1: Organize the data
@@ -257,6 +280,7 @@ See the [previous example](#step-2-build-the-protein-allocation-model) on how to
 ### Step 3: Create the data objects required for the PAMparametrizer
 #### i. Parse the sector configuration
 See the [previous example](#i-parse-the-sector-configuration) on how to build obtain the sector configuration.
+
 #### i. Get the ValidationData
 In the previous example you have seen how to build the ValidationData object for a single carbon source. For multiple
 carbon sources, we simply create more ValidationData objects. As we are working with MFA data in this example, the parsing
@@ -406,7 +430,7 @@ Ideally, you would expect the points to ly on the diagonal.
 
 This is an example of a progress plot with multiple carbon sources:
 
-![example_progress_plot](../Results/pam_parametrizer_progress_ecolicore_false_multiple_csources2.png)
+![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_iJN1463_5.png)
 
 ### Step 6: Analyze the Results
 When the the parametrization is finished, you can find 2 files in the `Results` directory:

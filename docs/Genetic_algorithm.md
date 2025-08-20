@@ -52,7 +52,10 @@ The `main` function in the `Genetic_Algorithm` object follows the following step
 The path to a `FitnessEvaluation` object is one of the inputs for running the genetic algorithm. This allows the user to 
 put in a personalized fitness function, kcat mutation method and to change the attributes which are saved. This 
 repository already contains two: one FitnessEvaluation which mutates the kcat values using gaussian sampling given a 
-specific standard deviation and one which uses uniform sampling, sampling from 0 to 2*kcat.
+specific standard deviation and one which uses uniform sampling, sampling from 0 to 2*kcat, whith the diffusion limit (1e6) providing an
+upper bound for the maximal k<sub>cat</sub> value. Please note that the genetic algorithm modifies the k<sub>cat<\sub>
+by changing the corresponding coefficient in the constraint relating the enzyme concentration to the reaction flux, without using
+the utilities from PAModelpy. The kcat values are thus saved in the genetic algorithm as model coefficients (1/k<sub>cat</sub>, with k<sub>cat</sub> in 1/h).
 
 By default the genetic algorithm uses uniform sampling, as this has been proven to yield the best results.
 

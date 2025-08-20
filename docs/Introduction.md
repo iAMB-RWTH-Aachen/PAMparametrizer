@@ -37,6 +37,7 @@ measurements is maximized. In other words: it performs 'evolution on the compute
 3. Optimize the k<sub>cat</sub> values of the selected enzymes using a genetic algorithm
 4. Evaluate and save the final results
 5. Repeat 1-5 until a maximum fitness or maximum number of iterations is reached
+6. Optimize the amount of unused enzyme sector at zero growth
 
 ## What can you find where in this repository?
 This repository contains not only the source code, but also examples and scripts which were used in **INSERT PUBLICATION HERE**.

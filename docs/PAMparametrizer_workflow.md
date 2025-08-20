@@ -10,6 +10,8 @@ The basis of each PAM is a genome-scale metabolic model of high-quality. To crea
 should be met:
 - 100% mass balanced
 - 100% charge balanced
+- Solid parametrization of the ATP maintenance (both growth- and non-growth-associated)
+- Model can be pickled and unpickled (if this is not the case, you might want to rename all metabolites which are called St)
 
 The following is not required, but makes your life easier:
 - Reactions annotated with KEGG ids
@@ -36,14 +38,14 @@ order, although we suggest starting with the ActiveEnzymesSector.
 
 
 **Defaults**:
- - Reactions or genes which cannot be mapped to any protein identifier will be given a default id, length and molar mass : `Enzyme_<gene>` of `Enzyme_<reaction>`
+ - Reactions or genes which cannot be mapped to any protein identifier will be given a default id, length and molar mass : `Enzyme_<gene>` or `Enzyme_<reaction>`
  - Proteins which cannot be mapped to a k<sub>cat</sub> value are assigned a default value of 13.7 (BRENDA mean value according to [Bar-Even et al. (2011)](https://doi.org/10.1021/bi2002289))
  - Each protein represents a functional enzyme: enzyme complexes are represented by ids which combine all subunits (`peptide1_peptide2`) and the molar masses and lengths are summed
  - Each row represents an individual enzyme-reaction relation 
 
 
 **Output**:
- - Excel file saved in `Results/1_preprocessing/proteinAllocationModel_EnzymaticData_<your-model>_yymmdd.xlsx`
+ - Excel file saved in `Results/1_preprocessing/proteinAllocationModel_EnzymaticData_<your-model>_<yymmdd>.xlsx`
  - Sheet: `ActiveEnzymes` with the following information
 
 | rxn_id                 | enzyme_id               | direction        | kcat_values   | kegg_id               | Reactants                | Products      | EC                                               | GPR                                             | gene                                                                          | Length                       | molMass                           |
@@ -187,7 +189,7 @@ limited, it is wise to use data that the PAMparametrizer cannot use as validatio
  - `Results/2_parametrization/diagnostics/pam_parametrizer_diagnostics_<your-filename-extension>.xlsx`
  - `Results/2_parametrization/progress/pam_parametrizer_progress_<your-filename-extension>.png`
 
-### 4.2 Creating and ensemble of models
+### 4.2 Creating an ensemble of models
 A genetic algorithm is not a deterministic method, which means the changes in k<sub>cat</sub> values are different for 
 each run. Although the alternative models have a comparable phenotype, it is important to always run the framework more than once
 and create what we call an 'ensemble of models'. This ensemble represents the solution space in which the turnover numbers
@@ -282,6 +284,7 @@ while it is only used as a way to quantify the progress in the PAMparametrizer.
 The amount of protein is associated to a specific protein sector is dependent on the substrate uptake rate. The exact parametrization
 of this relation depends on the relation between substrate uptake rate and growth rate, as discussed in **INSERT PUBLICATION SUPPLEMENTS**.
 The PAMparametrizer calculates the slope and intercept for all substrate-dependent protein sectors during the parametrization.
+Also the amount of un- and underused enzymes at zero growth is optimized in the last step of the PAMparametrizer.
 This sheet stores this sector configuration for your convenience, so you can easily use it for building condition-dependent PAMs.
 
 #### 5.1.5 reaction_weights                                                       
