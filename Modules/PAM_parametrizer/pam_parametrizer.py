@@ -1,3 +1,4 @@
+import traceback
 from typing import Union, Tuple, Iterable
 import numpy as np
 import os
@@ -17,11 +18,11 @@ from typing import List, Dict, Literal, Optional
 import warnings
 
 from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
-from Modules.genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
-from Modules.utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
-from Modules.utils.sampling_functions import adaptive_sampling
-from Modules.utils.pam_generation import _extract_reaction_id_from_catalytic_reaction_id
-from Modules.utils.sector_config_functions import (get_model_simulations_vs_sector,
+from ..genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
+from ..utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
+from ..utils.sampling_functions import adaptive_sampling
+from ..utils.pam_generation import _extract_reaction_id_from_catalytic_reaction_id
+from ..utils.sector_config_functions import (get_model_simulations_vs_sector,
                                                    perform_linear_regression,
                                                    change_sector_parameters_with_config_dict,
                                                    change_proteinsector_relation_from_growth_to_substrate_uptake,
@@ -35,6 +36,70 @@ Reaction2KcatDict = Dict[
 Enzyme2Reaction2KcatDict = Dict[str, List[Reaction2KcatDict]]
 
 class PAMParametrizer():
+    """
+    A class for parametrizing Protein Allocation Models (PAMs) against experimental validation data.
+
+    This class configures and tunes the protein allocation framework to fit measured
+    data (e.g., enzyme levels, substrate uptake rates, and growth parameters).
+    It applies optimization methods (e.g., genetic algorithms) to adjust model
+    parameters, tracks results, and manages sector configurations such as translational
+    and unused protein sectors.
+
+    Attributes:
+        TRANSLATIONAL_SECTOR_CONFIG (SectorConfig): Default translational protein sector configuration.
+        TRANSL_SECTOR_INTERCEPT_vs_GLC (float): Intercept of translational sector vs. glucose uptake.
+        TRANSL_SECTOR_SLOPE_vs_GLC (float): Slope of translational sector vs. glucose uptake.
+        MEASURED_PROTEIN_FRACTION (float): Estimated fraction of measured proteins in total proteome.
+        MAXIMAL_INTERCEPT_UE (float): Upper bound for unused enzyme fraction.
+        core_genetic_algorithm: Placeholder for the optimization routine.
+        validation_data (DictList[ValidationData]): Experimental datasets used for parametrization.
+        hyperparameters (HyperParameters): Hyperparameters controlling the optimization process.
+        sector_configs (dict[str, SectorConfig]): Configurations for PAM sectors to be parametrized.
+        minimal_unused_enzymes (float): Minimal fraction of unused enzymes (g_ue/g_p).
+        substrate_uptake_ids (list[str]): IDs of the carbon source uptake reactions.
+        parametrization_results (ParametrizationResults): Stores results of the parametrization.
+        enzyme_ids (list[str]): IDs of all enzymes in the PAM.
+        fluxes_df (pd.DataFrame): Stores calculated fluxes during parametrization.
+        iteration (int): Counter of the current parametrization iteration.
+        bins (list[int]): Discretization bins used in the optimization process.
+        result_figure_file (str): Path to the progress figure file.
+        result_diagnostics_file (str): Path to the diagnostics results file.
+
+    Args:
+        pamodel (PAModel): Protein allocation model to be parametrized.
+        validation_data (Union[DictList[ValidationData], list, ValidationData]):
+            Experimental datasets against which the PAM is validated.
+        hyperparameters (Optional[HyperParameters], default=None):
+            Optimization settings (defaults to standard hyperparameters if None).
+        sector_configs (Optional[Union[dict[str, SectorConfig], bool]], default=None):
+            Configurations of model sectors. If None, a default translational sector is used.
+            If False, sector changes are disabled.
+        substrate_uptake_id (str, default="EX_glc__D_e"):
+            Exchange reaction ID for substrate uptake. only used to prioritize a substrate for plotting the progress
+        max_substrate_uptake_rate (float, default=0): Upper bound for substrate uptake rate for plotting.
+        min_substrate_uptake_rate (float, default=-11): Lower bound for substrate uptake rate for plotting.
+        sensitivity (bool, default=True): Whether sensitivity analysis is enabled (for selecting enzymes to mutate).
+        minimal_unused_enzymes (float, default=0.37): Minimal fraction of unused enzymes.
+        enzymes_to_evaluate (Optional[list], default=None): List of enzyme IDs to evaluate.
+            If None, all enzymes in the PAM are evaluated.
+
+    Methods:
+        calculate_sector_parameters_for_multiple_csources():
+            Computes sector parameters across multiple carbon sources.
+        _create_result_dirs():
+            Prepares result directories for storing progress and diagnostics files.
+
+    Examples:
+        >>> from PAModelpy.utils import set_up_pam
+        >>> pamodel = set_up_pam('Path/to/initfile')
+        >>> validation_data = [ValidationData.from_csv("validation_data.csv")]
+        >>> parametrizer = PAMParametrizer(
+        ...     pamodel=pamodel,
+        ...     validation_data=validation_data,
+        ...     substrate_uptake_id="EX_glc__D_e",
+        ...     min_substrate_uptake_rate=-10.0
+        ... )
+    """
     #from Schmidt et al(2016):
     TRANSLATIONAL_SECTOR_CONFIG = SectorConfig(
         sectorname='TranslationalProteinSector',
@@ -135,7 +200,10 @@ class PAMParametrizer():
         4. Initialize a genetic algorithm (Optional: use the results of the previous genetic algorithm runs)
         5. Run the genetic algorithm and use the best parameter set to reparametrize the model
 
-        This is repeated until a max number of iterations is reached or until the simulation error is below a threshold
+        This is repeated until a max number of iterations is reached or until the simulation error is below a threshold.
+        Afterwards, sector intercepts with with the y-axis (representing sector fraction at zero growth) are optimized.
+        By default this is done for the unused enzyme sector. All the updated kcat values and sector parameters are saved
+        in excel format in the 'diagnostics' file.
 
         Args:
             remove_subruns: If True, the results from the genetic algorithm runs within the bins are removed.
@@ -144,6 +212,7 @@ class PAMParametrizer():
                 1. 'before': Only perform binning starting the first iteration of the workflow
                 2. 'all': Perform binning for each iteration
                 3. 'False'/other: No binning
+                (defaults to False)
 
         Returns:
             A png image of the parametrization progress and an excel file with the resulting parameters
@@ -198,6 +267,22 @@ class PAMParametrizer():
         plt.close(fig)
 
     def calculate_sector_parameters_for_multiple_csources(self, reset:bool = False):
+        """Calculate protein sector parameters for all validation datasets.
+
+            Iterates over available validation datasets and updates protein sector
+            configurations based on substrate uptake rates. By default, existing
+            sector configurations are preserved; if ``reset`` is True, they will
+            be recalculated. To avoid modeling overflow metabolism, only
+            lower substrate uptake rates are used to derive the relation
+            between growth and substrate uptake. The range will be adapted if the model
+            infeasible at these substrate uptake rates
+            (see PAMParametrizer._get_substrate_range_lower_substrate_conc())
+
+            Args:
+                reset (bool, optional): If True, recompute all sector parameters
+                    even if they already exist. Defaults to False.
+            """
+
         for vd in self.validation_data:
             for sector_id, sector_config in self.sector_configs.items():
                 if sector_id in vd.sector_configs and not reset: continue
@@ -214,6 +299,23 @@ class PAMParametrizer():
                 )
 
     def perform_iteration_in_bins(self, start_time:float) -> list:
+        """Perform a single iteration of model parametrization using substrate uptake bins.
+
+            Splits substrate uptake rates into bins, updates sector parameters
+            per bin, runs simulations for each bin, and collects sensitivities
+            and errors. After bin-level simulations, the validation dataframe
+            is reinitialized for the full substrate uptake range, and the genetic
+            algorithm is restarted using populations derived from bin results.
+
+            Args:
+                start_time (float): The wall-clock time (from ``time.perf_counter()``)
+                    at which the iteration started, used for runtime logging.
+
+            Returns:
+                list: A list of file paths corresponding to intermediate JSON
+                files generated by the genetic algorithm that can be removed
+                after execution.
+            """
         self._init_results_objects()
         # 1. Get the binned substrate values and adjust binsize if required
         binned_substrates = self._bin_substrate_uptake_rates()
@@ -232,14 +334,30 @@ class PAMParametrizer():
         #reset the validation dataframe for the entire range of substrate uptake rates
         self._init_validation_df()
         # 3. Restart genetic algorithm using populations from bins
-
-
         files_to_remove = self.restart_genetic_algorithm()
 
         return files_to_remove
 
     def perform_iteration_without_bins(self, random:bool=False) -> list:
-        # 1. If there are no results yet, perform simulations for a range of glc_uptake_rates
+        """Perform a single iteration of model parametrization without binning substrate uptake rates.
+
+            Runs simulations across the entire substrate uptake range, identifies
+            enzymes to evaluate (based on sensitivities or random choice), and
+            executes the genetic algorithm to refine parameter values.
+            Intermediate validation and results data structures are initialized
+            if this is the first iteration.
+
+            Args:
+                random (bool, optional): If True, select enzymes randomly for
+                    evaluation instead of using sensitivities or predefined
+                    enzyme sets. Defaults to False.
+
+            Returns:
+                list: A list of file paths corresponding to intermediate JSON
+                files generated by the genetic algorithm that can be removed
+                after execution.
+            """
+        # 1. If there are no results yet, perform simulations for a range of substrate_uptake_rates
         if self.iteration == 1:
             self._init_validation_df()
             self._init_results_objects()
@@ -295,6 +413,46 @@ class PAMParametrizer():
                                                         vd: ValidationData,
                                                         sector_id: str,
                                                         throw_warning: bool) -> Tuple[str, SectorConfig]:
+        """Optimize the y-intercept of a sector configuration using validation data.
+
+           This method adjusts the linear relationship (slope and intercept) of a
+           sector in the parameterized model to minimize simulation error with respect
+           to given validation data. The optimization enforces that the x-intercept
+           remains constant while scanning over different intercept values. A bounded
+           scalar minimization is used to identify the optimal intercept that best
+           matches the experimental data.
+
+           The method temporarily runs simulations for candidate intercept values,
+           evaluates the error, and caches results to avoid redundant computation.
+           Upon successful optimization, the sector configuration in the provided
+           validation data object is updated with the optimized slope and intercept.
+
+           Args:
+               vd (ValidationData): Validation data containing experimental data,
+                   sector configurations, and sampled substrate uptake rates.
+               sector_id (str): Identifier of the sector to optimize.
+               throw_warning (bool): If True, warnings are raised when simulations
+                   or optimization steps fail. If False, failures are silently
+                   penalized by assigning infinite error.
+
+           Returns:
+               Optional[Tuple[str, SectorConfig]]: A tuple containing the validation
+               dataset identifier and the updated sector configuration, if
+               optimization is successful. Returns None if the sector is not present
+               in the validation data or if the optimization fails.
+
+           Raises:
+               Warning: If `throw_warning` is True, warnings are raised for simulation
+               or optimization failures.
+
+           Notes:
+               - The x-intercept is preserved by adjusting the slope whenever the
+                 intercept is changed.
+               - Optimization is performed using `scipy.optimize.minimize_scalar`
+                 with bounded constraints.
+               - Results are cached per rounded intercept value to improve efficiency.
+           """
+
         cache = {}
         def calculate_simulation_error(intercept):
             # avoid running multiple simulations with the same intercept
@@ -841,11 +999,19 @@ class PAMParametrizer():
                                                   validation_range:list[Union[int, float]],
                                                   number_of_steps: int = 5
                                                   ) -> Iterable:
+        def get_range_start_end_step(index:int) -> Tuple[float, float, int]:
+            start = min(abs(validation_range[index]), abs(validation_range[index+1])) / 2
+            end = max(abs(validation_range[index]), abs(validation_range[index+1])) / 2
+            step = abs(start - end) / number_of_steps
+            return start, end, step
+
         #only loop over the low growth rates, to prevent overflow like metabolism to interfere with the derivation of a linear equation
-        # Determine the range to loop over based on absolute values
-        start = min(abs(validation_range[0]), abs(validation_range[1])) / 2
-        end = max(abs(validation_range[0]), abs(validation_range[1])) / 2
-        step = abs(start-end)/number_of_steps
+        # Determine the range to loop over based on absolute values and model feasibility
+        index = 0
+        start, end, step = get_range_start_end_step(index)
+        while not self._pamodel_is_feasible(substrate_uptake_rate=start):
+            index += 1
+            start, end, step = get_range_start_end_step(index)
 
         # Create the substrate range
         substrate_range = np.arange(start, end, step)
@@ -855,10 +1021,10 @@ class PAMParametrizer():
             substrate_range = -substrate_range[::-1]
         return substrate_range
 
-    def _pamodel_is_feasible(self):
+    def _pamodel_is_feasible(self, substrate_uptake_rate: Optional[float] = None) -> bool:
         #check for feasibility at a mid substrate uptake rate
         model = self.pamodel_no_sensitivity
-        sub_upt = self.max_substrate_uptake_rate -self.min_substrate_uptake_rate/2
+        sub_upt = self.max_substrate_uptake_rate - self.min_substrate_uptake_rate/2 if substrate_uptake_rate is None else substrate_uptake_rate
         if sub_upt<0:
             model.change_reaction_bounds(self.substrate_uptake_id, lower_bound=sub_upt, upper_bound=0)
         else:
@@ -1360,16 +1526,16 @@ class PAMParametrizer():
         for substrate_id in self.substrate_uptake_ids:
             if substrate_id == self.substrate_uptake_id: substrate_range = None
             else: substrate_range = self.validation_data.get_by_id(substrate_id).valid_data[f'{substrate_id}_ub']
-
-
             fluxes, substrate_range = self.run_simulations_to_plot(substrate_uptake_id=substrate_id,
                                                                    substrate_rates=substrate_range,
                                                                     save_fluxes_esc=save_esc,
                                                                    sensitivity = sensitivity)
+
             if len(fluxes) > 0: # only plot feasible model results
                 fluxes_dict[substrate_id] = fluxes
-                substrate_range_dict[substrate_id] = substrate_range
-
+            else:
+                fluxes_dict[substrate_id] = []
+            substrate_range_dict[substrate_id] = substrate_range
 
         alpha = 1
         #only plot detailed info for the 'main' substrate
@@ -1417,11 +1583,14 @@ class PAMParametrizer():
         previous_bounds = pamodel.get_reaction_bounds(substrate_uptake_id)
 
         #change the sector parameters for correct relation between substrate uptake rate, ribosome content and unused proteins
+        pamodel.optimize()
         self._change_sector_parameters_for_substrate(substrate_uptake_id,
                                                      pamodel)
+        pamodel.optimize()
 
         if substrate_rates is None:
-            step = (self.max_substrate_uptake_rate-self.min_substrate_uptake_rate)/10
+            range = self.validation_data.get_by_id(substrate_uptake_id).validation_range
+            step = (range[-1]-range[0])/10
             substrate_rates = np.arange(self.min_substrate_uptake_rate, self.max_substrate_uptake_rate, step)
         for substrate in substrate_rates:
             if substrate>=0:

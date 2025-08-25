@@ -1,9 +1,7 @@
-import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 import matplotlib.ticker as ticker
-from typing import List
 
 FONTSIZE = 16
 RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',

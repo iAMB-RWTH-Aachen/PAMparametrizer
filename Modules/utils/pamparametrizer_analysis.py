@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 import PAModelpy
 from PAModelpy import PAModel
 
-from Modules.utils.sector_config_functions import change_sector_parameters_with_config_dict, SectorParameterDict
+from .sector_config_functions import change_sector_parameters_with_config_dict, SectorParameterDict
 
 #######
 #SETUP METHODS

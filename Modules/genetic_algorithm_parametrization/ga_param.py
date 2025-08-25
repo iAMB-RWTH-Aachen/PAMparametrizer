@@ -12,7 +12,6 @@ from time import time, strftime
 import deap.base
 import numpy as np
 from copy import deepcopy
-# from Modules.genetic_algorithm_parametrization.Evaluation.Fitfun_params_gaussian import FitnessEvaluation
 
 # anonymus function for Fing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")
@@ -20,17 +19,29 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 
 
 class Genetic_Algorithm():
-    
-    def __init__(self, crossover_probability=0.8, mutation_probability=0.5,
-                 number_generations=20, time_limit=600):
-        
-        # number of generation run on a worker per gene flow event
+    """
+    Genetic Algorithm operator. Contains all the functions to perform a single gene flow event for a population
+    """
+
+    def __init__(self, crossover_probability:float=0.8,
+                 mutation_probability: float=0.5,
+                 number_generations: int=20,
+                 time_limit:int=600):
+
+        """
+        Initializes the genetic algorithm with hyperparameters for steering the behaviour and computational costs of the
+        optimization procedures. Increasing the probabilities can be seen as increasing the 'randomness' of the
+        algorithm.
+
+        Args:
+         crossover_probability (float): probablity with which two offspring individuals are crossed over
+        mutation_probability (float): probability with which an individual is mutated
+        number_generations (int): number of generation run on a worker per gene flow event
+        time_limit (int): total time limit in seconds
+        """
         self.number_generations = number_generations
-        # total time limit in seconds
         self.time_limit = time_limit
-        # probability with which an individual is mutated
         self.mutation_probability = mutation_probability
-        # probablity with which two offspring individuals are crossed over
         self.crossover_probability = crossover_probability
         
     
@@ -38,13 +49,13 @@ class Genetic_Algorithm():
     def init_pop(self, toolbox, population_size,  evaluate_fitness=True) -> list:
         """Create an initial population of individuals (solutions)
         
-        Inputs:
-            :param deap.base.Toolbox toolbox: DEAP's toolbox class
-            :param int population_size: Number of individuals
-            :param bool evaluate_fitness: Evaluate the fitness of all individuals in the population
+        Args:
+            toolbox (deap.base.Toolbox): DEAP's toolbox class
+            population_size (int): Number of individuals in population
+            evaluate_fitness (bool): Evaluate the fitness of all individuals in the population
             
-        Outputs:
-            :param list pop: Individuals of a population
+        Returns:
+            pop (list): Individuals of a population
         
         
         """
@@ -130,8 +141,6 @@ class Genetic_Algorithm():
             elite = self._get_best_individual_from_population(pop)
             #make clones of the elite individuals
             elite = self._clone_elite([elite], toolbox)
-
-            elite_kcat = elite[0].kcat_list
 
             #select the better individuals
             offspring = toolbox.select(pop, population_size-1)

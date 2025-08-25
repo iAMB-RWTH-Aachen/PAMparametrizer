@@ -35,7 +35,47 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 
 
 class GAPO():
-    
+
+    """Genetic Algorithm for Protein Optimization (GAPO).
+
+        This class provides an interface to configure and run a genetic
+        algorithm (GA) for optimizing enzyme kinetics (kcat values) and
+        related model parameters within a protein allocation model (PAModel).
+        It integrates with DEAP for GA operations and uses sector
+        configurations and model constraints to evaluate fitness.
+
+        Attributes:
+            model (PAModel): Protein allocation model used for evaluating
+                fitness during the GA.
+            sector_configurations (dict): Configuration of protein sectors
+                (unused enzyme sector and translational protein sector).
+            ga_parameters (dict): Dictionary of GA parameters such as
+                mutation probability, crossover probability, and
+                number of generations (from PAMParametrizer.Hyperparameters)
+            population_size (int): Number of individuals in the population.
+            number_generations (int): Number of generations to evolve.
+            mutation_probability (float): Probability of mutating an
+                individual during evolution.
+            crossover_probability (float): Probability of crossover between
+                two individuals.
+            init_attribute_probability (float): Probability of initializing
+                attributes (e.g., kcat values) randomly.
+            kcat_list (list[float]): List of enzyme turnover numbers to
+                optimize.
+            directions (list[str]): Directions of reactions to optimize
+                (e.g., "f", "b").
+            enzymes_to_eval (list[str]): Subset of enzymes included in the
+                evaluation.
+            rxns (list[str]): Reactions considered during optimization.
+            sensitivity_list (list[float]): List of sensitivity coefficients.
+            print_progress (bool): Whether to print progress during GA runs.
+            population (list): Current population of individuals.
+            FitEval (Callable): Fitness evaluation function used to score
+                individuals.
+            ga (Genetic_Algorithm): Underlying GA engine that manages
+                DEAP operators and evolution.
+                """
+
     def __init__(self,
                  model=None,
                  enzymes_to_eval: dict = {},
@@ -62,7 +102,42 @@ class GAPO():
                  error_weights: dict = {},
                  print_progress=True
                  ):
-        
+        """Initialize a Genetic Algorithm for Protein Optimization (GAPO).
+
+                Sets up the genetic algorithm with the protein allocation model,
+                GA configuration parameters, and enzyme/reaction targets for
+                optimization.
+
+                Args:
+                    model (PAModel): Protein allocation model used to evaluate
+                        fitness during optimization.
+                    sector_configurations (dict): Mapping of protein sectors
+                        (e.g., membrane, cytosol, enzyme groups) to their
+                        configuration parameters.
+                    ga_parameters (dict): Genetic algorithm parameters. Must
+                        include keys such as:
+                            - "mutation_probability" (float): Probability of
+                              mutation.
+                            - "crossover_probability" (float): Probability of
+                              crossover.
+                            - "number_generations" (int): Number of generations.
+                    population_size (int): Size of the GA population.
+                    kcat_list (list[float]): List of enzyme turnover numbers
+                        (kcat values) to optimize.
+                    directions (list[str]): Direction of optimization for each
+                        reaction (e.g., "forward" or "reverse").
+                    enzymes_to_eval (list[str]): List of enzyme identifiers to
+                        include in optimization.
+                    rxns (list[str]): List of reaction identifiers corresponding
+                        to the enzymes.
+                    sensitivity_list (list[float]): Optional list of sensitivity coefficients
+                    print_progress (bool, optional): If True, progress will be
+                        printed during the GA run. Defaults to True.
+
+                Raises:
+                    ValueError: If lengths of `kcat_list`, `directions`,
+                        `enzymes_to_eval`, and `rxns` do not match.
+                """
         if not model:
             self.model = model
         else:
@@ -428,10 +503,11 @@ class GAPO():
 
 
     def _init_deap_toolbox(self):
-        
-        #  initialize DEAP toolbox
-        #           this is the central module incorporating all the information, param
-        #           parameters, and data of the genetic algorithm problem
+        """
+         initialize DEAP toolbox
+                  this is the central module incorporating all the information, param
+                  parameters, and data of the genetic algorithm problem
+        """
         toolbox = base.Toolbox()
         
         # individual generator: mutating the list of kcat values

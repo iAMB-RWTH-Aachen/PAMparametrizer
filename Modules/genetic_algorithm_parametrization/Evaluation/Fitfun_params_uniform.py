@@ -21,24 +21,6 @@ class FitnessEvaluation(FitnessEvaluation):
 
 
     def __init__(self, *args, **kwargs):
-
-        """Initialize fitness evaluation class for a genetic algorithm
-        
-        Inputs:
-            :param cobra.core.Model model: Metabolic model in COBRA format
-            :param list fixed_attr_list: Identifiers of attributes not to be used as solution variables
-            :param int processes: Number of workers available (unused here)
-            :param str objective_id: identifier of the objective function
-            :param pd.DataFrame valid_data_df: Dataframe which contains the data to validate the results to
-            :param int sigma_denominator: the factor determining the spread of the normal distribution from which
-                    new kcat values will be sampled (kcat/sigma_denominator)
-            :param list(float) substrate_uptake_rates: list with the substrate uptake rates to consider for
-                    calculating the fitness (R^2 relative to the measurements at these substrate uptake rates)
-            :param str substrate_uptake_id: identifier of the substrate uptake rate as defined in the model
-
-        
-        """
-
         super().__init__(**kwargs)
         
     ##########################################################################

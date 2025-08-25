@@ -6,8 +6,8 @@ import datetime
 import ast
 import warnings
 
-from Modules.utils.sector_config_functions import SectorParameterDict
-from Modules.PAM_parametrizer import SectorConfig
+from .sector_config_functions import SectorParameterDict
+from ..PAM_parametrizer import SectorConfig
 
 
 def save_sector_information_to_excel(
