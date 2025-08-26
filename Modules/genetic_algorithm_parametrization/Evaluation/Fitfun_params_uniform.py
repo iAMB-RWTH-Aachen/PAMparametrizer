@@ -123,7 +123,6 @@ class FitnessEvaluation(FitnessEvaluation):
             new_kcats = []
             for kcat in kcat_list:
                 max_kcat = kcat*2 if 1/(kcat * 2) < max_kcat else 1/max_kcat
-                print('minimal kcat value',min_kcat)
                 new_kcats.append(np.random.uniform(max_kcat, 1/min_kcat))
         else:
             new_kcats = kcat_list
