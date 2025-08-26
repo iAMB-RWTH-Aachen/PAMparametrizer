@@ -7,8 +7,6 @@ Genetic algorithm (GA) for the prediction genome reduction paths based on metabo
 import os
 from typing import Union, List, Dict
 
-from ..PAM_parametrizer import KcatConstraintConfigTable
-
 # Disable gurobi logging output
 try:
     import gurobipy
@@ -33,6 +31,7 @@ from deap import creator
 from deap import tools
 
 from .ga_param import Genetic_Algorithm
+from ..PAM_parametrizer.KcatConstraintConfig import KcatConstraintConfigTable
 
 # anonymus function for printing the time
 print_time = lambda : strftime("%d/%m %H:%M:%S")

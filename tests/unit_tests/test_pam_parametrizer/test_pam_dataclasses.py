@@ -2,7 +2,8 @@ import pytest
 import pandas as pd
 from typing import Callable
 
-from Modules.PAM_parametrizer.PAM_data_classes import ParametrizationResults, SectorConfig, ValidationData, FluxResults, KcatConstraintConfigTable
+from Modules.PAM_parametrizer.PAM_data_classes import ParametrizationResults, SectorConfig, ValidationData, FluxResults
+from Modules.PAM_parametrizer.KcatConstraintConfig import KcatConstraintConfigTable
 from dataclasses import MISSING, fields
 
 def is_primitive(val):

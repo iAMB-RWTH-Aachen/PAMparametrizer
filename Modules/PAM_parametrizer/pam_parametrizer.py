@@ -17,7 +17,8 @@ from collections import defaultdict
 from typing import List, Dict, Literal, Optional
 import warnings
 
-from .PAM_data_classes import KcatConstraintConfigTable, ValidationData, HyperParameters, ParametrizationResults, SectorConfig
+from .KcatConstraintConfig import KcatConstraintConfigTable
+from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 from ..genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from ..utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
 from ..utils.sampling_functions import adaptive_sampling
