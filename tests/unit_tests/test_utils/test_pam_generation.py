@@ -2,8 +2,30 @@ import os
 import pandas as pd
 import tempfile
 import pytest
+
+from Scripts.pam_generation import setup_toy_pam
 from Modules.utils.pam_generation import (create_new_aes_parameter_file,
-                                          _extract_reaction_id_from_catalytic_reaction_id)
+                                          _extract_reaction_id_from_catalytic_reaction_id,
+                                          create_pamodel_from_diagnostics_file)
+
+
+def test_create_pamodel_from_diagnostics_file_changes_sector():
+    #Arrange
+    diagnostics_file = os.path.join('tests', 'data', 'diagnostics_file_for_toy.xlsx')
+    sheet_name = 'case_01'
+    model = setup_toy_pam()
+    substrate_uptake_id = 'R1'
+
+    #Act
+    create_pamodel_from_diagnostics_file(file_path = diagnostics_file,
+                                         model = model,
+                                         sheet_name = sheet_name,
+                                         substrate_uptake_id = substrate_uptake_id
+                                         )
+
+    #Assert
+    assert model.sectors.TranslationalProteinSector.slope == 0.000001*1e3 #1e3 to convert g to mg (units of protein abundance)
+    assert model.sectors.TranslationalProteinSector.intercept == 0.000001*1e3
 
 
 def test_if_create_aes_parameter_file_generates_file():

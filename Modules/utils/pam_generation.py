@@ -17,10 +17,12 @@ DEFAULT_KCAT = 11 #s-1
 def create_pamodel_from_diagnostics_file(file_path:str,
                                          model: PAModel,
                                          sheet_name: str = 'Best_Individuals',
-                                         other_enzyme_id_pattern: str = r'E[0-9][0-9]*|Enzyme*'
+                                         other_enzyme_id_pattern: str = r'E[0-9][0-9]*|Enzyme*',
+                                         substrate_uptake_id: str = 'EX_glc__D_e'
                                          )-> PAModel:
     """
-    Modifies a Protein Allocation Model using information about turnover numbers from a diagnostics file (result from PAMparametrizer)
+    Modifies a Protein Allocation Model using information about turnover numbers from a diagnostics file
+    (result from PAMparametrizer). If available, also adjusts the sector parameters associated to the substrate.
 
     Args:
         file_path (str): path to the diagnostics xlsx file. The file should at least have the following columns:
@@ -31,6 +33,7 @@ def create_pamodel_from_diagnostics_file(file_path:str,
             - kcat[s-1]: the new kcat value in 1/s
         model (PAModel): the PAM to adjust
         sheet_name (str): name of the sheet with the information about the modifications
+        substrate_uptake_id (str): name of the uptake reaction for the substrate for which the model is built
 
     Returns:
         PAModel: with adjusted parameters
@@ -44,6 +47,22 @@ def create_pamodel_from_diagnostics_file(file_path:str,
                                                  other_enzyme_id_pattern = other_enzyme_id_pattern)
             kcat_dict = {rxn_id: {row['direction']: row['kcat[s-1]']}}
             model.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
+
+    try:
+        sector_parameters_df = pd.read_excel(file_path, sheet_name="sector_parameters")
+    except:
+        return model
+
+    for sector, sector_params in sector_parameters_df.groupby('sector_id'):
+        sector_params = sector_params.loc[
+            (sector_parameters_df.substrate_uptake_id == substrate_uptake_id)
+        ].rename({'substrate_uptake_id': 'lin_rxn_id'},
+                 axis=1)[['slope', 'intercept', 'lin_rxn_id']].to_dict('records')[0]
+        model.change_sector_parameters(
+            sector = model.sectors.get_by_id(sector),
+            **sector_params,
+            print_change=True
+        )
     return model
 
 def get_rxn2kcat_protein2gene_dict(param_file_path:str,
