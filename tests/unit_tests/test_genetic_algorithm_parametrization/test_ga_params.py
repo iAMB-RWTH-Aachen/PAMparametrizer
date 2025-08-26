@@ -168,16 +168,17 @@ def test_fitness_evaluation_configures_translational_sector_correctly():
 ])
 def test_mutate_kcat_with_is_within_bounds(original_kcat, min_kcat, max_kcat, toolbox):
     #Arrange
-    sut = GeneticAlgorithmMock().FitEval
+    sut = GeneticAlgorithmMock()
     toolbox = sut._init_deap_toolbox() if toolbox else None
+    sut_eval = sut.FitEval
     #Act
-    mutated = sut._mutate_kcat_value(
+    mutated = sut_eval._mutate_kcat_value(
         kcat=original_kcat,
         min_kcat=min_kcat,
         max_kcat=max_kcat,
         toolbox=toolbox
     )
     #Assert
-    assert min_kcat <= mutated <= max_kcat, (
+    assert min_kcat <= 1/mutated <= max_kcat, (
         f"Mutated kcat {mutated} should be between {min_kcat} and {max_kcat}"
     )

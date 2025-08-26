@@ -91,7 +91,7 @@ class FitnessEvaluation(FitnessEvaluation):
             # mutate an individual with a mutation rate based on the sensitivity of the individual enzymes
             # the new value is samples from a gaussian distribution with mu being the original kcat value and
             # sigma being related to the kcat value to stay in sync with the order of magnitude of the original kcat
-            return toolbox.mutate([kcat], min_kcat = min_kcat, max_kcat = max_kcat)[0]
+            return toolbox.mutate([kcat], min_kcat = 1/min_kcat, max_kcat = 1/max_kcat)[0]
         else:
             # scale needs to be positive, so prevent negative values
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
@@ -121,7 +121,7 @@ class FitnessEvaluation(FitnessEvaluation):
             new_kcats = []
             for kcat in kcat_list:
                 max_kcat = kcat*2 if 1/(kcat * 2) < max_kcat else 1/max_kcat
-                new_kcats.append(np.random.uniform(min_kcat, max_kcat))
+                new_kcats.append(np.random.uniform(1/min_kcat, max_kcat))
         else:
             new_kcats = kcat_list
         return new_kcats
