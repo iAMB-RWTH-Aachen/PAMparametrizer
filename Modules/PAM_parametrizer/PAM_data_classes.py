@@ -10,23 +10,6 @@ from ..genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from ..genetic_algorithm_parametrization import GAPOUniform
 
 
-
-class SectorConfig(TypedDict):
-    """
-    Dictionary to store the information on how to configure a protein sector for new carbon sources.
-    Can be used as a 'bride' between different carbon sources by relating the sector to the growth rate
-
-    Args:
-        sectorname (str): the sector identifier for which the relation is defined as present in the PAModel
-        slope (float): slope between protein fraction allocated to the sector and the growth rate [g/gCDW/h]
-        intercept (float): the protein fraction allocated to the sector at zero growth [g/gCDW]
-        substrate_range (iterable of floats or ints): substrate range which for all the substrates is not related to fermentative phenotypes
-    """
-    sectorname:str
-    slope:float
-    intercept:float
-    substrate_range:Iterable[Union[float, int]]
-
 class KcatConstraintConfigTable:
     """
     Container for user-defined kcat constraints in enzyme parametrization.
@@ -59,6 +42,8 @@ class KcatConstraintConfigTable:
     -------
     get(enzyme_id, reaction_id, direction)
         Return min/max kcat constraints for a given enzyme–reaction–direction.
+    get_in_model_constraints(enzyme_id, reaction_id, direction)
+        Return min/max kcat constraints for a given enzyme–reaction–direction in model compatible coefficients 1/h*1e-6
     add(enzyme_id, reaction_id, direction, min_kcat, max_kcat)
         Add min/max kcat constraint for a given enzyme–reaction–direction.
     has_constraint(enzyme_id, reaction_id, direction)
