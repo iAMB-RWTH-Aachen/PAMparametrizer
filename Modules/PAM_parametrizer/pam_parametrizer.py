@@ -53,6 +53,7 @@ class PAMParametrizer():
         MAXIMAL_INTERCEPT_UE (float): Upper bound for unused enzyme fraction.
         core_genetic_algorithm: Placeholder for the optimization routine.
         validation_data (DictList[ValidationData]): Experimental datasets used for parametrization.
+        kcat_configs (KcatConstraintConfigTable): Information on bounds on kcat values.
         hyperparameters (HyperParameters): Hyperparameters controlling the optimization process.
         sector_configs (dict[str, SectorConfig]): Configurations for PAM sectors to be parametrized.
         minimal_unused_enzymes (float): Minimal fraction of unused enzymes (g_ue/g_p).
@@ -69,6 +70,9 @@ class PAMParametrizer():
         pamodel (PAModel): Protein allocation model to be parametrized.
         validation_data (Union[DictList[ValidationData], list, ValidationData]):
             Experimental datasets against which the PAM is validated.
+        kcat_configs (Optional[Union[KcatConstraintConfigTable, pd.DataFrame]])
+            min and max values for the kcats associated to an enzyme-reaction-direction association.
+            (defaults to (0, 1e6) for all relations in the model)
         hyperparameters (Optional[HyperParameters], default=None):
             Optimization settings (defaults to standard hyperparameters if None).
         sector_configs (Optional[Union[dict[str, SectorConfig], bool]], default=None):

@@ -108,8 +108,10 @@ class FitnessEvaluation():
         self.model = model
         self.totprot_start_ub = self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub
         self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].lb = 0
-        self.tps_intercept = self.model.sectors.get_by_id('TranslationalProteinSector').intercept
-
+        sectors_to_change = list(self.sector_configs.values())[0].keys()
+        self.sector_intercept = {sectorid: self.model.sectors.get_by_id(sectorid).intercept
+                                 for sectorid in sectors_to_change
+                                }
 
     def compute_individuals_properties(self, pop) -> list:
         """Compute custom properties of a population's individuals. For each 
@@ -267,7 +269,7 @@ class FitnessEvaluation():
             :param int fitness: fitness of the current individual evaluated
         
         """
-        self._reset_translational_sector()#something is wrong with the copying, so we have to reset the tps to it's initial parameters
+        self._reset_sectors()#something is wrong with the copying, so we have to reset the tps to it's initial parameters
 
         # apply kcat changes and compute metabolic functionalities
         # save old kcats to revert after error calculation
@@ -337,9 +339,10 @@ class FitnessEvaluation():
     # CUSTOM HELPER FUNCTIONS
     ##########################################################################
 
-    def _reset_translational_sector(self):
+    def _reset_sectors(self):
         self.model.constraints[self.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub = self.totprot_start_ub
-        self.model.sectors.get_by_id('TranslationalProteinSector').intercept = self.tps_intercept
+        for sector_id, intercept in self.sector_intercept.items():
+            self.model.sectors.get_by_id(sector_id).intercept = intercept
 
     def _get_old_kcats(self, model: PAModel,
                        individual #deap individual
@@ -368,31 +371,41 @@ class FitnessEvaluation():
             [reaction_variables[i]])[reaction_variables[i]]
                     for i, enz_id in enumerate(individual.enzymes_to_eval)]
 
-    def _mutate_kcat_value(self, kcat:float, sensitivity:float = 0.5, toolbox:deap.base.Toolbox = None) -> float:
+    def _mutate_kcat_value(self, kcat:float,
+                           min_kcat: float = 1e-6,
+                           max_kcat:float = DIFUSSIONLIMIT,
+                           sensitivity:float = 0.5,
+                           toolbox:deap.base.Toolbox = None) -> float:
         """
         Helper function to mutate a kcat value based on a user-defined standard deviation scale.
         Can be used both with the deap toolbox (also need to include sensitivity to determine mutation probability),
         as well as without. In the latter case, a new kcat value will be sampled from np.random.normal Gaussian
         distribution.
 
-        :param float kcat: kcat value to mutate
-        :param float sensitivity: sensitivity of the enzyme related to the kcat to determine mutation probability
-        :param deap.base.toolbox toolbox: deap toolbox
+        Args:
+            kcat (float): kcat value to mutate
+            min_kcat (Optional float): minimal kcat value, defaults to 1e-6 (not 0 to prevent arithmetic errors)
+            max_kcat (Optional float): maximal kcat value, defaults to diffusion limit (1e6 1/s)
+            sensitivity (Optional float): sensitivity of the enzyme related to the kcat to determine mutation probability
+            toolbox (Optional deap.base.toolbox): deap toolbox
 
-        :return: float new_kcat: mutated kcat value (sampled from normal distribution)
+        Returns
+            new_kcat (float): mutated kcat value (sampled from normal distribution)
         """
         stdev = kcat/self.sigma_denominator
         if toolbox is not None:
             # mutate an individual with a mutation rate based on the sensitivity of the individual enzymes
             # the new value is samples from a gaussian distribution with mu being the original kcat value and
             # sigma being related to the kcat value to stay in sync with the order of magnitude of the original kcat
-            return toolbox.mutate([kcat], mu=kcat, sigma=stdev, indpb=(1 - sensitivity))[0][0]
+            new_kcat = toolbox.mutate([kcat], mu=kcat, sigma=stdev, indpb=(1 - sensitivity))[0][0]
         else:
             # scale needs to be positive, so prevent negative values
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
             new_kcat = float(np.random.normal(loc=kcat, scale=stdev))
-            return new_kcat if 1/new_kcat < DIFUSSIONLIMIT else 1/DIFUSSIONLIMIT
+
+        if not min_kcat == 0: new_kcat = new_kcat if 1/new_kcat < min_kcat else 1/min_kcat
+        return new_kcat if 1/new_kcat < max_kcat else 1/max_kcat
 
 
     def _change_kcat_values_for_individual(self, individual, kcat_values: list = []):

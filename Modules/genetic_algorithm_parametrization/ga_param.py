@@ -168,11 +168,11 @@ class Genetic_Algorithm():
                     # the new value is samples from a gaussian distribution with mu being the original kcat value and
                     # sigma being related to the kcat value to stay in sync with the order of magnitude of the original kcat
                     new_kcats = [fitfun._mutate_kcat_value(kcat=kcat,
-                                                                    sensitivity=sens,
-                                                                    toolbox=toolbox)
-                                 for kcat, sens in zip(mutant.kcat_list, sensitivities)]
-                    #make sure kcat is always positive
-                    mutant.kcat_list= [kcat if kcat>0 else 0.001 for kcat in new_kcats]
+                                                           min_kcat = min_max[0],
+                                                           max_kcat = min_max[1],
+                                                           sensitivity=sens,
+                                                           toolbox=toolbox)
+                                 for kcat, min_max ,sens in zip(mutant.kcat_list, mutant.kcat_bounds, sensitivities)]
                     for i in range(len(new_kcats)):
                         mutant[i] = mutant.kcat_list[i]
                     del mutant.fitness.values
