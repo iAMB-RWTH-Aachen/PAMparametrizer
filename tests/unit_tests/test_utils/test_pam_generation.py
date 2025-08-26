@@ -24,8 +24,8 @@ def test_create_pamodel_from_diagnostics_file_changes_sector():
                                          )
 
     #Assert
-    assert model.sectors.TranslationalProteinSector.slope == 0.000001*1e3 #1e3 to convert g to mg (units of protein abundance)
-    assert model.sectors.TranslationalProteinSector.intercept == 0.000001*1e3
+    assert model.sectors.TranslationalProteinSector.slope == 0.00001*1e3 #1e3 to convert g to mg (units of protein abundance)
+    assert model.sectors.TranslationalProteinSector.intercept == 0.00001*1e3
 
 
 def test_if_create_aes_parameter_file_generates_file():

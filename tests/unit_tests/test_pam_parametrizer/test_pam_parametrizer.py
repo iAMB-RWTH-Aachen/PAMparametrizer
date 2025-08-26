@@ -454,6 +454,7 @@ def test_pam_parametrizer_saves_sector_parameters_correcty_in_final_diagnostics(
         f'These are the sheets which are included in the diagnostics file: {final_diagnostics.keys()}')
 
     sector_parameters = final_diagnostics['sector_parameters']
+    print(sector_parameters)
     pd.testing.assert_frame_equal(sector_parameters, sector_parameters_reference)
 
     #remove produced files
