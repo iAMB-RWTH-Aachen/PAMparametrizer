@@ -160,4 +160,24 @@ def test_fitness_evaluation_configures_translational_sector_correctly():
     assert sut.FitEval.model.constraints[sut.FitEval.model.TOTAL_PROTEIN_CONSTRAINT_ID].ub == tot_prot-intercept*1e3
     assert slope*1e3 == coeff
 
-
+@pytest.mark.parametrize("original_kcat,min_kcat,max_kcat,toolbox", [
+    (1e4,1e-6, 1e3, True),
+    (10,1e-3, 1e2, True),
+    (1e4,1e-6, 1e3, False),
+    (10,1e-3, 1e2, False),
+])
+def test_mutate_kcat_with_is_within_bounds(original_kcat, min_kcat, max_kcat, toolbox):
+    #Arrange
+    sut = GeneticAlgorithmMock().FitEval
+    toolbox = sut._init_deap_toolbox() if toolbox else None
+    #Act
+    mutated = sut._mutate_kcat_value(
+        kcat=original_kcat,
+        min_kcat=min_kcat,
+        max_kcat=max_kcat,
+        toolbox=toolbox
+    )
+    #Assert
+    assert min_kcat <= mutated <= max_kcat, (
+        f"Mutated kcat {mutated} should be between {min_kcat} and {max_kcat}"
+    )
