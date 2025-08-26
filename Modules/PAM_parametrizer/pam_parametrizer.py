@@ -1145,6 +1145,7 @@ class PAMParametrizer():
         ga = self.hyperparameters.genetic_algorithm(
             model=self.pamodel_no_sensitivity.copy(copy_with_pickle=True),
             enzymes_to_eval= enzymes_to_evaluate,
+            kcat_constraints_table=self.kcat_configs,
             sector_configs_per_substrate = sector_configs_per_substrate,
             valid_data = self._create_validation_data_dict_for_genetic_algorithm(),#{valid_data.id: valid_data.sampled_valid_data[valid_data._reactions_to_validate + [valid_data.id+"_ub"]] for valid_data in self.validation_data if valid_data.sampled_valid_data is not None},
             filename_save = results_filename,
