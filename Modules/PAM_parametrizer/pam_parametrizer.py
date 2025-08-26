@@ -1022,7 +1022,7 @@ class PAMParametrizer():
         # Determine the range to loop over based on absolute values and model feasibility
         index = 0
         start, end, step = get_range_start_end_step(index)
-        while not self._pamodel_is_feasible(substrate_uptake_rate=start):
+        while not self._pamodel_is_feasible(substrate_uptake_rate=start) and index==len(validation_range):
             index += 1
             start, end, step = get_range_start_end_step(index)
 
