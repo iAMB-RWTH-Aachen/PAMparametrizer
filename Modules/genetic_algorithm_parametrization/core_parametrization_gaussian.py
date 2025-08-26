@@ -5,7 +5,10 @@ Genetic algorithm (GA) for the prediction genome reduction paths based on metabo
 
 """
 import os
-from typing import Union
+from typing import Union, List, Dict
+
+from ..PAM_parametrizer import KcatConstraintConfigTable
+
 # Disable gurobi logging output
 try:
     import gurobipy
@@ -21,6 +24,7 @@ from pathlib import Path
 import importlib
 import pandas as pd
 import json
+from cobra import DictList
 
 from multiprocessing import Pool
 
@@ -79,6 +83,8 @@ class GAPO():
     def __init__(self,
                  model=None,
                  enzymes_to_eval: dict = {},
+                 valid_data: Union[DictList, dict]={},
+                 kcat_constraints_table: pd.DataFrame = KcatConstraintConfigTable(),
                  sector_configs_per_substrate: dict = {},
                  fitness_class="Fitfun_params_uniform",
                  mutation_probability=0.5,
@@ -95,7 +101,6 @@ class GAPO():
                  filename_save="ga_results",
                  overwrite_intermediate_results=True,
                  objective_id='BIOMASS',
-                 valid_data=dict(),
                  sigma_denominator: int = 10,
                  substrate_uptake_rates={'EX_glc__D_e': [0.7, 11.3]},
                  substrate_uptake_id='EX_glc__D_e',
@@ -130,6 +135,8 @@ class GAPO():
                         include in optimization.
                     rxns (list[str]): List of reaction identifiers corresponding
                         to the enzymes.
+                    kcat_bounds (list[dict]]): List with a dictionary containing the upper and
+                    lower bounds of a kcat value
                     sensitivity_list (list[float]): Optional list of sensitivity coefficients
                     print_progress (bool, optional): If True, progress will be
                         printed during the GA run. Defaults to True.
@@ -149,6 +156,7 @@ class GAPO():
         self.rxns = list()
         self.kcat_list = list()
         self.directions = list()
+        self.kcat_bounds = list()
         self.sensitivity_list = list()
         self.enzymes_to_eval = list()
         for enzyme_id, rxninfo in enzymes_to_eval.items():
@@ -158,6 +166,9 @@ class GAPO():
                     self.directions += [direction]
                     self.enzymes_to_eval += [enzyme_id]
                     self.rxns += [values['reaction']]
+                    self.kcat_bounds += [kcat_constraints_table.get(enzyme_id,
+                                                                   values['reaction'],
+                                                                   direction)]
                     self.sensitivity_list += [values['sensitivity']]
 
 
@@ -512,7 +523,7 @@ class GAPO():
         
         # individual generator: mutating the list of kcat values
         toolbox.register("attr_generator", self.FitEval.attribute_generator,
-                         self.init_attribute_probability, self.kcat_list)
+                         self.init_attribute_probability, self.kcat_list, self.kcat_bounds)
         
 
         # register individual representation
@@ -557,8 +568,13 @@ class GAPO():
         # create individuals representing metabolic genes as variables/targets
         param_ind = self.FitEval.init_individual()
         creator.create("Individual", param_ind["individual_type"],
-                       fitness=creator.FitnessObj(), reactions = self.rxns, enzymes_to_eval = self.enzymes_to_eval,
-                       kcat_list = self.kcat_list, directions =self.directions)
+                       fitness=creator.FitnessObj(),
+                       reactions = self.rxns,
+                       enzymes_to_eval = self.enzymes_to_eval,
+                       kcat_list = self.kcat_list,
+                       directions =self.directions,
+                       kcat_bounds= self.kcat_bounds
+                       )
         
     def _init_deap_fitness(self):
         param_fit = self.FitEval.init_fitness()

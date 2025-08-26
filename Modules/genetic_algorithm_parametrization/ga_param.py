@@ -23,7 +23,8 @@ class Genetic_Algorithm():
     Genetic Algorithm operator. Contains all the functions to perform a single gene flow event for a population
     """
 
-    def __init__(self, crossover_probability:float=0.8,
+    def __init__(self,
+                 crossover_probability:float=0.8,
                  mutation_probability: float=0.5,
                  number_generations: int=20,
                  time_limit:int=600):
@@ -90,8 +91,15 @@ class Genetic_Algorithm():
 
 
     # main genetic algorithm iterations
-    def main(self, pop: list, toolbox: deap.base.Toolbox, start_time: float, fitfun,
-             sensitivities:list, fitness_dict: dict={}, pop_id:str ="", print_progress:bool = True) -> (list, dict):
+    def main(self,
+             pop: list,
+             toolbox: deap.base.Toolbox,
+             start_time: float, fitfun,
+             sensitivities:list,
+             fitness_dict: dict={},
+             pop_id:str ="",
+             print_progress:bool = True
+             ) -> (list, dict):
         """Main genetic algorithm framework
         - supports elitism
         - mutation operator
@@ -168,8 +176,8 @@ class Genetic_Algorithm():
                     # the new value is samples from a gaussian distribution with mu being the original kcat value and
                     # sigma being related to the kcat value to stay in sync with the order of magnitude of the original kcat
                     new_kcats = [fitfun._mutate_kcat_value(kcat=kcat,
-                                                           min_kcat = min_max[0],
-                                                           max_kcat = min_max[1],
+                                                           min_kcat = min_max['min_kcat'],
+                                                           max_kcat = min_max['max_kcat'],
                                                            sensitivity=sens,
                                                            toolbox=toolbox)
                                  for kcat, min_max ,sens in zip(mutant.kcat_list, mutant.kcat_bounds, sensitivities)]

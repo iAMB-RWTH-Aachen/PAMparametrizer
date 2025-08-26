@@ -82,6 +82,7 @@ class KcatConstraintConfigTable:
 
     REQUIRED_COLUMNS = ["enzyme_id", "reaction_id", "direction", "min_kcat", "max_kcat"]
     DIFFUSION_LIMIT = 1e6
+    MIN_KCAT = 1e-6
 
     def __init__(self, df: Optional[pd.DataFrame] = None):
         if df is None:
@@ -118,10 +119,19 @@ class KcatConstraintConfigTable:
         try:
             row = self.df.loc[(enzyme_id, reaction_id, direction)]
             return {"min_kcat": row["min_kcat"], "max_kcat": row["max_kcat"]}
-        except KeyError:
+        except:
             raise KeyError(
                 f"No kcat constraint for enzyme={enzyme_id}, reaction={reaction_id}, direction={direction}"
             )
+
+    def get_in_model_constraints(self, enzyme_id: str, reaction_id: str, direction: str) -> dict:
+        """Return the constraint as a dict for the given enzyme–reaction–direction with the
+        kcat values in model units: [1/h *1e-6] instead of [1/s]."""
+        try:
+            row = self.df.loc[(enzyme_id, reaction_id, direction)]
+            return {"min_kcat": row["min_kcat"]*3600*1e-6, "max_kcat": row["max_kcat"]*3600*1e-6}
+        except:
+            return {"min_kcat": self.MIN_KCAT*3600*1e-6, "max_kcat": self.DIFFUSION_LIMIT*3600*1e-6}
 
     def add(self, enzyme_id:str, reaction_id:str, direction:str,
             min_kcat: Optional[float] = 0, max_kcat: Optional[float] = DIFFUSION_LIMIT) -> dict:
