@@ -34,7 +34,7 @@ def test_if_create_pamodel_from_diagnostics_file_is_correct(sheet_name:str,
 
     # Act
     data_path = os.path.join('tests','data','diagnostics_file_for_toy.xlsx')
-    toy_pam = create_pamodel_from_diagnostics_file(data_path, toy_pam, sheet_name)
+    toy_pam = create_pamodel_from_diagnostics_file(data_path, toy_pam, sheet_name, substrate_uptake_id = 'R1')
     kcats = toy_pam.enzyme_variables.get_by_id(enzyme_id).kcats.values()
     actual_kcat_f = list(kcats)[0]['f'] # Getting only the forward kcat, because only f kcat is in the diagnostics file
 
