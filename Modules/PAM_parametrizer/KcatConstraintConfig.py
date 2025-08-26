@@ -58,7 +58,7 @@ class KcatConstraintConfigTable:
 
     REQUIRED_COLUMNS = ["enzyme_id", "reaction_id", "direction", "min_kcat", "max_kcat"]
     DIFFUSION_LIMIT = 1e6
-    MIN_KCAT = 1e-3
+    MIN_KCAT = 1e-6
 
     def __init__(self, df: Optional[pd.DataFrame] = None):
         if df is None:

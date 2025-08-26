@@ -200,7 +200,7 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
-                       plotting_threshold=1e12,
+                       plotting_threshold=1e3,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
