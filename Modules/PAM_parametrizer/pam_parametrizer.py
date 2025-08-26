@@ -17,7 +17,7 @@ from collections import defaultdict
 from typing import List, Dict, Literal, Optional
 import warnings
 
-from .PAM_data_classes import ValidationData, HyperParameters, ParametrizationResults, SectorConfig
+from .PAM_data_classes import KcatConstraintConfigTable, ValidationData, HyperParameters, ParametrizationResults, SectorConfig
 from ..genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from ..utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
 from ..utils.sampling_functions import adaptive_sampling
@@ -114,6 +114,7 @@ class PAMParametrizer():
 
     def __init__(self, pamodel:PAModel,
                  validation_data: Union[DictList[ValidationData], list, ValidationData],
+                 kcat_configs: Optional[Union[KcatConstraintConfigTable, pd.DataFrame]] = None,
                  hyperparameters: Optional[HyperParameters] = None,
                  sector_configs: Optional[Union[Dict[str, SectorConfig], bool]] = None,
                  substrate_uptake_id: str = "EX_glc__D_e",
@@ -130,8 +131,15 @@ class PAMParametrizer():
         self.pamodel_no_sensitivity = pamodel.copy(copy_with_pickle = True)
         self.pamodel_no_sensitivity.sensitivity = False
 
-        #change total protein constraint to equality constraint for better fitting
-        # self._set_total_protein_constraint_to_equality()
+        #get constraints on kcat values
+        self.kcat_configs = kcat_configs if not isinstance(kcat_configs, KcatConstraintConfigTable) else KcatConstraintConfigTable(kcat_configs)
+        for enzyme in pamodel.enzymes:
+            for rxn_id, kcat_dict in enzyme.rxn2kcat.items():
+                for direction, kcat in kcat_dict.items():
+                    if not kcat_configs.has_constraint(enzyme_id=enzyme.id, reaction_id=rxn_id, direction=direction):
+                        kcat_configs.add(enzyme_id=enzyme.id, reaction_id=rxn_id, direction=direction)
+
+
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]
         self.validation_data = DictList(validation_data)
         self.hyperparameters = hyperparameters if hyperparameters is not None else HyperParameters()
