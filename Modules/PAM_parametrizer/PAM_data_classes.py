@@ -50,7 +50,10 @@ class KcatConstraintConfigTable:
     ----------
     df : pandas.DataFrame
         A validated DataFrame with a MultiIndex ('enzyme_id', 'reaction_id', 'direction')
-        and columns ['min_kcat', 'max_kcat'].
+        and columns ['min_kcat', 'max_kcat'] with kcats in 1/s.
+    df_model_constraints : pandas.DataFrame
+        A validated DataFrame with a MultiIndex ('enzyme_id', 'reaction_id', 'direction')
+        and columns ['min_kcat', 'max_kcat'] with kcat in 1/h*1e-6 (compatible with model coefficients).
 
     Methods
     -------
@@ -86,6 +89,15 @@ class KcatConstraintConfigTable:
 
         self._validate_input_df(df=df)
         self.df = df.set_index(["enzyme_id", "reaction_id", "direction"]).sort_index()
+
+    @property
+    def df_model_constraints(self) -> pd.DataFrame:
+        """Returns the dataframe with the kcat values in model units: [1/h *1e-6] instead of [1/s]
+        """
+        df = self.df.copy()
+        for col in ['min_kcat', 'max_kcat']:
+            df[col] = df[col]*3600*1e-6
+        return df
 
     def _validate_input_df(self, df: pd.DataFrame):
         """Check if dataframe has all the columns required to constrain the kcat values"""
@@ -123,6 +135,7 @@ class KcatConstraintConfigTable:
     def has_constraint(self, enzyme_id: str, reaction_id: str, direction: str) -> bool:
         """Check if a constraint exists for the given enzyme–reaction–direction."""
         return (enzyme_id, reaction_id, direction) in self.df.index
+
 
 @dataclass
 class ValidationData:
