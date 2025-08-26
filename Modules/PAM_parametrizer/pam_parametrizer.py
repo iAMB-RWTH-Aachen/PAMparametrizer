@@ -137,12 +137,12 @@ class PAMParametrizer():
         self.pamodel_no_sensitivity.sensitivity = False
 
         #get constraints on kcat values
-        self.kcat_configs = kcat_configs if not isinstance(kcat_configs, KcatConstraintConfigTable) else KcatConstraintConfigTable(kcat_configs)
+        self.kcat_configs = kcat_configs if isinstance(kcat_configs, KcatConstraintConfigTable) else KcatConstraintConfigTable(kcat_configs)
         for enzyme in pamodel.enzymes:
             for rxn_id, kcat_dict in enzyme.rxn2kcat.items():
                 for direction, kcat in kcat_dict.items():
-                    if not kcat_configs.has_constraint(enzyme_id=enzyme.id, reaction_id=rxn_id, direction=direction):
-                        kcat_configs.add(enzyme_id=enzyme.id, reaction_id=rxn_id, direction=direction)
+                    if not self.kcat_configs.has_constraint(enzyme_id=enzyme.id, reaction_id=rxn_id, direction=direction):
+                        self.kcat_configs.add(enzyme_id=enzyme.id, reaction_id=rxn_id, direction=direction)
 
 
         if not hasattr(validation_data, "__iter__"): validation_data = [validation_data]

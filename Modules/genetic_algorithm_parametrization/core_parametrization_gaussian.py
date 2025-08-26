@@ -165,7 +165,7 @@ class GAPO():
                     self.directions += [direction]
                     self.enzymes_to_eval += [enzyme_id]
                     self.rxns += [values['reaction']]
-                    self.kcat_bounds += [kcat_constraints_table.get(enzyme_id,
+                    self.kcat_bounds += [kcat_constraints_table.get_in_model_constraints(enzyme_id,
                                                                    values['reaction'],
                                                                    direction)]
                     self.sensitivity_list += [values['sensitivity']]

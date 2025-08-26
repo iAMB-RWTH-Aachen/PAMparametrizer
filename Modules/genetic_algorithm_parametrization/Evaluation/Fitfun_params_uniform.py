@@ -70,7 +70,7 @@ class FitnessEvaluation(FitnessEvaluation):
     ##########################################################################
         
     def _mutate_kcat_value(self, kcat:float,
-                           min_kcat: float = 1e-6,
+                           min_kcat: float = 1e-3,
                            max_kcat:float = DIFUSSIONLIMIT,
                            sensitivity:float = 0.5,
                            toolbox:deap.base.Toolbox = None) -> float:
@@ -104,7 +104,7 @@ class FitnessEvaluation(FitnessEvaluation):
     def _mut_kcat_uniform(self,
                           kcat_list:List[float],
                           indpb:float,
-                          min_kcat: float = 1e-6,
+                          min_kcat: float = 1e-3,
                           max_kcat:float = DIFUSSIONLIMIT) -> List[float]:
         """
         Mutate kcat list by sampling from a uniform distribution ranging from 0 to 2*kcat
@@ -123,6 +123,7 @@ class FitnessEvaluation(FitnessEvaluation):
             new_kcats = []
             for kcat in kcat_list:
                 max_kcat = kcat*2 if 1/(kcat * 2) < max_kcat else 1/max_kcat
+                print('minimal kcat value',min_kcat)
                 new_kcats.append(np.random.uniform(max_kcat, 1/min_kcat))
         else:
             new_kcats = kcat_list
