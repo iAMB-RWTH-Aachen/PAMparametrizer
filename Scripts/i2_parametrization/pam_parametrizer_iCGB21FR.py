@@ -98,11 +98,10 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                            threshold_iteration:int =10,
                            c_sources:list = ['Glucose'],
                            kcat_increase_factor: int = 1):
-    if kcat_increase_factor != 1:
-        pam_info_file_path_out = os.path.join(
+    pam_info_file_path_out = os.path.join(
             'Results', '2_parametrization', 'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx')
 
-        increase_kcats_in_parameter_file(kcat_increase_factor,
+    increase_kcats_in_parameter_file(kcat_increase_factor,
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
