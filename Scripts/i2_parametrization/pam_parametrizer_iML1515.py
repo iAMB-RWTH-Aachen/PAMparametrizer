@@ -11,7 +11,7 @@ from PAModelpy.utils.pam_generation import set_up_pam, increase_kcats_in_paramet
 
 from Modules.utils.pam_generation import turn_of_exchanges
 from Modules.utils.pamparametrizer_setup import set_up_sector_config
-from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
+from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults, KcatConstraintConfigTable
 from Modules.PAM_parametrizer import PAMParametrizer
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
@@ -95,6 +95,9 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
     validation_data._reactions_to_validate = [col for col in valid_data_df.columns if ('EX_' in col) and (col[-3:]!="_ub")]
     return validation_data
 
+def get_kcat_bounds(pam_info_file: str) -> KcatConstraintConfigTable:
+    return KcatConstraintConfigTable(pd.read_excel(pam_info_file, sheet_name='KcatBounds'))
+
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
                           filename_extension:str,
@@ -157,6 +160,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
     validation_data = set_up_validation_data(c_sources,
                                              pam_info_file=pam_info_file)
+    kcat_config = get_kcat_bounds(pam_info_file = pam_info_file)
     hyperparameters = set_up_hyperparameter(processes, gene_flow_events,
                                             filename_extension, num_kcats_to_mutate,
                                             threshold_iteration)
@@ -164,6 +168,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                          sectors_not_related_to_growth = ['UnusedEnzymeSector', 'TranslationalProteinSector'])
     return PAMParametrizer(pamodel=ecoli_pam,
                            validation_data=validation_data,
+                           kcat_configs = kcat_config,
                            hyperparameters=hyperparameters,
                            sector_configs=sector_configs,
                            substrate_uptake_id=config.GLUCOSE_EXCHANGE_RXNID,
