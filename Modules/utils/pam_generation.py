@@ -17,6 +17,7 @@ DEFAULT_KCAT = 11 #s-1
 def create_pamodel_from_diagnostics_file(file_path:str,
                                          model: PAModel,
                                          sheet_name: str = 'Best_Individuals',
+                                         enzyme_sector_update: bool = True,
                                          other_enzyme_id_pattern: str = r'E[0-9][0-9]*|Enzyme*',
                                          substrate_uptake_id: str = 'EX_glc__D_e'
                                          )-> PAModel:
@@ -33,6 +34,10 @@ def create_pamodel_from_diagnostics_file(file_path:str,
             - kcat[s-1]: the new kcat value in 1/s
         model (PAModel): the PAM to adjust
         sheet_name (str): name of the sheet with the information about the modifications
+        enzyme_sector_update (bool): if the enzyme sectors should be updated according to the parametrization results.
+            Defaults to True
+        other_enzyme_id_pattern (regex str): regex pattern which matches default enzyme id.
+            Normally is E1, E2, etc. or Enzyme_<rxn_id>, but can be specified by the user.
         substrate_uptake_id (str): name of the uptake reaction for the substrate for which the model is built
 
     Returns:
@@ -47,7 +52,7 @@ def create_pamodel_from_diagnostics_file(file_path:str,
                                                  other_enzyme_id_pattern = other_enzyme_id_pattern)
             kcat_dict = {rxn_id: {row['direction']: row['kcat[s-1]']}}
             model.change_kcat_value(enzyme_id=enzyme_id, kcats=kcat_dict)
-
+    if not enzyme_sector_update: return model
     try:
         sector_parameters_df = pd.read_excel(file_path, sheet_name="sector_parameters")
     except:
