@@ -96,7 +96,10 @@ def set_up_valid_data_csource_not_glucose(valid_data_csources: pd.DataFrame, cso
     return validation_data
 
 def get_kcat_bounds(pam_info_file: str) -> KcatConstraintConfigTable:
-    return KcatConstraintConfigTable(pd.read_excel(pam_info_file, sheet_name='KcatBounds'))
+    try:
+        return KcatConstraintConfigTable(pd.read_excel(pam_info_file, sheet_name='KcatBounds'))
+    except:
+        return KcatConstraintConfigTable()
 
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
@@ -186,7 +189,7 @@ if __name__ == "__main__":
                                               pam_info_file= pam_info_file,
                                               filename_extension= 'iML1515',
                                               c_sources = ['Glucose'],
-                                              kcat_increase_factor=3, #9,
+                                              kcat_increase_factor=1, #9,
                                               threshold_iteration= 5)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

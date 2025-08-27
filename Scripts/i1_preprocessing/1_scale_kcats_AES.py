@@ -39,7 +39,7 @@ def scan_kcat_factors(max_factor:int,
                       stepsize:Union[float, int] = 1,
                       setup_pam_function: Callable = set_up_pam,
                       pam_info_file: str = os.path.join(
-                          'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx'
+                          'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx'
                       ),
                       setup_pamparametrizer_function: Callable = set_up_pamparametrizer,
                       pam_parametrizer_kwargs: dict = {'c_sources': ['Glucose']},

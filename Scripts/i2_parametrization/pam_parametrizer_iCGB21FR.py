@@ -143,7 +143,7 @@ def run_parametrizations(n_iterations:int=5,
         pam_parametrizer = set_up_pamparametrizer(MAX_SUBSTRATE_UPTAKE_RATE,
                                                   pam_info_file=pam_info_file,
                                                   filename_extension = f'iCGB21FR_{i}',
-                                                  kcat_increase_factor=2,
+                                                  kcat_increase_factor=1,
                                                   c_sources=['Glucose', 'Succinate', 'Fructose', 'Gluconate'])
         #
         pam_parametrizer.run(remove_subruns=True, binned='False')
