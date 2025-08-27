@@ -108,7 +108,6 @@ def map_kcat_values_to_reaction_protein_association(id_mapper: pd.DataFrame,
         right_on=['gene', 'reaction_id'],
         how='left'
     )
-    print(id_mapper.columns)
     mapped_gene = merged_by_gene.dropna(subset=['kcat_values'])
     unmapped = merged_by_gene[merged_by_gene['kcat_values'].isna()]
     print(f'Mapped {len(mapped_gene )} '
@@ -131,7 +130,6 @@ def map_kcat_values_to_reaction_protein_association(id_mapper: pd.DataFrame,
     # Remove duplicates already in mapped_gene
     already_mapped_rxns = set(mapped_gene['rxn_id'])
     merged_by_ec = merged_by_ec[~merged_by_ec['rxn_id'].isin(already_mapped_rxns)]
-    print(merged_by_ec.columns)
 
     # Combine and clean
     combined = pd.concat([mapped_gene, merged_by_ec], ignore_index=True)

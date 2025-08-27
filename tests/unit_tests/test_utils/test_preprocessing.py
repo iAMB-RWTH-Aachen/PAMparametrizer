@@ -3,7 +3,8 @@ import numpy as np
 import pytest
 
 from Modules.utils.preprocessing import (assign_missing_gprs,
-                                         map_kcat_values_to_reaction_protein_association)
+                                         map_kcat_values_to_reaction_protein_association,
+                                         mer)
 
 @pytest.mark.parametrize(
     "input_row,use_ec,expected_gene,expected_gpr,expected_enzyme_id",

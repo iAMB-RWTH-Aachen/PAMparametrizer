@@ -20,12 +20,13 @@ print_time = lambda : strftime("%d/%m %H:%M:%S")
 
 
 class GAPOUniform(GAPO):
-    
+    """Genetic Algorithm for Protein Optimization (GAPO).
+    Similar to the base class, but with uniform sampling to mutate the kcat values"""
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
 
     def _init_deap_toolbox_mutation(self, toolbox):
-        # only change the mutation function to uniform sampling
+        """Use the deap mutation function for uniform sampling"""
         toolbox.register("mutate", self.FitEval._mut_kcat_uniform ,indpb=self.mutation_rate)
 
         return toolbox

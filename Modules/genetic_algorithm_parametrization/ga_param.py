@@ -145,18 +145,15 @@ class Genetic_Algorithm():
             if print_progress:
                 print("({3}) Population {0}: Generation {1}/{2} --".format(pop_id, g, self.number_generations, print_time()))
 
-            # get best individual of population for elitism
+            # Elitism: select best individual
             elite = self._get_best_individual_from_population(pop)
-            #make clones of the elite individuals
             elite = self._clone_elite([elite], toolbox)
 
-            #select the better individuals
+            #Selection: select the better individuals
             offspring = toolbox.select(pop, population_size-1)
-            # Clone the selected individuals
             offspring = list(map(toolbox.clone, offspring))
 
-            # Apply crossover and mutation on the offspring
-            # the input individuals are being changed themselves
+            #Crossover and Mutation
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
     
                 # cross the kcat_lists of two individuals with probability CXPB
