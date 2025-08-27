@@ -254,7 +254,51 @@ class GAPO():
 
 
     # execute genetic algorithm
-    def start(self):
+    def start(self) -> None:
+        """Execute the genetic algorithm workflow.
+
+                This method orchestrates the full genetic algorithm run,
+                including toolbox initialization, population creation,
+                parallel optimization, and evaluation of the final population.
+                Intermediate states (e.g., fitness evaluator) and final
+                populations are saved to disk.
+
+                Workflow:
+                    1. Initialize timing.
+                    2. Initialize the DEAP toolbox for genetic algorithm operators.
+                    3. Save the fitness evaluation class to a pickle file.
+                    4. Initialize multiple populations in parallel using
+                       multiprocessing.
+                    5. Perform optimization with parallel gene flow events
+                       across populations.
+                    6. Evaluate and save the final population results.
+
+                Returns:
+                    None but saves the results of the final population in several formats (json, xlsx and pickle)
+
+                Side Effects:
+                    - Writes the fitness evaluation class to a pickle file.
+                    - Saves the evaluated final population to disk.
+                    - Optionally prints progress messages to stdout.
+
+                Attributes Used:
+                    print_progress (bool): Whether to print progress messages.
+                    folderpath_save (str): Directory path for saving outputs.
+                    filename_save (str): Base filename for result files.
+                    processes (int): Number of parallel processes to use for
+                        population initialization.
+                    population_size (int): Number of individuals in each
+                        population.
+                    ga (object): Genetic algorithm helper with `init_pop` for
+                        creating populations.
+                    FitEval (object): Fitness evaluation class instance.
+                    toolbox (deap.base.Toolbox): DEAP toolbox with operators.
+                    pops_final (list): Final populations after optimization.
+
+                Raises:
+                    RuntimeError: If population initialization or parallel
+                        optimization fails.
+                """
         # initialize timing
         start_time = time()
         # initialize DEAP toolbox
@@ -294,12 +338,11 @@ class GAPO():
     def restart(self, filepath_previous_pop: Union[list, str]):
         """Restart genetic algorithm with the final population from a preceeding run
         
-        Inputs:
-            :param pathlib.Path filepath_previous_pop: list with paths to previous genetic algorithm results
+        Args:
+            filepath_previous_pop: list with paths to previous genetic algorithm results
             
-        Outputs:
-
-        
+        Returns:
+            None
         """
         
         # helper functions
@@ -509,62 +552,74 @@ class GAPO():
         if self.print_progress:
             print("({}) Evaluate final population --".format(print_time()))
         self._save_population(sum(self.pops_final, []))
-        
-
 
     def _init_deap_toolbox(self):
         """
-         initialize DEAP toolbox
-                  this is the central module incorporating all the information, param
-                  parameters, and data of the genetic algorithm problem
+        Initialize the DEAP toolbox for the genetic algorithm.
+
+        This private method configures and returns a DEAP `Toolbox` object,
+        which specifies how individuals are created, how populations are
+        initialized, and which operators are used for evaluation, crossover,
+        mutation, and selection. The setup integrates problem-specific
+        information from the `FitEval` instance (e.g., attribute generation,
+        enzyme list, and reaction directions).
+
+        Returns:
+            deap.base.Toolbox:
+                Configured DEAP toolbox containing registered functions for
+                individual creation, population initialization, evaluation,
+                mutation, crossover, and selection.
         """
         toolbox = base.Toolbox()
-        
-        # individual generator: mutating the list of kcat values
-        toolbox.register("attr_generator", self.FitEval.attribute_generator,
-                         self.init_attribute_probability, self.kcat_list, self.kcat_bounds)
-        
 
-        # register individual representation
-        param_attr = self.FitEval.init_attribute(self.enzymes_to_eval, self.directions, self.rxns)
+        # Attribute generator: defines how a single attribute (kcat value) is created
+        toolbox.register(
+            "attr_generator",
+            self.FitEval.attribute_generator,
+            self.init_attribute_probability,
+            self.kcat_list,
+            self.kcat_bounds,
+        )
 
-        toolbox.register("individual",  tools.initRepeat, creator.Individual,
-                         toolbox.attr_generator,  param_attr["number_attributes"])
-        
-        # define the population to be a list of individuals
+        # Individual representation: sequence of attributes representing one solution
+        param_attr = self.FitEval.init_attribute(
+            self.enzymes_to_eval, self.directions, self.rxns
+        )
+        toolbox.register(
+            "individual",
+            tools.initRepeat,
+            creator.Individual,
+            toolbox.attr_generator,
+            param_attr["number_attributes"],
+        )
+
+        # Population initialization: defines how a collection of individuals is created
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-        
-        #  Operator registration
-        # register the goal / fitness function
-        toolbox.register("evaluate", self.FitEval.eval_fitness)
-        
-        # register the crossover operator
-        toolbox.register("mate", tools.cxTwoPoint)
-        
-        # register a mutation operator with a probability to
-        # flip an attribute
-        toolbox =self._init_deap_toolbox_mutation(toolbox)
-        
-        # operator for selecting individuals for breeding the next
-        # generation: each individual of the current generation
-        # is replaced by the 'fittest' (best) of three individuals
-        # drawn randomly from the current generation.
-        toolbox.register("select", tools.selBest)#, tournsize=2)
 
-        #overwrite the clone function of the toolbox
+        # Evaluation operator: assigns a fitness score to individuals
+        toolbox.register("evaluate", self.FitEval.eval_fitness)
+
+        # Crossover operator: two-point crossover for recombining individuals
+        toolbox.register("mate", tools.cxTwoPoint)
+
+        # Mutation operator: flips attributes with a defined probability
+        toolbox = self._init_deap_toolbox_mutation(toolbox)
+
+        # Selection operator: selects the fittest individuals (elitist selection)
+        toolbox.register("select", tools.selBest)
+
+        # Optional clone operator (disabled for now)
         # toolbox.register('clone', self._copy_deap_individual, toolbox)
 
         return toolbox
 
     def _init_deap_toolbox_mutation(self, toolbox):
-        # register a mutation operator with a probability to
-        # flip an attribute
+        """register a mutation operator using the deap tools for sampling from a Gaussian distribution"""
         toolbox.register("mutate", tools.mutGaussian, indpb=self.mutation_rate)
         return toolbox
     
     def _init_deap_individual(self):
-        
-        # create individuals representing metabolic genes as variables/targets
+        """create individuals representing lists of protein-reaction associations and kcat bounds"""
         param_ind = self.FitEval.init_individual()
         creator.create("Individual", param_ind["individual_type"],
                        fitness=creator.FitnessObj(),
@@ -576,6 +631,7 @@ class GAPO():
                        )
         
     def _init_deap_fitness(self):
+        """Initializes the operator which calculates the fitness of an individual. This object can be user specified"""
         param_fit = self.FitEval.init_fitness()
         creator.create("FitnessObj", MyFitness, weights=param_fit["weights"])
         return creator
@@ -588,8 +644,29 @@ class GAPO():
             copied_individuals +=new_individual
         return copied_individuals
     
-    def _parallel_gene_flow(self, pops, toolbox, start_time, previous_drifts=0):
-        # initialize fitness dictionary
+    def _parallel_gene_flow(self, pops, toolbox,
+                            start_time:float,
+                            previous_drifts: float=0) -> List[list]:
+        """
+            Run parallel gene flow events across multiple populations.
+
+            This function evolves populations in parallel by redistributing
+            individuals (gene flow), running the genetic algorithm on each
+            sub-population, and saving intermediate results. The process
+            continues until the configured number of gene flow events is
+            reached or the time limit is exceeded.
+
+            Args:
+                pops (list[list]): List of populations, where each population
+                    is a list of individuals.
+                toolbox (deap.base.Toolbox): Configured DEAP toolbox for GA operations.
+                start_time (float): Timestamp when the algorithm was started.
+                previous_drifts (int, optional): Number of gene flow events already
+                    completed before this run. Defaults to 0.
+
+            Returns:
+                list[list]: Final evolved populations after all gene flow events.
+            """
         fitness_dict = {}
     
         drift = previous_drifts
@@ -642,25 +719,25 @@ class GAPO():
         return pops
     
     
-    def _save_population(self, pop, suffix=""):
-        """Saves a population and the metadat for the genetic algorithm in
-        Excel and machine readable .json format
-        
-        Inputs:
-            :param list pop: Individuals of a population
-            :param str suffix: Suffix for the filename
-            
-        Outputs:
-        
-        
+    def _save_population(self, pop, suffix: str="") ->None:
         """
-         
-        # determine save path
+        Save a population and genetic algorithm metadata.
+
+        Stores the given population in both human-readable (Excel) and
+        machine-readable (JSON) formats. Includes metadata, attributes,
+        fixed attributes, and information about the best individual.
+
+        Args:
+            pop (list): List of individuals in the population.
+            suffix (str, optional): Suffix to append to the output filename.
+                Useful for saving intermediate results. Defaults to "".
+
+        Returns:
+            None
+        """
         save_path = os.path.join(self.folderpath_save, self.filename_save+suffix)
 
-        # get attributes list from custom fitness evaluation class
         individual_attr_list = self.FitEval.individual_attr_list
-        # gte fixed attributes list from custom fitness evaluation class
         fixed_attr_list = self.FitEval.fixed_attr_list
         
         # get best individual and save individual's parameters
@@ -674,21 +751,17 @@ class GAPO():
         pop_list = []
         best_ind = pop[0] # initialize best individual
         for ind, ind_custom_properties in zip(pop, pop_custom_properties):
-            # get properties
             ind_properties = {
                 "fitness_weighted_sum": ind.fitness._wsum(), # fitness value
                 "attributes": ",".join([str(j) for j in ind.kcat_list]) # attributes list as string
                 }
-            # merge with custom properties and save
             pop_list.append({**ind_properties, **ind_custom_properties})
             
-            # save best individual
             if best_ind.fitness._wsum() < ind.fitness._wsum():
                 best_ind = ind
               
         pop_frame = pd.DataFrame(pop_list)    
         
-        # sort population
         pop_frame = pop_frame.sort_values(by="fitness_weighted_sum", axis=0, ascending=False)
         
         # evaluate and save best individual
@@ -699,16 +772,13 @@ class GAPO():
             "type": [attr['type'] for attr in individual_attr_list],
             "value": [v for v in best_ind.kcat_list]
             })
-        # sort frame
         best_ind_frame = best_ind_frame.sort_values(by="id", axis=0, ascending=True)
         
-        # write attributes list
         attributes_frame = pd.DataFrame({
                 "id": [attr['id'] for attr in individual_attr_list],
                 "type": [attr['type'] for attr in individual_attr_list],
                 })
-        
-        
+
         fixed_attributes_frame = pd.DataFrame({
                 "id": fixed_attr_list,
                 })
@@ -752,11 +822,9 @@ class GAPO():
         
         writer.save()
         
-        # save dict (machine-readable)
         with open(save_path+'.json', "w") as f:
             json.dump(pop_dict, f)
         
-    
 
     
 # %% Override DEAP's base.Fitness class with more meaningful comparator methods
