@@ -162,6 +162,20 @@ validation_data.sector_configs = {
                 }}
 ```
 
+A small note on the inactive exchanges: experimental results provide commonly only the excreted and consumed metabolites,
+but there are many more which can be excreted, but are not! The 'inactive exchanges' are very valuable data point for
+the PAMparametrizer, and should not be ignored. Therefore, if there is no exchange rate provided, we need to penalize potential
+predicted excretion by the model. It is possible to define this in `validation_data.inactive_exchanges`. As a default, it
+takes all exchanges which are not provided in the validation_data, and adds a column for this reaction in the `validation_data_df`.
+This column is filled with zeros, resulting in a decrease in R^2 when the model predicts a non-zero flux for this exchange.
+Are you unsure about the excretion of a specific metabolite? You can always drop this from the list. Here is an example for 
+*E. coli* (although in this case, the default would be fine, as acetate secretion is in the `validation_data_df`).
+
+```python
+inactive_exchanges = [rxn.id for rxn in pam.exchanges if rxn.id not in pam.medium and rxn.id != 'EX_ac_e']
+validation_data.inactive_exchanges = inactive_exchanges
+```
+
 #### iii. Define the HyperParameters
 The HyperParameters object can be used to change the behaviour of the PAMparametrizer and the genetic algorithm. In both
 cases, there are a lot of settings which can be adjusted. Most of these settings can be left at their defaults. Here, we 
