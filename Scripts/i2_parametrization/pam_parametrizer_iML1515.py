@@ -104,7 +104,7 @@ def get_kcat_bounds(pam_info_file: str) -> KcatConstraintConfigTable:
 def set_up_hyperparameter(processes: int,
                           gene_flow_events:int,
                           filename_extension:str,
-                          num_kcats_to_mutate:int = 4,
+                          num_kcats_to_mutate:int = 40,
                           threshold_iteration:int = 10):
     hyperparams = HyperParameters
     hyperparams.threshold_iteration = threshold_iteration
@@ -145,7 +145,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iML1515',
-                           num_kcats_to_mutate: int =10,
+                           num_kcats_to_mutate: int =40,
                            threshold_iteration:int =10,
                            c_sources:list = ['Glucose'],
                            kcat_increase_factor: int = 1):
@@ -180,7 +180,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_info_file = os.path.join(
-        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx')
+        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')
 
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]

@@ -154,7 +154,7 @@ def analyse_parametrizer_performance():
             iteration+1, iterations,
             configurations, set_up_pamparametrizer,
             processes,
-            gene_flow_events, 10,
+            gene_flow_events, 40,
             best_individual_df, computational_performance_df,
             pam_info_file, min_substrate_uptake=min_substrate,
             max_substrate_uptake=max_substrate)

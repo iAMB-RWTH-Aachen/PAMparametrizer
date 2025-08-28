@@ -392,17 +392,17 @@ class FitnessEvaluation():
         Returns
             new_kcat (float): mutated kcat value (sampled from normal distribution)
         """
-        stdev = kcat/self.sigma_denominator
+        stdev = 1/kcat*2#self.sigma_denominator
         if toolbox is not None:
             # mutate an individual with a mutation rate based on the sensitivity of the individual enzymes
             # the new value is samples from a gaussian distribution with mu being the original kcat value and
             # sigma being related to the kcat value to stay in sync with the order of magnitude of the original kcat
-            new_kcat = toolbox.mutate([kcat], mu=kcat, sigma=stdev, indpb=(1 - sensitivity))[0][0]
+            new_kcat = 1/toolbox.mutate([1/kcat], mu=1/kcat, sigma=stdev, indpb=(1 - sensitivity))[0][0]
         else:
             # scale needs to be positive, so prevent negative values
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
-            new_kcat = float(np.random.normal(loc=kcat, scale=stdev))
+            new_kcat = 1/float(np.random.normal(loc=1/kcat, scale=stdev))
 
         if not min_kcat == 0: new_kcat = new_kcat if 1/new_kcat < min_kcat else 1/min_kcat
         return new_kcat if 1/new_kcat < max_kcat else 1/max_kcat

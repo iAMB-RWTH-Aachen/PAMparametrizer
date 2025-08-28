@@ -136,8 +136,8 @@ class HyperParameters:
     genetic_algorithm_filename_base = 'genetic_algorithm_run_'
     filename_extension = ''
     genetic_algorithm: Callable = GAPOUniform
-    genetic_algorithm_hyperparams = {'mutation_probability':0.5, # probability with which an individual (solution) is mutated in a generation
-                                'mutation_rate':0.5, # probability with which an attribute (e.g. gene) of an individual is mutated
+    genetic_algorithm_hyperparams = {'mutation_probability':0.9, # probability with which an individual (solution) is mutated in a generation
+                                'mutation_rate':0.9, # probability with which an attribute (e.g. gene) of an individual is mutated
                                 'population_size':5, # number of individuals (solution) per population
                                 'crossover_probability':0.8, # probability with which two indivduals/offsprings are crossed over
                                 'number_generations':10, # number of consecutive generations per gene flow event

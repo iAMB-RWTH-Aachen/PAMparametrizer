@@ -98,13 +98,15 @@ class FitnessEvaluation(FitnessEvaluation):
             # scale needs to be positive, so prevent negative values
             # loc = mean, scale = sd, sd is defined as kcat/10 to make sure sd is in the same order of magntitude
             # as the kcat is
-            max_kcat = kcat * 2 if 1 / (kcat * 2) < max_kcat else 1 / max_kcat
-            return float(np.random.uniform(max_kcat, 1/min_kcat))
+
+            max_coeff = kcat * 3 if kcat * 3 < 1 / min_kcat else 1 / min_kcat
+            min_coeff = kcat / 3 if kcat / 3 > 1 / max_kcat else 1 / max_kcat
+            return float(np.random.uniform(min_coeff, max_coeff))
 
     def _mut_kcat_uniform(self,
                           kcat_list:List[float],
                           indpb:float,
-                          min_kcat: float = 1e-3,
+                          min_kcat: float = 1e-6,
                           max_kcat:float = DIFUSSIONLIMIT) -> List[float]:
         """
         Mutate kcat list by sampling from a uniform distribution ranging from 0 to 2*kcat
@@ -120,10 +122,11 @@ class FitnessEvaluation(FitnessEvaluation):
             new_kcats (list[float]): list with mutated kcat values
         """
         if random.random() < indpb:
-            new_kcats = []
+            new_coeff = []
             for kcat in kcat_list:
-                max_kcat = kcat*2 if 1/(kcat * 2) < max_kcat else 1/max_kcat
-                new_kcats.append(np.random.uniform(max_kcat, 1/min_kcat))
+                max_coeff = kcat * 3 if kcat*3 < 1/min_kcat else 1/min_kcat
+                min_coeff = kcat / 3 if kcat/3 > 1/max_kcat else 1/max_kcat
+                new_coeff.append(np.random.uniform(min_coeff, max_coeff))
         else:
-            new_kcats = kcat_list
-        return new_kcats
+            new_coeff = kcat_list
+        return new_coeff
