@@ -16,7 +16,7 @@ from Figures.Scripts.Figure2_sensitivity_error import (get_fluxomics_data,
 from Scripts.i3_analysis.flux_kcat_distribution import create_flux_histogram_old_vs_new
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iML1515 as plot_intracell_flux_distribution_ecoli
 
-N_ALT_MODELS = 10
+N_ALT_MODELS = 5
 FONTSIZE = 16
 
 ECOLI_PHENOTYPE_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes')
@@ -107,10 +107,11 @@ def main_sfig_error_progression():
 
 def main_sfig_ecoli_intracell_flux():
     plot_intracell_flux_distribution_ecoli(
-        fig_out=os.path.join('Figures', 'SuppFig_intracell_flux_distribution_heatmap_ecoli.png')
+        fig_out=os.path.join('Figures', 'SuppFig_intracell_flux_distribution_heatmap_ecoli.png'),
+        num_models = N_ALT_MODELS
     )
 
 if __name__ == '__main__':
-    # main_sfig_ecoli_intracell_flux()
-    # main_sfig_error_progression()
+    main_sfig_ecoli_intracell_flux()
+    main_sfig_error_progression()
     main_sfig_flux_distribution()

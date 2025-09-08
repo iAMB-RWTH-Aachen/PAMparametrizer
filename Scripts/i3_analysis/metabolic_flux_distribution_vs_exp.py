@@ -241,8 +241,8 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
     return ax
 
 
-def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None):
-    NUM_MODELS = 10
+def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, num_models: int = 10):
+    NUM_MODELS = num_models
     PAM_KCAT_FILES_IML = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                        f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
