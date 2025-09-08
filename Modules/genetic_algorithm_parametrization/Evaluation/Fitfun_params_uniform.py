@@ -124,8 +124,8 @@ class FitnessEvaluation(FitnessEvaluation):
         if random.random() < indpb:
             new_coeff = []
             for kcat in kcat_list:
-                max_coeff = kcat * 3 if kcat*3 < 1/min_kcat else 1/min_kcat
-                min_coeff = kcat / 3 if kcat/3 > 1/max_kcat else 1/max_kcat
+                max_coeff = kcat * 2 if kcat*2 < 1/min_kcat else 1/min_kcat
+                min_coeff = kcat / 2 if kcat/2 > 1/max_kcat else 1/max_kcat
                 new_coeff.append(np.random.uniform(min_coeff, max_coeff))
         else:
             new_coeff = kcat_list

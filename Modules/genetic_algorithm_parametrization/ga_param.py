@@ -178,9 +178,11 @@ class Genetic_Algorithm():
                                                            sensitivity=sens,
                                                            toolbox=toolbox)
                                  for kcat, min_max ,sens in zip(mutant.kcat_list, mutant.kcat_bounds, sensitivities)]
+                    mutant.kcat_list = new_kcats
                     for i in range(len(new_kcats)):
                         mutant[i] = mutant.kcat_list[i]
                     del mutant.fitness.values
+
 
             invalid_ind = []
             for ind in offspring:

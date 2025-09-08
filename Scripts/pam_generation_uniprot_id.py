@@ -21,7 +21,7 @@ def setup_ecolicore_pam(total_protein:bool = True,
     # Setting the relative paths
     PAM_DATA_FILE_PATH = os.path.join('Results',
                                       '1_preprocessing',
-                                      'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
+                                      'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')
 
     config = Config()
     config.reset()
@@ -37,7 +37,9 @@ def setup_ecolicore_pam(total_protein:bool = True,
     #load example data for the E.coli iML1515 model
     if active_enzymes:
         # load active enzyme sector information
-        enzyme_db = parse_enzyme_db(pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes'))
+        # enzyme_db = parse_enzyme_db(pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes'))
+        enzyme_db = pd.read_excel(PAM_DATA_FILE_PATH, sheet_name='ActiveEnzymes')
+
         # create enzyme objects for each gene-associated reaction
         rxn2protein, protein2gene = parse_reaction2protein(enzyme_db, model)
 
@@ -165,7 +167,7 @@ def parse_enzyme_db(enzyme_db: pd.DataFrame) -> None:
                           values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b':'kcat_b'}, axis=1)
     except:
         enzyme_db = enzyme_db.pivot_table(
-            index=['rxn_id', 'GPR', 'gene', 'uniprot_id', 'molMass'],
+            index=['rxn_id', 'GPR', 'gene', 'enzyme_id', 'molMass'],
             columns='direction',
             values='kcat_values').reset_index().rename({'f': 'kcat_f', 'b': 'kcat_b'}, axis=1)
     return enzyme_db
