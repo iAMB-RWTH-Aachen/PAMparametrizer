@@ -23,7 +23,7 @@ ECOLI_PHENOTYPE_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes')
 
 MODEL_FILE_PATH = os.path.join('Models', 'iML1515.xml')
 
-PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
+PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')
 PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                      'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 

@@ -200,7 +200,8 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
-                       plotting_threshold=1e3,
+                       plotting_threshold=10,
+                       num_pathways_to_plot: int = 5,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
@@ -214,6 +215,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
 
     # Sort COG descriptions by total absolute change to get a nice descending plot
     cog_summary_long['abs_change'] = cog_summary_long['Change'].abs()  # Compute absolute changes
+    cog_summary_long = cog_summary_long.sort_values('abs_change').iloc[:num_pathways_to_plot,:]
     cog_order = sorted(
         set(cog_summary_long['COG description']),
         key=lambda x: abs(cog_summary_long[cog_summary_long['COG description'] == x]['Change']).sum(),
@@ -323,11 +325,13 @@ def recreate_progress_plot(best_indiv_files:list[str],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                iteration=0, color='black')
 
+    pam = parametrizer._pamodel_no_sensitivities.copy(copy_with_pickle = True)
+
     for file, label in zip(best_indiv_files, labels):
         j +=1
         print('\nAlternative ', label, ' from file ', file)
         parametrizer.pamodel = create_pamodel_from_diagnostics_file(file,
-                                                                    parametrizer._pamodel.copy(copy_with_pickle = True))
+                                                                    pam.copy(copy_with_pickle = True))
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,
                                                                        sensitivity=False)
@@ -352,15 +356,15 @@ def recreate_progress_plot(best_indiv_files:list[str],
 def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
     kwargs = {'min_substrate_uptake_rate':-12,
               'max_substrate_uptake_rate': -0.1,
-              'kcat_increase_factor': 3}
+              'kcat_increase_factor': 5}
     return set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_pamparametrizer,
                                                            kwargs)
 
 def main():
-    NUM_ALT_MODELS = 8
+    NUM_ALT_MODELS = 5
     FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_250523.xlsx')
+                                  'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                       'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
