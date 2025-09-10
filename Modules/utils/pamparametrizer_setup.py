@@ -185,3 +185,37 @@ def set_up_sector_config(pam_info_file: str,
             substrate_range= ast.literal_eval(sector_to_growth.loc['substrate_range', 'Value_for_growth'])
         )
     return sector_configs
+
+
+
+def set_up_sector_config_from_diagnostic_file(diagnostic_file: str,
+                                              substrate_uptake_id:str = 'EX_glc__D_e'
+                                              ) -> Dict[str, Dict[Literal['slope','intercept'], float]]:
+    """Initializes sector configuration objects from PAMparametrizer output file.
+
+    This function reads the diagnostics file resulting from a parametrization effort and sets
+    up configuration objects for each sector which is saved in the sector_config sheet.
+
+    Args:
+        diagnostic_file (str): Path to the Excel file with parametrization results.
+        substrate_uptake_id (str): String representing the id of the substrate uptake reaction for which the sector parameter
+        should be configured
+
+    Returns:
+        Dict[str, Dict[Literal['slope','intercept'], float]: Dict of the parsed sector configuration with the corresponding model sector name
+            as keys. Can be used to set the sector config of a ValidationData object.
+    """
+
+    sector_configs = {}
+    try:
+        sector_parameters_df = pd.read_excel(diagnostic_file, sheet_name="sector_parameters")
+    except:
+        return sector_configs
+
+    for sector, sector_params in sector_parameters_df.groupby('sector_id'):
+        sector_params = sector_params.loc[
+            (sector_parameters_df.substrate_uptake_id == substrate_uptake_id)
+        ][['slope', 'intercept']].to_dict('records')[0]
+
+        sector_configs[sector] = sector_params
+    return sector_configs
