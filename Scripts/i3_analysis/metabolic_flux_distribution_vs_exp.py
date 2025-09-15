@@ -13,7 +13,7 @@ from Modules.utils.pam_generation import setup_pputida_pam, setup_cglutanicum_pa
 from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
 from Modules.utils.pamparametrizer_analysis import get_results_from_simulations
 
-RXNS_TO_VALIDATE = {'Peripheral': ['GLCDpp', 'GAD2ktpp', 'GNK', '2DHGLCK', 'PGLCNDH', 'EX_gly_e', 'EX_tre_e', 'GLCt2pp'],
+RXNS_TO_VALIDATE = {'Peripheral': ['GLCDpp', 'GAD2ktpp', 'GNK', '2DHGLCK', 'PGLCNDH', 'EX_tre_e', 'GLCt2pp'], #EX_gly_e
                     'EMP': ['HEX1', 'PGI', 'PFK', 'FBA','FBA3', 'FBP', 'TPI', 'GAPD', 'PGK', 'PGM', 'ENO', 'PYK'],
                     'ED': ['EDD', 'EDA'],
                     'PPP': ['TKT1', 'TKT2' 'G6PDH2r', 'PGL', 'GND', 'RPI', 'RPE', 'TALA'],
@@ -29,6 +29,7 @@ for rxns in RXNS_TO_VALIDATE.values(): rxns_to_save+=rxns
 
 def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
                                   pam:PAModel,
+                                  model_file_path: str,
                                   pam_kcat_files:List[str]):
     reactions_to_plot = [rxn for rxn in rxns_to_save if rxn in mfa_data]
     flux_df = pd.DataFrame(mfa_data[reactions_to_plot+['model']]).T
@@ -40,14 +41,8 @@ def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
                                                          )['fluxes']
               }
 
-    for i, alternative_file in enumerate(pam_kcat_files):
-        alt_pam = create_pamodel_from_diagnostics_file(
-            alternative_file,
-            pam.copy(copy_with_pickle=True),
-            # find the pputida cglutanicum enzyme ids created from locus tags or reaction_ids
-            other_enzyme_id_pattern=r'E[0-9][0-9]*|Enzyme_PP_\d+|Enzyme_cg\d+|Enzyme_\w+_(\d+.)(\d+.)(\d+.)(\d+])|Enzyme_\w+'
-
-        )
+    for i, param_file in enumerate(pam_kcat_files):
+        alt_pam = set_up_pam(param_file, model = model_file_path, sensitivity=False)
         fluxes[f'Alternative {i + 1}'] = get_results_from_simulations(alt_pam,
                                                                       substrate_rates=[[mfa_data['EX_glc__D_e']]],
                                                                       fluxes_to_save=reactions_to_plot,
@@ -227,6 +222,7 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
 
     flux_df = get_simulated_fluxes_for_rxns(mfa_data,
                                             pam,
+                                            os.path.join('Models', 'iJN1463.xml'),
                                             PAM_KCAT_FILES_IJN)
     fig_out = None
     if gs is None: fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_pputida.png')
@@ -243,8 +239,8 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
 
 def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, num_models: int = 10):
     NUM_MODELS = num_models
-    PAM_KCAT_FILES_IML = [os.path.join('Results', '2_parametrization', 'diagnostics',
-                                       f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
+    PAM_KCAT_FILES_IML = [os.path.join('Results', '3_analysis', 'parameter_files',
+                                       f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
 
     mfa_data = pd.read_excel(os.path.join('Data', 'Ecoli_phenotypes', 'fluxomics_datasets_gerosa.xlsx'))
@@ -259,6 +255,7 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, nu
 
     flux_df = get_simulated_fluxes_for_rxns(mfa_data_glc,
                                             pam,
+                                            os.path.join('Models', 'iML1515.xml'),
                                             PAM_KCAT_FILES_IML)
     if gs is None and fig_out is None:
         fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_ecoli.png')
@@ -286,6 +283,7 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
 
     flux_df = get_simulated_fluxes_for_rxns(mfa_data,
                                             pam,
+                                            os.path.join('Models', 'iCGB21FR.xml'),
                                             PAM_KCAT_FILES_ICGB)
     fig_out = None
     if gs is None:fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_cglutanicum.png')

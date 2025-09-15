@@ -18,7 +18,7 @@ def extract_locus_tags(text:str,
 def create_id_mapper_from_model(model: CobraModel,
                                 rxn_annotation_keys: list[str]=['kegg.reaction', 'ec-code', ],
                                 met_annotation_key: str='kegg.compound',
-                                exclude:List[str]=['Growth', 'ATPM']
+                                exclude:List[str]=['Growth', 'ATPM', 'BIOMASS']
                                 ) -> pd.DataFrame:
     """
     Create a mapping DataFrame from a COBRA model's reactions.
@@ -43,7 +43,10 @@ def create_id_mapper_from_model(model: CobraModel,
     mapped_to_kegg = 0
 
     for rxn in model.reactions:
-        if any(ex in rxn.id.lower() for ex in ['ex', 'sink']) or rxn.id in exclude:
+        #check if reaction is passive transport
+        if any(ex in rxn.id for ex in ['tpp',r't[0-9]pp']):
+            if has_same_reactants_and_products(rxn):continue
+        elif any(ex in rxn.id for ex in ['tex', 'EX_','sink']) or rxn.id in exclude:
             continue
 
         entry = {
@@ -65,6 +68,17 @@ def create_id_mapper_from_model(model: CobraModel,
     print(f"Mapped {mapped_to_kegg} of {len(data)} reactions to KEGG reaction IDs.")
 
     return pd.DataFrame(data)
+
+def has_same_reactants_and_products(reaction):
+    """
+    Check if products and reactants of a COBRApy reaction
+    are the same metabolites regardless of compartment.
+    """
+    # Get sets of metabolite "base names" (without compartment suffix)
+    reactants = {m.formula for m in reaction.reactants}
+    products  = {m.formula for m in reaction.products}
+
+    return reactants == products
 
 def create_genetokeggid_mapper(model:CobraModel) -> pd.DataFrame:
     data = []
