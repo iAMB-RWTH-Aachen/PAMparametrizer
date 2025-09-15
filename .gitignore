@@ -8,3 +8,4 @@ Scripts/SoF1
 *.pyc
 *.~lock.
 *.xlsx#
+*[tT]urn[uU]p*

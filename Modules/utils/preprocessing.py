@@ -46,7 +46,7 @@ def create_id_mapper_from_model(model: CobraModel,
         #check if reaction is passive transport
         if any(ex in rxn.id for ex in ['tpp',r't[0-9]pp']):
             if has_same_reactants_and_products(rxn):continue
-        elif any(ex in rxn.id for ex in ['tex', 'EX_','sink']) or rxn.id in exclude:
+        if any(ex in rxn.id for ex in ['tex', 'EX_','sink']) or rxn.id in exclude:
             continue
 
         entry = {

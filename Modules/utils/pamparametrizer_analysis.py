@@ -53,12 +53,21 @@ def get_results_from_simulations(pamodel: PAModel,
         if isinstance(transl_sector_config, dict):
             if substrate_id not in transl_sector_config: continue
             transl_sector = transl_sector_config[substrate_id]
+        pamodel.optimize()
         _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector)
+
         for substrate in substrate_list:
-            pamodel.change_reaction_bounds(rxn_id=substrate_id,
+            try:
+                pamodel.change_reaction_bounds(rxn_id=substrate_id,
                                            lower_bound=substrate, upper_bound=0)
-            print(f'Running simulations with {round(substrate,2)} mmol/g_cdw/h of substrate ({substrate_id}) going into the system')
+            except:
+                pamodel.reactions.get_by_id(substrate_id).lower_bound = substrate
+                pamodel.reactions.get_by_id(substrate_id).upper_bound = 0
+
+            pamodel.optimize()
+            print(f'Running simulations with {round(substrate, 2)} mmol/g_cdw/h of substrate ({substrate_id}) going into the system')
             sol_pam = pamodel.optimize()
+
             if pamodel.solver.status == 'optimal' and pamodel.objective.value > 0:
                 if fluxes_to_save is not None:
                     solution_information['fluxes'] = save_fluxes(sol_pam,
@@ -74,8 +83,13 @@ def get_results_from_simulations(pamodel: PAModel,
                                                                      solution_information['proteins'],
                                                                      substrate_id)
                 #reset model
-                pamodel.change_reaction_bounds(rxn_id=substrate_id,
+                try:
+                    pamodel.change_reaction_bounds(rxn_id=substrate_id,
                                                lower_bound=0, upper_bound=1e3)
+                except:
+                    pamodel.reactions.get_by_id(substrate_id).lower_bound = 0
+                    pamodel.reactions.get_by_id(substrate_id).upper_bound = 1e3
+
 
     return solution_information #TODO seems not to save the fluxes correctly
 

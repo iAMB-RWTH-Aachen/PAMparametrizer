@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
 from typing import List, Union, Tuple
+from cobra.io import read_sbml_model
 
 from PAModelpy import PAModel
 from PAModelpy.utils import set_up_pam
@@ -34,11 +35,21 @@ def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
     reactions_to_plot = [rxn for rxn in rxns_to_save if rxn in mfa_data]
     flux_df = pd.DataFrame(mfa_data[reactions_to_plot+['model']]).T
 
+    m = read_sbml_model(model_file_path)
+    m.optimize()
+    print(m.reactions.PFK.flux)
+    print(m.summary())
+
     fluxes = {'GotEnzymes': get_results_from_simulations(pam,
                                                          substrate_rates=[[mfa_data['EX_glc__D_e']]],
                                                          fluxes_to_save=reactions_to_plot,
                                                          transl_sector_config=False
-                                                         )['fluxes']
+                                                         )['fluxes'],
+              'GSM': get_results_from_simulations(read_sbml_model(model_file_path),
+                                                         substrate_rates=[[mfa_data['EX_glc__D_e']]],
+                                                         fluxes_to_save=reactions_to_plot,
+                                                         transl_sector_config=False
+                                                         )['fluxes'],
               }
 
     for i, param_file in enumerate(pam_kcat_files):
@@ -226,7 +237,6 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
                                             PAM_KCAT_FILES_IJN)
     fig_out = None
     if gs is None: fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_pputida.png')
-    print(gs)
     ax = plot_flux_heatmap_for_pathways(flux_df,
                                    result_fig_path=fig_out,
                                    gs0=gs,
@@ -248,7 +258,7 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, nu
     mfa_data_glc['model'] = 'Gerosa, et al (2015)'
     pam = set_up_pam(os.path.join('Results',
                                   '2_parametrization',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'
+                                  'proteinAllocationModel_iML1515_EnzymaticData_multi_250912.xlsx'
                                   )
                      ,sensitivity=False
                      )

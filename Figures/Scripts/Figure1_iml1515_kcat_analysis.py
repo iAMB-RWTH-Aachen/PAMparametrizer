@@ -23,6 +23,8 @@ from Modules.utils.pamparametrizer_analysis import (calculate_kcat_differences,
                                                    )
 
 from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation, plot_flux_vs_experiment
+from Modules.utils.pamparametrizer_setup import set_up_sector_config_from_diagnostic_file
+
 
 
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
@@ -215,7 +217,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
 
     # Sort COG descriptions by total absolute change to get a nice descending plot
     cog_summary_long['abs_change'] = cog_summary_long['Change'].abs()  # Compute absolute changes
-    cog_summary_long = cog_summary_long.sort_values('abs_change').iloc[:num_pathways_to_plot,:]
+    # cog_summary_long = cog_summary_long.sort_values('abs_change').iloc[:num_pathways_to_plot,:]
     cog_order = sorted(
         set(cog_summary_long['COG description']),
         key=lambda x: abs(cog_summary_long[cog_summary_long['COG description'] == x]['Change']).sum(),
@@ -316,6 +318,11 @@ def recreate_progress_plot(best_indiv_files:list[str],
         parametrizer.validation_data.get_by_id(substrate_uptake_id)._reactions_to_plot = rxns_to_plot
 
     substrate_rates = sorted(substrate_rates)
+    pam = set_up_pam(os.path.join('Results', '2_parametrization',
+                                  'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'),
+                     model = os.path.join('Models', 'iML1515.xml'),
+                     sensitivity = False)
+    parametrizer.pamodel = pam
     fig, axs = plot_valid_data(parametrizer,axs, fig, fontsize=fontsize)
     print('Run reference simulations')
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
@@ -325,13 +332,13 @@ def recreate_progress_plot(best_indiv_files:list[str],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                iteration=0, color='black')
 
-    pam = parametrizer._pamodel_no_sensitivities.copy(copy_with_pickle = True)
-
     for file, label in zip(best_indiv_files, labels):
         j +=1
         print('\nAlternative ', label, ' from file ', file)
         parametrizer.pamodel = create_pamodel_from_diagnostics_file(file,
                                                                     pam.copy(copy_with_pickle = True))
+        parametrizer.validation_data.EX_glc__D_e.sector_configs = set_up_sector_config_from_diagnostic_file(file)
+
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,
                                                                        sensitivity=False)
@@ -361,7 +368,7 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
                                                            kwargs)
 
 def main():
-    NUM_ALT_MODELS = 5
+    NUM_ALT_MODELS = 7
     FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
                                   'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')

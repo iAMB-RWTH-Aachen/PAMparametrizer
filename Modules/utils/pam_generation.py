@@ -178,8 +178,8 @@ def create_new_aes_parameter_file(old_param_file:str,
     aes_parameter_file = parameter_files['ActiveEnzymes']
 
     parametrization_results = pd.read_excel(
-        diagnostics_file_path, sheet_name=diagnostics_sheet_name).drop_duplicates(
-        ['rxn_id', 'direction', 'enzyme_id'], keep='last') #the last one refers to the last modification of the kcat value
+        diagnostics_file_path, sheet_name=diagnostics_sheet_name)#.drop_duplicates(
+        #['rxn_id', 'direction', 'enzyme_id'], keep='last') #the last one refers to the last modification of the kcat value
 
     # extract reaction id from catalytic event id
     parametrization_results['rxn_id'] = [_extract_reaction_id_from_catalytic_reaction_id(rid) for rid in
