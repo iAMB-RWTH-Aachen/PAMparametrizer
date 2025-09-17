@@ -135,7 +135,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate):
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx'),
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250915.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iJN1463',
@@ -180,7 +180,8 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx')
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx'),
+                         kcat_increase_factor: int = 1
                          ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
@@ -188,7 +189,7 @@ def run_parametrizations(n_iterations:int=5,
         pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
                                                   pam_info_file = pam_info_file,
                                                   filename_extension = f'iJN1463_{i}',
-                                                  kcat_increase_factor= 1,
+                                                  kcat_increase_factor= kcat_increase_factor,
                                                   c_sources=['Glycerol', 'Glucose', 'Succinate', 'Fructose', 'm-Xylene',
                                                              'Toluene', 'Benzoate', 'Octanoate'])
         #
@@ -200,10 +201,10 @@ if __name__ == "__main__":
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                 'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx')
+                                 'proteinAllocationModel_iJN1463_EnzymaticData_250915.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
     # set_up_validation_data(pam_info_file=pam_info_file)
-    run_parametrizations(pam_info_file=pam_info_file)
+    run_parametrizations(pam_info_file=pam_info_file, kcat_increase_factor=8)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515

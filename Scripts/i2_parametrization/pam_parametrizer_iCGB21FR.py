@@ -90,7 +90,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                            min_substrate_uptake_rate:float =-10,
                            pam_info_file: str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx'),
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250915.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iCGB21FR',
@@ -134,7 +134,8 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
 def run_parametrizations(n_iterations:int=5,
                          pam_info_file:str = os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx')
+                                             'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx'),
+                         kcat_increase_factor: int = 1
                          ) -> None:
     for i in range(1, n_iterations+1):
         print('Working on iteration number', i, 'out of ',n_iterations)
@@ -142,14 +143,14 @@ def run_parametrizations(n_iterations:int=5,
         pam_parametrizer = set_up_pamparametrizer(MAX_SUBSTRATE_UPTAKE_RATE,
                                                   pam_info_file=pam_info_file,
                                                   filename_extension = f'iCGB21FR_{i}',
-                                                  kcat_increase_factor=1,
+                                                  kcat_increase_factor=kcat_increase_factor,
                                                   c_sources=['Glucose', 'Succinate', 'Fructose', 'Gluconate'])
         #
         pam_parametrizer.run(remove_subruns=True, binned='False')
 
 if __name__ == "__main__":
     pam_info_file = os.path.join('Results', '1_preprocessing',
-                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250523.xlsx')
+                                     'proteinAllocationModel_iCGB21FR_EnzymaticData_250915.xlsx')
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
 
@@ -157,6 +158,6 @@ if __name__ == "__main__":
     #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
-    run_parametrizations(5, pam_info_file)
+    run_parametrizations(5, pam_info_file, kcat_increase_factor=8)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515

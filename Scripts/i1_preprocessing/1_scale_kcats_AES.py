@@ -84,7 +84,7 @@ def scan_kcat_factors_pputida():
                       scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_iJN1463.png'),
                       setup_pam_function=setup_pputida_pam,
                       pam_info_file=os.path.join(
-                          'Results', '1_preprocessing', 'proteinAllocationModel_iJN1463_EnzymaticData_250523.xlsx'
+                          'Results', '1_preprocessing', 'proteinAllocationModel_iJN1463_EnzymaticData_250915.xlsx'
                       ),
                       setup_pamparametrizer_function=set_up_pamparam_pputida,
                       substrate_reaction_id= 'EX_glc__D_e',
@@ -97,7 +97,7 @@ def scan_kcat_factors_cglutanicum():
                       scan_figure_file_path= os.path.join('Results','1_preprocessing','figures','multifactor_scan_iCGB21FR.png'),
                       setup_pam_function=setup_cglutanicum_pam,
                       pam_info_file=os.path.join(
-                          'Results', '1_preprocessing','proteinAllocationModel_iCGB21FR_EnzymaticData_250227.xlsx'
+                          'Results', '1_preprocessing','proteinAllocationModel_iCGB21FR_EnzymaticData_250915.xlsx'
                       ),
                       setup_pamparametrizer_function=set_up_pamparam_cglutanicum,
                       substrate_reaction_id= 'EX_glc__D_e',
@@ -117,7 +117,7 @@ def scan_kcat_factors_cglutanicum():
 #                       substrate_uptake_rates= np.arange(-20,1,1))
 
 if __name__ == '__main__':
-    scan_kcat_factors_iML1515()
-    # scan_kcat_factors_pputida()
-    # scan_kcat_factors_cglutanicum()
+    # scan_kcat_factors_iML1515()
+    scan_kcat_factors_pputida()
+    scan_kcat_factors_cglutanicum()
     # scan_kcat_factors_yeast9()
