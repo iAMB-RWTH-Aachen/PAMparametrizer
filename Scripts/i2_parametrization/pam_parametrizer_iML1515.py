@@ -117,8 +117,8 @@ def set_up_hyperparameter(processes: int,
     hyperparams.genetic_algorithm_hyperparams['number_gene_flow_events'] = gene_flow_events
     hyperparams.genetic_algorithm_hyperparams['number_generations'] = 2#6
     hyperparams.genetic_algorithm_hyperparams['print_progress'] = True
-    hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'EX_ac_e':3,
-                                                                  config.BIOMASS_REACTION: 7}
+    hyperparams.genetic_algorithm_hyperparams['error_weights'] = {'EX_ac_e':1,
+                                                                  config.BIOMASS_REACTION: 10}
     return hyperparams
 
 
@@ -141,7 +141,7 @@ def run_simulations(pamodel, substrate_rates, rxn_to_validate = RXNS_TO_VALIDATE
 
 def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake_rate: float,
                            pam_info_file: str = os.path.join(
-                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250909.xlsx'),
+                                         'Results','1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx'),
                            processes: int =4,
                            gene_flow_events: int = 4,
                            filename_extension:str = 'iML1515',
@@ -179,7 +179,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 if __name__ == "__main__":
     pam_info_file = os.path.join(
-        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')
+        'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
 
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
@@ -188,7 +188,7 @@ if __name__ == "__main__":
                                               pam_info_file= pam_info_file,
                                               filename_extension= 'iML1515',
                                               c_sources = ['Glucose'],
-                                              kcat_increase_factor=1, #9,
+                                              kcat_increase_factor=6, #9,
                                               threshold_iteration= 5)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:

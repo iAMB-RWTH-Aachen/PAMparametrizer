@@ -203,7 +203,6 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
                        plotting_threshold=10,
-                       num_pathways_to_plot: int = 5,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
@@ -371,7 +370,7 @@ def main():
     NUM_ALT_MODELS = 7
     FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_250827.xlsx')
+                                  'proteinAllocationModel_iML1515_EnzymaticData_250909.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                       'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
