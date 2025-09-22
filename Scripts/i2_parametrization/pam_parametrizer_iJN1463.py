@@ -149,7 +149,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
-    pputida_pam = setup_pputida_pam(pam_info_file)
+    pputida_pam = setup_pputida_pam(pam_info_file_path_out)
     #close off all exchanges not necessary for medium, as pputida doesn't exchange anything
     # for exchange in pputida_pam.exchanges:
     #     if exchange.id not in pputida_pam.medium:
@@ -159,7 +159,7 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
 
 
     validation_data = set_up_validation_data(c_sources,
-                                             pam_info_file = pam_info_file)
+                                             pam_info_file = pam_info_file_path_out)
     hyperparameters = set_up_hyperparameter(processes,
                                             gene_flow_events,
                                             filename_extension,
