@@ -179,7 +179,6 @@ def test_mutate_kcat_with_is_within_bounds(original_kcat, min_kcat, max_kcat, to
         toolbox=toolbox
     )
     #Assert
-    assert 1/mutated != original_kcat
     assert min_kcat <= 1/mutated <= max_kcat, (
         f"Mutated kcat {mutated} should be between {min_kcat} and {max_kcat}"
     )

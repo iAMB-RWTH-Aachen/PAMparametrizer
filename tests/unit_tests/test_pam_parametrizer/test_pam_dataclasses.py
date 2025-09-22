@@ -1,6 +1,8 @@
 import pytest
 import pandas as pd
 from typing import Callable
+from pathlib import Path
+import os
 
 from Modules.PAM_parametrizer.PAM_data_classes import ParametrizationResults, SectorConfig, ValidationData, FluxResults
 from Modules.PAM_parametrizer.KcatConstraintConfig import KcatConstraintConfigTable
@@ -18,6 +20,17 @@ def kcatconfig_df():
         "min_kcat": [0, 10],
         "max_kcat": [100, 200],
     })
+
+@pytest.fixture
+def kcat_config():
+    kcatconfig_df = pd.DataFrame({
+        "enzyme_id": ["E1_E2_E3", "E4"],
+        "reaction_id": ["R2", "R3"],
+        "direction": ["f", "b"],
+        "min_kcat": [1100, 10],
+        "max_kcat": [1e6, 200],
+    })
+    return KcatConstraintConfigTable(kcatconfig_df)
 
 
 @pytest.mark.parametrize('object, kwargs',[
@@ -99,3 +112,28 @@ def test_kcatconstraintconfig_has_constraint(kcatconfig_df):
     cfg = KcatConstraintConfigTable(kcatconfig_df)
     assert cfg.has_constraint("E1", "R1", "f")
     assert not cfg.has_constraint("E9", "R9", "f")
+
+
+def test_ensure_kcats_are_within_bounds(tmp_path, kcat_config):
+    #Arrange
+    enzyme_db = pd.read_excel(os.path.join('tests','data','proteinAllocationModel_toymodel.xlsx'),
+                              sheet_name='ActiveEnzymes')
+
+    pam_info_file = tmp_path / "pam_info.xlsx"
+    with pd.ExcelWriter(pam_info_file, mode="w") as writer:
+        enzyme_db.to_excel(writer, sheet_name="ActiveEnzymes", index=False)
+
+    #Act
+    kcat_config.ensure_kcats_in_pam_info_file_are_within_bounds(str(pam_info_file))
+    result_enzyme_db = pd.read_excel(pam_info_file, sheet_name="ActiveEnzymes")
+
+    # Assert
+    changed_kcats = pd.merge(result_enzyme_db, kcat_config.df,
+                             how = 'right',
+                             left_on=['rxn_id', 'enzyme_id', 'direction'],
+                             right_on=['reaction_id', 'enzyme_id', 'direction'],
+                             )
+    assert all([((row.kcat_values>=row.min_kcat) & (row.kcat_values<=row.max_kcat))
+                for _,row in changed_kcats.iterrows()
+                ])
+    assert all(result_enzyme_db.iloc[-1] == enzyme_db.iloc[-1])
