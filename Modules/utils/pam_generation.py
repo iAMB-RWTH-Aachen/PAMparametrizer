@@ -47,7 +47,9 @@ def create_pamodel_from_diagnostics_file(file_path:str,
     best_individual_df = pd.read_excel(file_path, sheet_name=sheet_name)
     for _, group in best_individual_df.groupby('run_id'):
         for _, row in group.iterrows():
-            rxn_id = _extract_reaction_id_from_catalytic_reaction_id(row['rxn_id'])
+            rxn_id = _extract_reaction_id_from_catalytic_reaction_id(row['rxn_id'],
+                                                                     default_enzyme_id_pattern = other_enzyme_id_pattern
+                                                                     )
             enzyme_id = _order_enzyme_complex_id(row['enzyme_id'],
                                                  other_enzyme_id_pattern = other_enzyme_id_pattern)
             kcat_dict = {rxn_id: {row['direction']: row['kcat[s-1]']}}

@@ -7,7 +7,7 @@ import ast
 import warnings
 
 from .sector_config_functions import SectorParameterDict
-from ..PAM_parametrizer import SectorConfig
+from ..PAM_parametrizer import SectorConfig, KcatConstraintConfigTable
 
 
 def save_sector_information_to_excel(
@@ -219,3 +219,11 @@ def set_up_sector_config_from_diagnostic_file(diagnostic_file: str,
 
         sector_configs[sector] = sector_params
     return sector_configs
+
+
+def get_kcat_constraints(pam_info_file:str) -> KcatConstraintConfigTable:
+    pam_params_sheets = pd.read_excel(pam_info_file, sheet_name=None)
+    if 'KcatBounds' in pam_params_sheets:
+        return KcatConstraintConfigTable(pam_params_sheets['KcatBounds'])
+    else:
+        return KcatConstraintConfigTable()

@@ -105,7 +105,7 @@ class KcatConstraintConfigTable:
         kcat values in model units: [1/h *1e-6] instead of [1/s]."""
         try:
             row = self.df.loc[(enzyme_id, reaction_id, direction)]
-            return {"min_kcat": row["min_kcat"]*3600*1e-6, "max_kcat": row["max_kcat"]*3600*1e-6}
+            return {"min_kcat": row["min_kcat"].iloc[0]*3600*1e-6, "max_kcat": row["max_kcat"].iloc[0]*3600*1e-6}
         except:
             return {"min_kcat": self.MIN_KCAT*3600*1e-6, "max_kcat": self.DIFFUSION_LIMIT*3600*1e-6}
 
@@ -121,3 +121,19 @@ class KcatConstraintConfigTable:
     def has_constraint(self, enzyme_id: str, reaction_id: str, direction: str) -> bool:
         """Check if a constraint exists for the given enzyme–reaction–direction."""
         return (enzyme_id, reaction_id, direction) in self.df.index
+
+    def ensure_kcats_in_pam_info_file_are_within_bounds(self,
+                                                        pam_info_file: str
+                                                        ) -> None:
+        enzyme_db = pd.read_excel(pam_info_file, sheet_name='ActiveEnzymes')
+        merged_enzyme_db = pd.merge(enzyme_db, self.df,
+                                    how='left',
+                                    left_on=['rxn_id', 'enzyme_id', 'direction'],
+                                    right_on=['reaction_id', 'enzyme_id', 'direction']
+                                    )
+        merged_enzyme_db['kcat_values'] = merged_enzyme_db['kcat_values'].clip(
+            lower=merged_enzyme_db['min_kcat'], upper=merged_enzyme_db['max_kcat']
+        )
+        updated_enzyme_db = merged_enzyme_db[enzyme_db.columns]
+        with pd.ExcelWriter(pam_info_file, mode='a', if_sheet_exists='replace', engine='openpyxl') as writer:
+            updated_enzyme_db.to_excel(writer, sheet_name='ActiveEnzymes', index=False)

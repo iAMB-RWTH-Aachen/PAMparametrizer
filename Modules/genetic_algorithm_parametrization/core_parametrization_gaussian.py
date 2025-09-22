@@ -170,7 +170,6 @@ class GAPO():
                                                                    direction)]
                     self.sensitivity_list += [values['sensitivity']]
 
-
         # Specify GA parameters
         # probability for mutating an individual
         self.mutation_probability = mutation_probability
