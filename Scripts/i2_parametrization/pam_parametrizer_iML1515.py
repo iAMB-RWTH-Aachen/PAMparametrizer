@@ -188,7 +188,7 @@ if __name__ == "__main__":
                                               pam_info_file= pam_info_file,
                                               filename_extension= 'iML1515',
                                               c_sources = ['Glucose'],
-                                              kcat_increase_factor=8, #9,
+                                              kcat_increase_factor=4, #9,
                                               threshold_iteration= 5)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
