@@ -1564,9 +1564,10 @@ class PAMParametrizer():
             valid_data = self.validation_data.get_by_id(substr_id)
             if substr_id != self.substrate_uptake_id and valid_data.sampled_valid_data is not None:
                 feas_substrate_rates = substrate_range_dict[substr_id].keys()
-                feas_sampled_data = valid_data.valid_data#[
-                    #valid_data.valid_data[substr_id + "_ub"].isin(feas_substrate_rates)
-                #]
+                feas_sampled_data = pd.DataFrame(columns = valid_data.valid_data.columns)
+                for i, row in valid_data.valid_data:
+                    if row[substr_id + "_ub"] in feas_substrate_rates: feas_sampled_data = pd.concat([feas_sampled_data, row.to_frame()])
+
                 for reaction in valid_data._reactions_to_plot:
                     exp_measurements = feas_sampled_data[reaction]
                     simulations = [f[reaction] for f in fluxes]
