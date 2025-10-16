@@ -78,7 +78,8 @@ if __name__ == '__main__':
     # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
     #
-    for file_nmbr in range(8,14):
+    new_ues_files = [1, 2, 4, 5, 6]
+    for file_nmbr in range(1,11):
         suffix = f'iML1515_{file_nmbr}'
         result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx')
         output_file_path = create_new_aes_parameter_file(
@@ -88,10 +89,10 @@ if __name__ == '__main__':
             result_file_path= result_file,
             new_aes_suffix= suffix)
 
-
-        change_unused_enzymes_sector_in_excel(result_file_path=result_file,
-                                              output_file_path = output_file_path,
-                                              carbon_source='EX_glc__D_e')
+        if file_nmbr in new_ues_files:
+            change_unused_enzymes_sector_in_excel(result_file_path=result_file,
+                                                  output_file_path = output_file_path,
+                                                  carbon_source='EX_glc__D_e')
     # result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
     #                            f'pam_parametrizer_diagnostics_mciML1515.xlsx')
     # create_new_aes_parameter_file(result_file_path= result_file,
