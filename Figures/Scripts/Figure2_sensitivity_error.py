@@ -25,18 +25,18 @@ from Modules.utils.pam_generation import (create_pamodel_from_diagnostics_file,
 # from Scripts.Visualization.PAMparametrizer_progress_cleaned_figure import run_simulations
 
 def make_simulation_error_boxplot(gotenz_param_file:str,
-                                     preprocessed_param_file:str,
-                                     diagnostic_files: List[str],
-                                     model_file_path:str,
-                                   fluxomics_data_file_path:str,
-                                   ax:plt.Axes,
-                                   substrate_uptake_ids: List[str] = ['EX_glc__D_e'],
-                                   fontsize:int = 16):
+                                  preprocessed_param_file:str,
+                                  diagnostic_files: List[str],
+                                  model_file_path:str,
+                                  fluxomics_data_file:str,
+                                  ax:plt.Axes,
+                                  substrate_uptake_ids: List[str] = ['EX_glc__D_e'],
+                                  fontsize:int = 16):
     ecoli_pams = set_up_pams_different_parameters(gotenz_param_file,
                                      preprocessed_param_file,
                                      diagnostic_files,
                                      model_file_path)
-    flux_data = get_fluxomics_data(fluxomics_data_file_path)
+    flux_data = get_fluxomics_data(fluxomics_data_file)
     rxns_to_save, valid_df = get_reactions_to_save(flux_data)
     substrate_rates = [
         [-f for f in flux_data.loc[substr_id, :].values] for substr_id in substrate_uptake_ids
@@ -84,8 +84,7 @@ def get_fluxomics_data(fluxomics_data_file_path: str)->pd.DataFrame:
             elif name.endswith('_f'):
                 return name[:-2]  # Remove '_f' from index
         return name  # Keep unchanged if no suffix
-
-    flux_df = pd.read_excel(os.path.join(fluxomics_data_file_path, 'Ecoli_phenotypes_py.xls'),
+    flux_df = pd.read_excel(fluxomics_data_file_path,
                             sheet_name='Fluxes',
                             engine='openpyxl',
                             index_col=1)
@@ -385,14 +384,14 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig, fo
 
 
 def main():
-    N_ALT_MODELS = 8
+    N_ALT_MODELS = 10
     FONTSIZE = 16
 
-    ECOLI_PHENOTYPE_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes')
+    ECOLI_PHENOTYPE_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py.xls')
 
     MODEL_FILE_PATH = os.path.join('Models', 'iML1515.xml')
 
-    PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250225.xlsx')
+    PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                      'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 

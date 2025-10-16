@@ -258,7 +258,7 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, nu
     mfa_data_glc['model'] = 'Gerosa, et al (2015)'
     pam = set_up_pam(os.path.join('Results',
                                   '2_parametrization',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_multi_250912.xlsx'
+                                  'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'
                                   )
                      ,sensitivity=False
                      )

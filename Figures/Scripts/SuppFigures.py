@@ -16,7 +16,7 @@ from Figures.Scripts.Figure2_sensitivity_error import (get_fluxomics_data,
 from Scripts.i3_analysis.flux_kcat_distribution import create_flux_histogram_old_vs_new
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iML1515 as plot_intracell_flux_distribution_ecoli
 
-N_ALT_MODELS = 13
+N_ALT_MODELS = 10
 FONTSIZE = 16
 
 ECOLI_PHENOTYPE_DATA_PATH = os.path.join('Data', 'Ecoli_phenotypes')
@@ -25,7 +25,7 @@ MODEL_FILE_PATH = os.path.join('Models', 'iML1515.xml')
 
 PARAM_FILE_GOTENZ = os.path.join('Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
 PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
-                                     'proteinAllocationModel_iML1515_EnzymaticData_multi_250912.xlsx')
+                                     'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
 BEST_INDIV_RESULT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                         f'pam_parametrizer_diagnostics_{i}.xlsx') for i in range(1, N_ALT_MODELS + 1)]
@@ -113,5 +113,5 @@ def main_sfig_ecoli_intracell_flux():
 
 if __name__ == '__main__':
     main_sfig_ecoli_intracell_flux()
-    # main_sfig_error_progression()
-    # main_sfig_flux_distribution()
+    main_sfig_error_progression()
+    main_sfig_flux_distribution()

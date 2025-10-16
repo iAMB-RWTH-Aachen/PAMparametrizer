@@ -84,7 +84,7 @@ if __name__ == '__main__':
         result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx')
         output_file_path = create_new_aes_parameter_file(
             old_param_file=os.path.join(
-                'Results', '2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_multi_250912.xlsx'
+                'Results', '2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'
             ),
             result_file_path= result_file,
             new_aes_suffix= suffix)

@@ -362,7 +362,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
 def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
     kwargs = {'min_substrate_uptake_rate':-12,
               'max_substrate_uptake_rate': -0.1,
-              'kcat_increase_factor': 5}
+              'kcat_increase_factor': 7}
     return set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_pamparametrizer,
                                                            kwargs)
 
