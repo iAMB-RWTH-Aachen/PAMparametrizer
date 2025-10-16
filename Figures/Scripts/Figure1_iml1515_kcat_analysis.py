@@ -367,10 +367,10 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
                                                            kwargs)
 
 def main():
-    NUM_ALT_MODELS = 7
+    NUM_ALT_MODELS = 10
     FONTSIZE = 16
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_250909.xlsx')
+                                  'proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
     PARAM_FILE_PREPROC = os.path.join('Results', '2_parametrization',
                                       'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 
