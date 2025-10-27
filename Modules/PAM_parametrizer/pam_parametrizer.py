@@ -1571,7 +1571,11 @@ class PAMParametrizer():
                 for reaction in valid_data._reactions_to_plot:
                     exp_measurements = feas_sampled_data[reaction]
                     simulations = [f[reaction] for f in fluxes]
-                    axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
+                    try:
+                        axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
+                    except:
+                        print(exp_measurements, simulations)
+                        continue
 
         # Add colorbar
         if self.iteration == 1:

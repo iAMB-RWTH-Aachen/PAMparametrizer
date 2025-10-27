@@ -51,6 +51,7 @@ def test_pam_parametrizer_runs_full_workflow_with_bins_before_iterations():
     # Assert
     # if it runs all is fine, only testing functionality
     assert True
+
 def test_pam_parametrizer_runs_full_workflow_without_bins():
     # Arrange
     sut = PAMParametrizerMock()

@@ -74,7 +74,7 @@ def get_error_for_parametrization_experiment(parametrizer,
                                              best_indiv_file_path:str,
                                              substrate_rates: Iterable
                                              ) -> Tuple[dict[str,float], dict[str,float]]:
-    pamodel = parametrizer.pamodel.copy(copy_with_pickle=True)
+    pamodel = parametrizer.pamodel_no_sensitivity.copy(copy_with_pickle=True)
     parametrizer.pamodel = create_pamodel_from_diagnostics_file(best_indiv_file_path, pamodel)
     return run_simulations_and_calculate_error(parametrizer, substrate_rates)
 
@@ -91,7 +91,7 @@ def compute_final_error_on_full_dataset_for_all_experiments(base_file_path: str,
     for datasize in datasizes:
         print('\n------------------------------------------------------')
         print(f"Analyzing parametrization with {datasize}% of the total amount of data to train")
-        for sample in range(1,num_replicates+1):
+        for sample in range(5,num_replicates+5):
             print(f'\tReplicate {sample}')
             file_path = f'{base_file_path}{datasize}_{sample}.xlsx'
             if os.path.exists(file_path):
@@ -177,11 +177,11 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     plt.savefig(fig_file_path)
 
 if __name__ == '__main__':
-    # diagnostic_file_path_base = os.path.join('Results', 'data_reduction_results', 'diagnostics', 'pam_parametrizer_diagnostics_datareduc_')
-    # final_errors = compute_final_error_on_full_dataset_for_all_experiments(diagnostic_file_path_base,
-    #                                                                        datasizes= np.arange(10,100,10),
-    #                                                                        num_replicates=8)
-    # final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
+    diagnostic_file_path_base = os.path.join('Results', 'data_reduction_results', 'diagnostics', 'pam_parametrizer_diagnostics_datareduc_')
+    final_errors = compute_final_error_on_full_dataset_for_all_experiments(diagnostic_file_path_base,
+                                                                           datasizes= np.arange(10,100,10),
+                                                                           num_replicates=4)
+    final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
     plot_progression_of_errors(final_errors, metrics = 'smape')
 

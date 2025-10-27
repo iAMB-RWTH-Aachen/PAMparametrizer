@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from cobra.io.sbml import read_sbml_model
 from matplotlib.colors import to_hex
 from matplotlib import gridspec
 import seaborn as sns
@@ -126,6 +127,7 @@ def get_kcat_changes_per_cog(original_pam_kcat_file:str,
     best_individual_df = merge_all_diagnostic_files(diagnostic_files)
     best_individual_df = calculate_change_in_kcat(best_individual_df,
                                                   rxn2kcat)
+    print(best_individual_df)
     best_individual_with_cog = add_pathway_annotation_to_kcat_changes(best_individual_df)
     return summarize_and_pivot_cog_info_df_to_long(best_individual_with_cog)
 
@@ -183,7 +185,7 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
     # Step 1: Compute the sums of positive and negative changes
     cog_info_relative['positive_change'] = cog_info_relative['kcat_change'].apply(lambda x: x if x > 0 else 0)
     cog_info_relative['negative_change'] = cog_info_relative['kcat_change'].apply(lambda x: x if x < 0 else 0)
-
+    print(cog_info_relative)
     # Sum of changes grouped by alternative and COG description
     cog_summary = cog_info_relative.groupby(['COG description', 'alternative']).agg({
         'positive_change': 'sum',
@@ -232,7 +234,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # Get unique alternatives and define a color mapping using coolwarm
     if cmap is None:
         alternatives = cog_summary_long['alternative'].unique()
-        model_colors = sns.color_palette("coolwarm", n_colors=len(alternatives)-len(other_colors))
+        model_colors = sns.color_palette("PuBu", n_colors=len(alternatives)-len(other_colors))
         cmap = {
             **{l: c for l, c in zip([f'Alternative {i + 1}' for i in range(len(alternatives)-len(other_colors))], model_colors)},
             **other_colors}
@@ -317,6 +319,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
         parametrizer.validation_data.get_by_id(substrate_uptake_id)._reactions_to_plot = rxns_to_plot
 
     substrate_rates = sorted(substrate_rates)
+    gem = read_sbml_model(os.path.join('Models', 'iML1515.xml'))
     pam = set_up_pam(os.path.join('Results', '2_parametrization',
                                   'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'),
                      model = os.path.join('Models', 'iML1515.xml'),
@@ -324,6 +327,17 @@ def recreate_progress_plot(best_indiv_files:list[str],
     parametrizer.pamodel = pam
     fig, axs = plot_valid_data(parametrizer,axs, fig, fontsize=fontsize)
     print('Run reference simulations')
+
+    gem_fluxes = []
+    for rate in substrate_rates:
+        gem.reactions.EX_glc__D_e.lower_bound = -rate
+        sol = gem.optimize()
+        gem_fluxes.append(sol.fluxes)
+
+    fig, axs = plot_simulation(fig, axs, gem_fluxes, [abs(rate) for rate in substrate_rates],
+                               parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
+                               iteration=0, color='darkblue', label='iML1515')
+
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates = substrate_rates,
                                                                    sensitivity = False)
@@ -383,8 +397,8 @@ def main():
                                     f'proteinAllocationModel_EnzymaticData_iML1515_{model}.xlsx') for model in
                        range(1, NUM_ALT_MODELS + 1)]
 
-    model_colors = sns.color_palette("coolwarm", n_colors=NUM_ALT_MODELS)
-    other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'}
+    model_colors = sns.color_palette("winter", n_colors=NUM_ALT_MODELS)
+    other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black', 'iML1515': 'darkblue'}
     cmap = {
         **{l: c for l, c in
            zip([f'Alternative {i + 1}' for i in range(NUM_ALT_MODELS)], model_colors)},
@@ -464,7 +478,7 @@ def main():
 
     #Add alphabet annotations
     #first 4 axes are added in reverse, and must ignore additional axis for x/y label config
-    annotations = ["D", "C", "B", "A","","E","",  "F"]
+    annotations = ["D", "C", "B", "A","","E","", "F"]
     fontsize = FONTSIZE  # Adjust as needed
 
     for ax, label in zip(fig.axes, annotations):
