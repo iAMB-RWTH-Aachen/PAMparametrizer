@@ -26,8 +26,6 @@ from Modules.utils.pamparametrizer_analysis import (calculate_kcat_differences,
 from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation, plot_flux_vs_experiment
 from Modules.utils.pamparametrizer_setup import set_up_sector_config_from_diagnostic_file
 
-
-
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Carbohydrate transport and metabolism': 'Carbon metabolism',
        'Cell cycle control, cell division, chromosome partitioning': 'Cell cycle',
@@ -127,8 +125,8 @@ def get_kcat_changes_per_cog(original_pam_kcat_file:str,
     best_individual_df = merge_all_diagnostic_files(diagnostic_files)
     best_individual_df = calculate_change_in_kcat(best_individual_df,
                                                   rxn2kcat)
-    print(best_individual_df)
     best_individual_with_cog = add_pathway_annotation_to_kcat_changes(best_individual_df)
+
     return summarize_and_pivot_cog_info_df_to_long(best_individual_with_cog)
 
 
@@ -176,16 +174,15 @@ def add_pathway_annotation_to_kcat_changes(best_individual_df: pd.DataFrame,
                                    left_on='rxn_id', right_on='Reactions', how='left')
     best_kcats_with_cog = best_kcats_with_cog.drop_duplicates(
         ['rxn_id', 'enzyme_id', 'r_squared', 'COG description']).reset_index(drop=True)
-    best_kcats_with_cog['relative_change']  = best_kcats_with_cog['kcat_change']
+    best_kcats_with_cog['enz_kcat_change']  = best_kcats_with_cog['kcat_change']
     total_change_per_iteration = best_kcats_with_cog.groupby(['alternative'])['kcat_change'].sum().abs().reset_index()
     return pd.merge(best_kcats_with_cog.drop('kcat_change', axis=1), total_change_per_iteration,
                              on=['alternative'])
 
 def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
     # Step 1: Compute the sums of positive and negative changes
-    cog_info_relative['positive_change'] = cog_info_relative['kcat_change'].apply(lambda x: x if x > 0 else 0)
-    cog_info_relative['negative_change'] = cog_info_relative['kcat_change'].apply(lambda x: x if x < 0 else 0)
-    print(cog_info_relative)
+    cog_info_relative['positive_change'] = cog_info_relative['enz_kcat_change'].apply(lambda x: x if x > 0 else 0)
+    cog_info_relative['negative_change'] = cog_info_relative['enz_kcat_change'].apply(lambda x: x if x < 0 else 0)
     # Sum of changes grouped by alternative and COG description
     cog_summary = cog_info_relative.groupby(['COG description', 'alternative']).agg({
         'positive_change': 'sum',
@@ -204,7 +201,7 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
-                       plotting_threshold=10,
+                       plotting_threshold=1e4,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
@@ -271,7 +268,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     ax.axvline(0, color='black', linestyle='--', linewidth=1)
 
     # make x-axis logaritmic
-    ax.set_xscale('symlog')
+    # ax.set_xscale('symlog')
     # ax.set_xlim([-2.5 * 1e9, 2.5 * 1e9])
 
     # Adjust y-axis labels
@@ -330,20 +327,20 @@ def recreate_progress_plot(best_indiv_files:list[str],
 
     gem_fluxes = []
     for rate in substrate_rates:
-        gem.reactions.EX_glc__D_e.lower_bound = -rate
+        gem.reactions.EX_glc__D_e.lower_bound = rate
         sol = gem.optimize()
         gem_fluxes.append(sol.fluxes)
 
     fig, axs = plot_simulation(fig, axs, gem_fluxes, [abs(rate) for rate in substrate_rates],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
-                               iteration=0, color='darkblue', label='iML1515')
+                               iteration=0, color='black', label='iML1515', plotting_kwargs = {'linestyle':'--'})
 
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates = substrate_rates,
                                                                    sensitivity = False)
     fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
-                               iteration=0, color='black')
+                               iteration=0, color='black',label = 'After preprocessing')
 
     for file, label in zip(best_indiv_files, labels):
         j +=1
@@ -457,7 +454,7 @@ def main():
     handles, labels = [], []
     # for ax in [line_axs[0], ax2]:
     legend_ax.axis("off")  # Hide axes
-    line_axs[0].plot([],[],label='GotEnzymes', color='grey')#dummy line for complete legend
+    line_axs[0].plot([],[],label='GotEnzymes', color='grey', linewidth=5)#dummy line for complete legend
     for ax in [line_axs[0], ax2]:
         h, l = ax.get_legend_handles_labels()
         for label, handle in zip(l, h):
@@ -486,10 +483,7 @@ def main():
                     fontsize=fontsize, fontweight='bold',
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
-    # fig.set_constrained_layout(True)
     fig.tight_layout()
-    # plt.show()
-    # fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, hspace=0.3, wspace=0.2)
     fig.savefig(os.path.join('Figures', 'Figure1_parametrization_results_analysis.png'))
 
 if __name__ == '__main__':

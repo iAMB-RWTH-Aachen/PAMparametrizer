@@ -16,6 +16,8 @@ from Figures.Scripts.Figure2_sensitivity_error import (get_fluxomics_data,
 from Scripts.i3_analysis.flux_kcat_distribution import create_flux_histogram_old_vs_new
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iML1515 as plot_intracell_flux_distribution_ecoli
 
+CM_TO_INCH = 1 / 2.54
+
 N_ALT_MODELS = 10
 FONTSIZE = 16
 
@@ -40,9 +42,9 @@ cmap = {**{l:c for l, c in zip([f'Alternative {i + 1}' for i in range(len(BEST_I
 
 def main_sfig_flux_distribution():
     #flux distribution
-    create_flux_histogram_old_vs_new([PARAM_FILE_GOTENZ,
+    create_flux_histogram_old_vs_new([None, PARAM_FILE_GOTENZ,
                                       PARAM_FILE_PREPROC] + PARAMETER_RESULT_FILES,
-                                     label_names=['GotEnzymes', 'After preprocessing'] \
+                                     label_names=['iML1515','GotEnzymes', 'After preprocessing'] \
                                                  + [f'Alternative {i}' for i in range(1, len(BEST_INDIV_RESULT_FILES) + 1)],
                                      cumulative=True,
                                      result_fig_file = os.path.join('Figures', 'SuppFig_flux_histogram.png'),
@@ -65,7 +67,7 @@ def main_sfig_error_progression():
     error_per_runid_config = get_statistics_from_df(best_individual_df,
                                                     group_by=['run_id'],
                                                     columns=['ga_error', 'r_squared'])
-    fig = plt.figure(figsize=(16, 8))
+    fig = plt.figure(figsize=(21*CM_TO_INCH, 14*CM_TO_INCH))
 
     # R2 value progression plots
     gs = gridspec.GridSpec(1, 2, wspace=0.3)
@@ -91,7 +93,7 @@ def main_sfig_error_progression():
         ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
         ax.tick_params(axis='both', which='minor', labelsize=FONTSIZE)
 
-    axs[0].legend()
+    axs[1].legend(bbox_to_anchor=(1.2, 0.5), fontsize = FONTSIZE)
     # Add alphabet annotations
     annotations = ["A", "B"]  # Adjust based on the number of subplots
     fontsize = FONTSIZE*1.5  # Adjust as needed
@@ -112,6 +114,6 @@ def main_sfig_ecoli_intracell_flux():
     )
 
 if __name__ == '__main__':
-    main_sfig_ecoli_intracell_flux()
+    # main_sfig_ecoli_intracell_flux()
     main_sfig_error_progression()
     main_sfig_flux_distribution()

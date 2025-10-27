@@ -2,8 +2,8 @@ from cobra.flux_analysis import flux_variability_analysis
 import os
 import pandas as pd
 
-from PAModelpy.utils import set_up_pam
 from cobra.io.sbml import read_sbml_model
+from PAModelpy.utils import set_up_pam
 
 if __name__ == '__main__':
     NUM_MODELS = 10
@@ -14,9 +14,11 @@ if __name__ == '__main__':
     models_to_check = {name: set_up_pam(file, sensitivity=False) for name, file in models_to_check.items()}
     models_to_check['iML1515'] = read_sbml_model(os.path.join('Models', 'iML1515.xml'))
 
-    for name, model in models_to_check:
+    for name, model in models_to_check.items():
         result = flux_variability_analysis(model = model,loopless=True)
-        with pd.ExcelWriter(FVA_RESULT_FILE, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        if not os.path.exists(FVA_RESULT_FILE): kwargs = {'mode':'w'}
+        else:kwargs = {'mode':'a', 'if_sheet_exists':'replace'}
+        with pd.ExcelWriter(FVA_RESULT_FILE, engine='openpyxl', **kwargs) as writer:
             result.to_excel(writer, sheet_name=name)
 
 

@@ -1,3 +1,4 @@
+from typing import Dict, Any
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
@@ -31,7 +32,9 @@ def plot_simulation(fig, axs,
                     color: int = None,
                     max_iteration:int = 2,
                     label:str=None,
-                    return_color: bool = False) -> plt.Figure:
+                    return_color: bool = False,
+                    plotting_kwargs: Dict[str, Any] = {}
+                    ) -> plt.Figure:
     if color is None:
         # adjust color to visualize progress
         # get viridis color palette
@@ -48,7 +51,7 @@ def plot_simulation(fig, axs,
     for r, ax in zip(reactions_to_plot, axs):
         # plot data
         line = ax.plot(substrate_rates, [abs(f[r]) for f in fluxes], linewidth=5,
-                       zorder=5, color=color, label = label)
+                       zorder=5, color=color, label = label, **plotting_kwargs)
 
     fig.canvas.draw()
     fig.canvas.flush_events()

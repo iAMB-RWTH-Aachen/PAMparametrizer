@@ -2,14 +2,16 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from cobra.io.sbml import read_sbml_model
 from matplotlib import gridspec
 import matplotlib.colors as mcolors
 import seaborn as sns
 from scipy.cluster.hierarchy import leaves_list
 from scipy.stats import mannwhitneyu
-from typing import List, Dict, Tuple, Iterable
+from typing import List, Dict, Tuple, Iterable, Union
 
 from PAModelpy.utils import set_up_pam
+from PAModelpy import PAModel
 
 from Scripts.pam_generation import setup_ecoli_pam as set_up_ecoli_pam_curated
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import RXNS_TO_VALIDATE, get_reactions2plot_pathway_mapping
@@ -36,15 +38,16 @@ def make_simulation_error_boxplot(gotenz_param_file:str,
                                      preprocessed_param_file,
                                      diagnostic_files,
                                      model_file_path)
+    ecoli_pams['iML1515'] = read_sbml_model(os.path.join('Models', 'iML1515.xml'))
     flux_data = get_fluxomics_data(fluxomics_data_file)
     rxns_to_save, valid_df = get_reactions_to_save(flux_data)
     substrate_rates = [
         [-f for f in flux_data.loc[substr_id, :].values] for substr_id in substrate_uptake_ids
     ]
-    simulated_fluxes = get_simulation_results_for_pams(ecoli_pams,
-                                                       substrate_rates = substrate_rates,
-                                                       substrate_uptake_ids = substrate_uptake_ids,
-                                                       rxns_to_save = rxns_to_save)
+    simulated_fluxes = get_simulation_results_for_models(ecoli_pams,
+                                                         substrate_rates = substrate_rates,
+                                                         substrate_uptake_ids = substrate_uptake_ids,
+                                                         rxns_to_save = rxns_to_save)
     calculate_error_for_simulations(simulated_fluxes, valid_df, rxns_to_save)
     return ecoli_pams, create_simulation_error_boxplot(simulated_fluxes,
                                            valid_df,
@@ -116,17 +119,18 @@ def get_reactions_to_save(flux_data: pd.DataFrame) -> Tuple[List[str], pd.DataFr
 
     return fluxes_to_save, validation_df
 
-def get_simulation_results_for_pams(ecoli_pams:dict,
-                                    substrate_rates:list[Iterable],
-                                    substrate_uptake_ids:list[str],
-                                    rxns_to_save: List[str]) -> Dict[str, pd.DataFrame]:
+def get_simulation_results_for_models(ecoli_models:Dict[str, Union['PAModel', 'Model']],
+                                      substrate_rates:list[Iterable],
+                                      substrate_uptake_ids:list[str],
+                                      rxns_to_save: List[str]) -> Dict[str, pd.DataFrame]:
     kwargs = {'substrate_ids': substrate_uptake_ids,
           'substrate_rates': substrate_rates,
           'fluxes_to_save' : rxns_to_save}
     simulated_fluxes = {}
-    for label, pam in ecoli_pams.items():
-        pam.change_reaction_bounds('EX_glc__D_e', 0, 1e3)
-        simulated_fluxes[label] = get_results_from_simulations(pam, **kwargs)['fluxes']
+    for label, model in ecoli_models.items():
+        if isinstance(model, PAModel): model.change_reaction_bounds('EX_glc__D_e', 0, 1e3)
+        else: model.reactions.EX_glc__D_e.bounds = (0,1e3)
+        simulated_fluxes[label] = get_results_from_simulations(model, **kwargs)['fluxes']
     return simulated_fluxes
 
 def calculate_error_for_simulations(simulation_results:Dict[str, pd.DataFrame],
@@ -145,17 +149,17 @@ def create_simulation_error_boxplot(simulated_fluxes,
                                     ax: plt.Axes,
                                     fontsize: int,
                                     other_colors={'GotEnzymes': 'grey', 'After preprocessing': 'black',
-                                                  'Curated': 'chocolate'}
+                                                  'Curated': 'chocolate', 'iML1515': 'white'}
                                     ) -> plt.Axes:
     models = [label for label in simulated_fluxes if label not in other_colors.keys()]
     other_colors = {k: v for k, v in other_colors.items() if k in simulated_fluxes}
-    model_colors = sns.color_palette("coolwarm", n_colors=len(simulated_fluxes) - len(other_colors))
+    model_colors = sns.color_palette("winter", n_colors=len(simulated_fluxes) - len(other_colors))
     cmap = {**dict(zip(models, model_colors)), **other_colors}
 
     # Combine data into a DataFrame
     all_differences = pd.DataFrame()
     curated_differences = None  # Placeholder for Curated errors
-
+    df_list = []
     for model, flux_df in simulated_fluxes.items():
 
         differences = []
@@ -164,11 +168,17 @@ def create_simulation_error_boxplot(simulated_fluxes,
             difference = calculate_difference_simulation_experiment(
                 valid_df, row, fluxes_to_save[1:], substrate_id)
             differences += difference
+        df_list.append({
+            'model': model,
+            'median' :np.median(differences),
+            'mean' : np.mean(differences),
+            'stdev' : np.std(differences)
+        })
 
         temp_df = pd.DataFrame({'Model': [model] * len(differences), 'Difference': differences})
         if model == 'GotEnzymes':
             curated_differences = differences
-        else:
+        elif curated_differences is not None:
             # Statistical test
             stat, p = mannwhitneyu(curated_differences, differences, alternative='greater')
             print(
@@ -187,7 +197,8 @@ def create_simulation_error_boxplot(simulated_fluxes,
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=fontsize)
     ax.set_xlabel('Model', fontsize=fontsize)
     ax.set_ylabel(r'Difference (exp - sim) mmol/$\text{g}_{CDW}$/h', fontsize=fontsize)
-
+    df = pd.DataFrame(df_list, columns=['model', 'median', 'mean', 'stdev'])
+    print(df.to_latex())
     return ax
 
 def create_sensitivity_heatmap(ecoli_pams: dict, gs, fig, fontsize):
@@ -300,8 +311,7 @@ def plot_split_clustermap(enzyme_sensitivities, genes_reactions_etc, gs, fig, fo
 
     # Define custom colormap
     colors_pos = plt.cm.coolwarm(np.linspace(0, 1, 256))
-    colors_zero = np.array([[0.549, 0.5725, 1, 0.9]])  # White for zero
-
+    colors_zero = np.array([[0.549, 0.5725, 1, 0.9]])
     colors = np.vstack((colors_zero, colors_pos))
     combined_cmap = mcolors.ListedColormap(colors, name='custom_cmap')
 

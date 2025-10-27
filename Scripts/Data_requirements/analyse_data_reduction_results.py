@@ -183,5 +183,5 @@ if __name__ == '__main__':
                                                                            num_replicates=4)
     final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
-    plot_progression_of_errors(final_errors, metrics = 'smape')
+    plot_progression_of_errors(final_errors, metrics = 'rsquared')
 

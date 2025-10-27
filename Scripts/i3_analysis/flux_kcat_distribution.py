@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from cobra.io.sbml import read_sbml_model
 from matplotlib.colors import to_hex
 import seaborn as sns
 import numpy as np
@@ -122,16 +123,20 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     fig, ax = plt.subplots()
     n_bins = 50
     i = 0
-    cmap = plt.get_cmap("coolwarm")
+    cmap = plt.get_cmap("winter")
 
 
     for label, data_file_path in zip(label_names, data_file_paths):
         print('------------------------------------------------------------------------')
         print('Analyzing flux distribution of model', label, '\n')
-        model = set_up_pam(pam_info_file=data_file_path,
-                           model=MODEL_FILE,
-                           sensitivity=False)
-        model.change_reaction_bounds(SUBSTRATE_ID, -11,0)
+        if data_file_path is None:
+            model = read_sbml_model(MODEL_FILE)
+            model.reactions.get_by_id(SUBSTRATE_ID).lower_bound = -11
+        else:
+            model = set_up_pam(pam_info_file=data_file_path,
+                               model=MODEL_FILE,
+                               sensitivity=False)
+            model.change_reaction_bounds(SUBSTRATE_ID, -11,0)
         solution = model.optimize()
 
         fluxes = [abs(flux) for flux in solution.fluxes.values if flux!=0]
@@ -153,6 +158,9 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         kwargs = {'cumulative':cumulative}
         if not cumulative:
             kwargs = {**kwargs, 'fill': True,  'alpha':0.5}
+        if data_file_path is None:#means gem which should be dashed line
+            kwargs = {**kwargs, 'linestyle': '--'}
+            color = 'black'
 
         bin_heights, bin_borders, _ = ax.hist(fluxes, bins=logbins, histtype='step',
                                               stacked = True, label = label, color = color,

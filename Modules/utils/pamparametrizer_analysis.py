@@ -34,7 +34,7 @@ def set_up_pam_parametrizer_and_get_substrate_uptake_rates(set_up_parametrizer: 
 #######
 #SIMULATION TOOLS
 #######
-def get_results_from_simulations(pamodel: PAModel,
+def get_results_from_simulations(model: Union[PAModel, 'Model'],
                                  substrate_rates: Union[Iterable[float], Iterable[Iterable[float]]],
                                  substrate_ids: Union[str, list[str]] = ['EX_glc__D_e'],
                                  fluxes_to_save: list[str] = None,
@@ -53,42 +53,42 @@ def get_results_from_simulations(pamodel: PAModel,
         if isinstance(transl_sector_config, dict):
             if substrate_id not in transl_sector_config: continue
             transl_sector = transl_sector_config[substrate_id]
-        pamodel.optimize()
-        _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector)
+        model.optimize()
+        if isinstance(model, PAModel): _set_up_pamodel_for_simulations(model, substrate_id, transl_sector)
 
         for substrate in substrate_list:
             try:
-                pamodel.change_reaction_bounds(rxn_id=substrate_id,
+                model.change_reaction_bounds(rxn_id=substrate_id,
                                            lower_bound=substrate, upper_bound=0)
             except:
-                pamodel.reactions.get_by_id(substrate_id).lower_bound = substrate
-                pamodel.reactions.get_by_id(substrate_id).upper_bound = 0
+                model.reactions.get_by_id(substrate_id).lower_bound = substrate
+                model.reactions.get_by_id(substrate_id).upper_bound = 0
 
-            pamodel.optimize()
+            model.optimize()
             print(f'Running simulations with {round(substrate, 2)} mmol/g_cdw/h of substrate ({substrate_id}) going into the system')
-            sol_pam = pamodel.optimize()
+            sol_pam = model.optimize()
 
-            if pamodel.solver.status == 'optimal' and pamodel.objective.value > 0:
+            if model.solver.status == 'optimal' and model.objective.value > 0:
                 if fluxes_to_save is not None:
                     solution_information['fluxes'] = save_fluxes(sol_pam,
-                                                                 pamodel,
+                                                                 model,
                                                                  fluxes_to_save,
                                                                  substrate,
                                                                  solution_information['fluxes'],
                                                                  substrate_id)
                 if proteins_to_save is not None:
-                    solution_information['proteins'] = save_proteins(pamodel,
+                    solution_information['proteins'] = save_proteins(model,
                                                                      proteins_to_save,
                                                                      substrate,
                                                                      solution_information['proteins'],
                                                                      substrate_id)
                 #reset model
                 try:
-                    pamodel.change_reaction_bounds(rxn_id=substrate_id,
+                    model.change_reaction_bounds(rxn_id=substrate_id,
                                                lower_bound=0, upper_bound=1e3)
                 except:
-                    pamodel.reactions.get_by_id(substrate_id).lower_bound = 0
-                    pamodel.reactions.get_by_id(substrate_id).upper_bound = 1e3
+                    model.reactions.get_by_id(substrate_id).lower_bound = 0
+                    model.reactions.get_by_id(substrate_id).upper_bound = 1e3
 
 
     return solution_information #TODO seems not to save the fluxes correctly
