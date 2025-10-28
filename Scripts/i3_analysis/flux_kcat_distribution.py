@@ -8,7 +8,7 @@ import os
 
 from PAModelpy.utils import set_up_pam
 
-PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250423.xlsx')
+PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
 SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 MODEL_FILE = os.path.join('Models', 'iML1515.xml')
 SUBSTRATE_ID = 'EX_glc__D_e'
@@ -39,7 +39,7 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     fig, ax = plt.subplots()
     n_bins = 100
     i = 0
-    cmap = plt.get_cmap("coolwarm")
+    cmap = plt.get_cmap("viridis")
 
     for label, data_file_path in zip(label_names, data_file_paths):
         aes_parameter_df = pd.read_excel(data_file_path, sheet_name='ActiveEnzymes')
@@ -190,11 +190,11 @@ if __name__ == '__main__':
         other_files += [os.path.join('Results', '3_analysis', 'parameter_files',
                                f'proteinAllocationModel_EnzymaticData_{suffix}.xlsx')]
 
-    create_flux_histogram_old_vs_new([PARAM_FILE_OLD,
-                                      SECTOR_PARAM_FILE] + other_files,
-                                     label_names = ['GotEnzymes', 'After preprocessing']\
-                                                   + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
-                                     cumulative=True)
+    # create_flux_histogram_old_vs_new([PARAM_FILE_OLD,
+    #                                   SECTOR_PARAM_FILE] + other_files,
+    #                                  label_names = ['GotEnzymes', 'After preprocessing']\
+    #                                                + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
+    #                                  cumulative=True)
     create_kcat_histogram_old_vs_new([PARAM_FILE_OLD,
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \

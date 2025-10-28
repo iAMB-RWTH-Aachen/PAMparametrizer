@@ -229,6 +229,7 @@ def get_most_sensitive_enzymes(ecoli_pams:dict, etc_reactions_proteins:pd.DataFr
     top_esc = {}
 
     for label, pam in ecoli_pams.items():
+        if not isinstance(pam, PAModel): continue
         pam.change_reaction_bounds('EX_glc__D_e', -10, 0)
         pam.sensitivity = True
         pam.optimize()
