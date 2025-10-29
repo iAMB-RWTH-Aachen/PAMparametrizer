@@ -201,7 +201,7 @@ def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
 
 def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
-                       plotting_threshold=1e4,
+                       plotting_threshold=5e4,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
                        fontsize = 15,
                        legend = True,
@@ -231,7 +231,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # Get unique alternatives and define a color mapping using coolwarm
     if cmap is None:
         alternatives = cog_summary_long['alternative'].unique()
-        model_colors = sns.color_palette("PuBu", n_colors=len(alternatives)-len(other_colors))
+        model_colors = sns.color_palette("viridis", n_colors=len(alternatives)-len(other_colors))
         cmap = {
             **{l: c for l, c in zip([f'Alternative {i + 1}' for i in range(len(alternatives)-len(other_colors))], model_colors)},
             **other_colors}
@@ -331,9 +331,6 @@ def recreate_progress_plot(best_indiv_files:list[str],
         sol = gem.optimize()
         gem_fluxes.append(sol.fluxes)
 
-    fig, axs = plot_simulation(fig, axs, gem_fluxes, [abs(rate) for rate in substrate_rates],
-                               parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
-                               iteration=0, color='black', label='iML1515', plotting_kwargs = {'linestyle':'--'})
 
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                    substrate_rates = substrate_rates,
@@ -341,6 +338,10 @@ def recreate_progress_plot(best_indiv_files:list[str],
     fig, axs = plot_simulation(fig, axs, fluxes, [abs(rate) for rate in substrate_rates],
                                parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
                                iteration=0, color='black',label = 'After preprocessing')
+
+    fig, axs = plot_simulation(fig, axs, gem_fluxes, [abs(rate) for rate in substrate_rates],
+                               parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
+                               iteration=0, color='black', label='iML1515', plotting_kwargs = {'linestyle':'--'})
 
     for file, label in zip(best_indiv_files, labels):
         j +=1
@@ -394,8 +395,8 @@ def main():
                                     f'proteinAllocationModel_EnzymaticData_iML1515_{model}.xlsx') for model in
                        range(1, NUM_ALT_MODELS + 1)]
 
-    model_colors = sns.color_palette("winter", n_colors=NUM_ALT_MODELS)
-    other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black', 'iML1515': 'darkblue'}
+    model_colors = sns.color_palette("viridis", n_colors=NUM_ALT_MODELS)
+    other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black', 'iML1515': 'purple'}
     cmap = {
         **{l: c for l, c in
            zip([f'Alternative {i + 1}' for i in range(NUM_ALT_MODELS)], model_colors)},
@@ -455,6 +456,10 @@ def main():
     # for ax in [line_axs[0], ax2]:
     legend_ax.axis("off")  # Hide axes
     line_axs[0].plot([],[],label='GotEnzymes', color='grey', linewidth=5)#dummy line for complete legend
+    line_axs[0].plot([],[],label='After preprocessing', color='black', linewidth=5)#dummy line for complete legend
+
+    line_axs[0].plot([],[],label='iML1515', color='black', linestyle ='--',linewidth=5)#dummy line for complete legend
+
     for ax in [line_axs[0], ax2]:
         h, l = ax.get_legend_handles_labels()
         for label, handle in zip(l, h):
@@ -463,7 +468,8 @@ def main():
                 labels.extend([label])
     legend_ax.legend(handles, labels, loc="center",
                      fontsize=FONTSIZE,
-                     ncol=round(len(labels)/4), frameon=False)
+                     bbox_to_anchor = (0.2,0),
+                     ncol=round(len(labels)/5), frameon=False)
     # ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
 
     ax3 = fig.add_subplot(gs_inner_r[0])

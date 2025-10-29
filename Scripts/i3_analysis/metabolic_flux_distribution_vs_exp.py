@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
+import matplotlib.colors as mcolors
 from typing import List, Union, Tuple
 from cobra.io import read_sbml_model
 
@@ -37,8 +38,6 @@ def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
 
     m = read_sbml_model(model_file_path)
     m.optimize()
-    print(m.reactions.PFK.flux)
-    print(m.summary())
 
     fluxes = {'GotEnzymes': get_results_from_simulations(pam,
                                                          substrate_rates=[[mfa_data['EX_glc__D_e']]],
@@ -102,43 +101,50 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
     if fig is None: fig= plt.figure(figsize=(15, 10))
     if gs0 is None: gs0 = gridspec.GridSpec(1,1)[0]
 
+    colors_pos = plt.cm.Reds(np.linspace(0, 1, 256))
+    colors_zero = np.array([[0.549, 0.5725, 1, 0.9]])
+    colors_neg = plt.cm.Blues(np.linspace(0, 1, 256))
+
+    colors = np.vstack((colors_neg, colors_zero, colors_pos))
+    combined_cmap = mcolors.ListedColormap(colors, name='custom_cmap')
+    bounds = np.linspace(vmin, vmax, len(colors))
+    norm = mcolors.BoundaryNorm(bounds, combined_cmap.N)
+
     #plot growth rate with different colorbar
     if 'Growth' in rxns_to_plot:
         growth_df = flux_df[['Growth rate']]
         flux_df = flux_df.drop('Growth rate', axis =1)
 
         gs = gridspec.GridSpecFromSubplotSpec(
-            1, 6,  # total 6 columns
+            1, 4,
             subplot_spec=gs0,
-            width_ratios=[5, 0.2, 0.2, 0.2,0.5, 0.2],  # main heatmap, last col, gap, cbars, gap, cbar
-            wspace=0  # no space between heatmaps
+            width_ratios=[5, 0.5, 1, 0.5],  # main heatmap, cbar, growth heatmap, cbar
+            wspace=0.2  # no space between heatmaps
         )
         if cbar:
             ax_main = fig.add_subplot(gs[0, 0])
-            ax_last = fig.add_subplot(gs[0, 1])
-            cax_main = fig.add_subplot(gs[0, 3])
-            cax_last = fig.add_subplot(gs[0, 5])
+            cax_main = fig.add_subplot(gs[0, 1])
+            ax_growth = fig.add_subplot(gs[0, 2])
+            cax_growth = fig.add_subplot(gs[0, 3])
 
-            sns.heatmap(growth_df, ax=ax_last, cmap="Reds", cbar=cbar, cbar_ax=cax_last,
+            sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar, cbar_ax=cax_growth,
                         yticklabels=False, xticklabels=True,
                         vmin=0.3,
                         # vmin = 0.3, vmax = 0.6)
                         # vmin=round(growth_df.min(),1),
                         vmax=round(growth_df.max(),1))
 
-            cax_last.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
-            cax_last.tick_params(labelsize=fontsize)  # Set tick label font size
-            ax_last.set_xticklabels(ax_last.get_xticklabels(), rotation=45, ha='right')
-            ax_last.tick_params(axis='x', labelsize=fontsize - 1)
-            ax_last.set_ylabel("")
+            ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
+            ax_growth.tick_params(labelsize=fontsize)  # Set tick label font size
+            ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
+            ax_growth.tick_params(axis='x', labelsize=fontsize - 1)
+            ax_growth.set_ylabel("")
 
-            sns.heatmap(flux_df, annot=False, cmap="coolwarm", fmt=".2f", ax=ax_main,
+            sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,
                                   vmax=vmax, vmin=vmin, cbar=cbar, cbar_ax = cax_main
                                   )
             # ax_main.tick_params(axis='y', labelrotation=90)
             # ax_main.set_yticklabels(ax_main.get_yticklabels(), rotation=90, ha='right')
-
-
 
         else:
             # ax.tick_params(axis='y', labelrotation=90)
@@ -157,7 +163,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             ax_last.set_yticklabels([])
             # ax_last.tick_params(axis='y', left=False)
 
-            sns.heatmap(flux_df, annot=False, cmap="coolwarm", fmt=".2f", ax=ax_main,
+            sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,
                                   vmax=vmax, vmin=vmin, cbar=cbar,
                                   )
 
@@ -170,7 +176,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         ax_main = fig.subplots(gs)
         # ax.tick_params(axis='y', labelrotation=90)
         ax_main.tick_params(axis='both', labelsize=fontsize)
-        sns.heatmap(flux_df, annot=False, cmap="coolwarm", fmt=".2f", ax=ax_main,
+        sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,
                 vmax = vmax, vmin = vmin, cbar = cbar
                 )
 

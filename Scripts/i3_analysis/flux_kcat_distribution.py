@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from IPython.core.pylabtools import figsize
 from cobra.io.sbml import read_sbml_model
 from matplotlib.colors import to_hex
 import seaborn as sns
@@ -36,10 +37,13 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      cumulative: bool = False,
                                      other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black'},
                                      legend = True):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize = (6,6))
     n_bins = 100
     i = 0
     cmap = plt.get_cmap("viridis")
+    fontsize = 14
+
+    plt.rcParams.update({'font.size': fontsize})
 
     for label, data_file_path in zip(label_names, data_file_paths):
         aes_parameter_df = pd.read_excel(data_file_path, sheet_name='ActiveEnzymes')
@@ -63,11 +67,15 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
 
     plt.yscale('log')
-    plt.ylabel('Frequency')
+    plt.ylabel('Frequency', fontsize = fontsize)
     plt.xscale('log')
-    plt.xlabel('Kcat value [s-1]')
+    plt.xlabel('Kcat value [s-1]', fontsize = fontsize)
+
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+
     if legend:
-        plt.legend()
+        plt.legend(fontsize = fontsize*0.75)
     plt.tight_layout()
     plt.savefig(result_fig_file)
 
@@ -123,7 +131,7 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     fig, ax = plt.subplots()
     n_bins = 50
     i = 0
-    cmap = plt.get_cmap("winter")
+    cmap = plt.get_cmap("viridis")
 
 
     for label, data_file_path in zip(label_names, data_file_paths):
@@ -182,7 +190,7 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
 if __name__ == '__main__':
     # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
-    NUM_ALT_MODELS = 8
+    NUM_ALT_MODELS = 10
     other_files = list()
     for file_nmbr in range(1,NUM_ALT_MODELS+1):
         suffix = f'iML1515_{file_nmbr}'
@@ -199,7 +207,7 @@ if __name__ == '__main__':
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
                                                  + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
-                                     legend = False)
+                                     legend = True)
     #
     # create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
     #                                   SECTOR_PARAM_FILE] + other_files,

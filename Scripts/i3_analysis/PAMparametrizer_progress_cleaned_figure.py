@@ -3,9 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 import matplotlib.ticker as ticker
-from typing import Callable
+from typing import Callable, List, Union
 
 from Modules.utils.pamparametrizer_visualization import plot_simulation, plot_valid_data
+from Modules.utils.pamparametrizer_setup import set_up_sector_config_from_diagnostic_file
+from Modules.utils.sector_config_functions import change_sector_parameters_with_config_dict
 from Modules.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer as set_up_pamparametrizer_ecoli
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as set_up_pamparametrizer_putida
@@ -15,13 +17,36 @@ from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparame
 
 FONTSIZE = 16
 
+def run_simulations_to_plot_and_calculate_error(parametrizer,
+                                                substrate_rates: List[Union[float, int]],
+                                                fig, axs,
+                                                iteration: int,
+                                                max_iteration:int,
+                                                error_df:pd.DataFrame,
+                                                plotting_kwargs:dict = {}) -> pd.DataFrame:
+    fluxes, substrates = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
+                                                              substrate_rates=substrate_rates,
+                                                              sensitivity=False)
+    fig, axs = plot_simulation(fig, axs, fluxes, substrates.keys(),
+                               parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
+                               iteration=iteration, max_iteration=max_iteration, **plotting_kwargs)
+    for flux, rate in zip(fluxes, substrates.keys()):
+        parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=flux,
+                                                                      bin_id='final',
+                                                                      substrate_reaction_id=parametrizer.substrate_uptake_id,
+                                                                      substrate_uptake_rate=rate,
+                                                                      fluxes_abs=False)
+    error = parametrizer.calculate_final_error()
+    error_df.loc[len(error_df)] = [iteration-1, error]
+    return error_df
+
 def recreate_progress_plot(best_individual_df:pd.DataFrame,
                            fig_file_path:str,
                            return_error_df = False,
                            set_up_parametrizer: Callable = None,
                            pamparam_kwargs: dict = {'max_substrate_uptake_rate': -0.1,
                                                     'min_substrate_uptake_rate': -11,
-                                                    'kcat_increase_factor': 3}
+                                                    'kcat_increase_factor': 7}
                            ) -> None:
     FIGWIDTH = 12
     FIGHEIGHT = 12
@@ -55,22 +80,25 @@ def recreate_progress_plot(best_individual_df:pd.DataFrame,
         for i, row in group.iterrows():
             kcat_dict = {row['rxn_id']: {row['direction']: row['kcat[s-1]']}}
             parametrizer.pamodel_no_sensitivity.change_kcat_value(enzyme_id=row['enzyme_id'], kcats=kcat_dict)
-        # fluxes = run_simulations(pamodel, substrate_rates)
-        fluxes, substrates = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
-                                                                       substrate_rates=substrate_rates,
-                                                                       sensitivity=False)
-        fig, axs = plot_simulation(fig, axs, fluxes, substrates.keys(),
-                                   parametrizer.validation_data.get_by_id('EX_glc__D_e')._reactions_to_plot,
-                                   iteration=j + 1, max_iteration=len(groups))
-        for flux, rate in zip(fluxes, substrates.keys()):
-            parametrizer.parametrization_results.add_fluxes_from_fluxdict(flux_dict=flux,
-                                                                          bin_id='final',
-                                                                          substrate_reaction_id= parametrizer.substrate_uptake_id,
-                                                                          substrate_uptake_rate=rate,
-                                                                          fluxes_abs=False)
-        error = parametrizer.calculate_final_error()
-        error_df.loc[len(error_df)] = [j, error]
+        error_df = run_simulations_to_plot_and_calculate_error(parametrizer,
+                                                substrate_rates,
+                                                fig, axs,
+                                                iteration =j+1,
+                                                max_iteration=len(groups),
+                                                error_df=error_df)
 
+    sector_configs = set_up_sector_config_from_diagnostic_file(diagnostic_file=best_individual_df)
+    print(sector_configs)
+    change_sector_parameters_with_config_dict(pamodel = parametrizer.pamodel_no_sensitivity,
+                                              sector_config = sector_configs['UnusedEnzymeSector'],
+                                              substrate_uptake_id = 'EX_glc__D_e',
+                                              sector_id = 'UnusedEnzymeSector')
+    run_simulations_to_plot_and_calculate_error(parametrizer,
+                                                substrate_rates,
+                                                fig, axs,
+                                                iteration=j + 2,
+                                                max_iteration=len(groups),
+                                                error_df=error_df, plotting_kwargs={'color':'orange'})
 
     lines, labels = fig.axes[1].get_legend_handles_labels()
 
@@ -138,5 +166,5 @@ def main_mcecoli():
                            set_up_parametrizer=set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
-    create_empty_plot()
+    main_ecoli()
 

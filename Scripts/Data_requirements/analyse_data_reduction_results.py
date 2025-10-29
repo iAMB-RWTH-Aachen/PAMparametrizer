@@ -142,7 +142,8 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     # Plot
     if ax is None:
         plt.figure(figsize=(12, 6))
-        plt.tight_layout()
+        plt.subplots_adjust(right=0.75)
+        # plt.tight_layout()
 
     # Plot each reaction with error bars
     for reaction in summary_stats['reaction'].unique():
@@ -164,10 +165,10 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     if legend:
         plt.legend(
             loc='upper center',
-            bbox_to_anchor=(0.5, -0.2),
-            ncol=3,
+            bbox_to_anchor=(1.2, 1),
+            ncol=1,
             fontsize=fontsize,
-            frameon=False  # removes the border box
+            frameon=True  # removes the border box
         )
 
     plt.xticks(fontsize=fontsize)
@@ -178,10 +179,10 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
 
 if __name__ == '__main__':
     diagnostic_file_path_base = os.path.join('Results', 'data_reduction_results', 'diagnostics', 'pam_parametrizer_diagnostics_datareduc_')
-    final_errors = compute_final_error_on_full_dataset_for_all_experiments(diagnostic_file_path_base,
-                                                                           datasizes= np.arange(10,100,10),
-                                                                           num_replicates=4)
-    final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
+    # final_errors = compute_final_error_on_full_dataset_for_all_experiments(diagnostic_file_path_base,
+    #                                                                        datasizes= np.arange(10,100,10),
+    #                                                                        num_replicates=4)
+    # final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
-    plot_progression_of_errors(final_errors, metrics = 'rsquared')
+    plot_progression_of_errors(final_errors, metrics = 'rsquared', legend=True)
 

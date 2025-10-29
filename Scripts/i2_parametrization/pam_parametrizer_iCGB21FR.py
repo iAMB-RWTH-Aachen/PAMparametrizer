@@ -54,7 +54,9 @@ def set_up_validation_data(pam_info_file: str,
         #validate only exchange rates and growth rate
         validation_data._reactions_to_plot = [data for data in valid_data_df.columns if (data[-3:] != "_ub" and data!=c_uptake_id)]
         validation_data._reactions_to_validate = ['Growth', 'EX_co2_e']
+        inactive_exchanges = [rxn.id for rxn in model.exchanges if rxn.id not in model.medium and rxn.id not in ['EX_lac_e']]
 
+        validation_data.inactive_exchanges = inactive_exchanges
         if c_uptake_id == 'EX_glc__D_e':
             validation_data.sector_configs = {
                 'TranslationalProteinSector':{

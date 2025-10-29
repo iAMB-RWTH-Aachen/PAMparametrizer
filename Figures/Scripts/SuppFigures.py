@@ -9,7 +9,7 @@ import pandas as pd
 from Scripts.i2_parametrization.pam_parametrizer_performance_analysis import get_statistics_from_df
 from Figures.Scripts.Figure2_sensitivity_error import (get_fluxomics_data,
                                                        get_reactions_to_save,
-                                                       get_simulation_results_for_pams,
+                                                       get_simulation_results_for_models,
                                                        set_up_pams_different_parameters,
                                                        create_simulation_error_boxplot
 )
@@ -67,7 +67,8 @@ def main_sfig_error_progression():
     error_per_runid_config = get_statistics_from_df(best_individual_df,
                                                     group_by=['run_id'],
                                                     columns=['ga_error', 'r_squared'])
-    fig = plt.figure(figsize=(21*CM_TO_INCH, 14*CM_TO_INCH))
+    fig = plt.figure(figsize=(30*CM_TO_INCH, 15*CM_TO_INCH))
+    fontsize = 12
 
     # R2 value progression plots
     gs = gridspec.GridSpec(1, 2, wspace=0.3)
@@ -88,22 +89,22 @@ def main_sfig_error_progression():
         ax.scatter(error_per_runid_config['run_id'], error_per_runid_config[f'{type}_mean'], color='black', label='mean')
         ax.errorbar(error_per_runid_config['run_id'], error_per_runid_config[f'{type}_mean'],
                     yerr=error_per_runid_config[f'{type}_std'], color='black', label='Mean')
-        ax.set_xlabel('run id within alternative', fontsize = FONTSIZE)
-        ax.set_ylabel(rf'Mean $R^{2}$ from {annotation}', fontsize = FONTSIZE)
-        ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-        ax.tick_params(axis='both', which='minor', labelsize=FONTSIZE)
+        ax.set_xlabel('run id within alternative', fontsize = fontsize)
+        ax.set_ylabel(rf'Mean $R^{2}$ from {annotation}', fontsize = fontsize)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize)
+        ax.tick_params(axis='both', which='minor', labelsize=fontsize)
 
-    axs[1].legend(bbox_to_anchor=(1.2, 0.5), fontsize = FONTSIZE)
+    axs[1].legend(bbox_to_anchor=(1, 1), fontsize = fontsize)
     # Add alphabet annotations
     annotations = ["A", "B"]  # Adjust based on the number of subplots
-    fontsize = FONTSIZE*1.5  # Adjust as needed
+    fontsize = FONTSIZE  # Adjust as needed
 
     for ax, label in zip(fig.axes, annotations):
         ax.annotate(label, xy=(0, 1), xycoords="axes fraction",
                     fontsize=fontsize, fontweight='bold',
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
-
+    fig.subplots_adjust(right = 0.8)
     fig.tight_layout()
     fig.savefig(os.path.join('Figures', 'SuppFig_pamparametrizer_performance.png'))
 
@@ -116,4 +117,4 @@ def main_sfig_ecoli_intracell_flux():
 if __name__ == '__main__':
     # main_sfig_ecoli_intracell_flux()
     main_sfig_error_progression()
-    main_sfig_flux_distribution()
+    # main_sfig_flux_distribution()

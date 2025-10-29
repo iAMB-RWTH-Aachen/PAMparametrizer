@@ -119,7 +119,7 @@ def set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates() -> Tuple:
     return parametrizer, substrate_rates
 
 def main_ecoli():
-    NUM_MODELS = 8
+    NUM_MODELS = 10
     PAM_KCAT_FILES = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                    f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                       range(1, NUM_MODELS+1)]
