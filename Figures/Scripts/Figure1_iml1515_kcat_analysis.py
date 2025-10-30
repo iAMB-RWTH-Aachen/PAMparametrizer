@@ -280,7 +280,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # Label axes
     ax.set_xlabel(xlabel, fontsize=fontsize * 1.5)
     # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
-    ax.grid(color='0.95')
+    ax.grid()
 
     # Add legend (ensuring all alternatives are included)
     if legend:
@@ -437,7 +437,7 @@ def main():
     ax_group.set_frame_on(False)
     ax_group.set_ylabel(r"Flux [mmol/$\text{g}_{\text{CDW}}$/h]",
                         labelpad=20, fontsize=FONTSIZE)
-    ax_group.yaxis.set_label_coords(-0.15, 0.5)
+    ax_group.yaxis.set_label_coords(-0.05, 0.5)
     ax_group.set_xlabel(r"Glucose uptake [mmol/$\text{g}_{\text{CDW}}$/h]",
                         labelpad=20, fontsize=FONTSIZE)
 
@@ -449,6 +449,7 @@ def main():
                                                                  + [f'Alternative {i}' for i in
                                                                     range(1, NUM_ALT_MODELS + 1)],
                                                      legend=False, fontsize=FONTSIZE, cmap = cmap)
+    hist_ax.grid()
 
     # create a legend
     legend_ax = fig.add_subplot(gs_inner_r[1])
@@ -471,6 +472,8 @@ def main():
                      bbox_to_anchor = (0.2,0),
                      ncol=round(len(labels)/5), frameon=False)
     # ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
+    for ax in line_axs:
+        ax.grid()
 
     ax3 = fig.add_subplot(gs_inner_r[0])
     bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,

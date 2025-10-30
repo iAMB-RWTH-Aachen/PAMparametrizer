@@ -1527,12 +1527,13 @@ class PAMParametrizer():
                         cbar_label:str = "Iteration",
                         sensitivity = True) -> plt.Figure:
 
+        cmap = plt.get_cmap("viridis")
+        norm = mpltlib.colors.BoundaryNorm(list(range(self.hyperparameters.threshold_iteration + 1)), cmap.N)
+
         if color is None:
             #adjust color to visualize progress
             #get viridis color palette
-            cmap = plt.get_cmap("viridis")
             color = to_hex(cmap(self.iteration / self.hyperparameters.threshold_iteration))
-            norm = mpltlib.colors.BoundaryNorm(list(range(self.hyperparameters.threshold_iteration+1)), cmap.N)
 
         fluxes_dict = {}
         substrate_range_dict = {}
