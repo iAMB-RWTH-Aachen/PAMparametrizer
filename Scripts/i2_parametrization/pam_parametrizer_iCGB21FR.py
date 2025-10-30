@@ -107,7 +107,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
-    pam = setup_cglutanicum_pam(pam_info_file_out)
+    pam = setup_cglutanicum_pam(pam_info_file_path_out)
 
     pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
