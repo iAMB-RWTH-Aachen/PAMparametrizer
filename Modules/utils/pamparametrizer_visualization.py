@@ -124,7 +124,7 @@ def plot_valid_data(parametrizer, axs=None, fig =None, fontsize:int = 12):
         y = [abs(data) for data in valid_data.valid_data[r]]
         ax.set_ylabel(RXN_NAME_MAPPER[r], fontsize= fontsize)
         ax.scatter(x, y,
-                       color='black', marker='o', s=200,
+                       color='black', marker='o', s=80,
                        facecolors=None, zorder=0,
                        label='Literature')
         if axs is None: ax.set_xlabel(RXN_NAME_MAPPER[parametrizer.substrate_uptake_id], fontsize= fontsize)

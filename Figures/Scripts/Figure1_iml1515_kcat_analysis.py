@@ -437,7 +437,7 @@ def main():
     ax_group.set_frame_on(False)
     ax_group.set_ylabel(r"Flux [mmol/$\text{g}_{\text{CDW}}$/h]",
                         labelpad=20, fontsize=FONTSIZE)
-    ax_group.yaxis.set_label_coords(-0.1, 0.5)  # Move ylabel to the right
+    ax_group.yaxis.set_label_coords(-0.15, 0.5)
     ax_group.set_xlabel(r"Glucose uptake [mmol/$\text{g}_{\text{CDW}}$/h]",
                         labelpad=20, fontsize=FONTSIZE)
 

@@ -107,7 +107,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
     colors = np.vstack((colors_neg, colors_zero, colors_pos))
     combined_cmap = mcolors.ListedColormap(colors, name='custom_cmap')
-    bounds = np.linspace(vmin, vmax, len(colors))
+    bounds = np.linspace(vmin, 0, len(colors_neg))+[0]+np.linspace(0, vmax, len(colors_pos))
     norm = mcolors.BoundaryNorm(bounds, combined_cmap.N)
 
     #plot growth rate with different colorbar
@@ -118,7 +118,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         gs = gridspec.GridSpecFromSubplotSpec(
             1, 4,
             subplot_spec=gs0,
-            width_ratios=[5, 0.5, 1, 0.5],  # main heatmap, cbar, growth heatmap, cbar
+            width_ratios=[5, 0.5, 0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
             wspace=0.2  # no space between heatmaps
         )
         if cbar:
@@ -134,9 +134,10 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
                         # vmin=round(growth_df.min(),1),
                         vmax=round(growth_df.max(),1))
 
+            ax_growth.set_title(r"Growth rate", fontsize = fontsize)
             ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
             ax_growth.tick_params(labelsize=fontsize)  # Set tick label font size
-            ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
+            # ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
             ax_growth.tick_params(axis='x', labelsize=fontsize - 1)
             ax_growth.set_ylabel("")
 
@@ -149,25 +150,25 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         else:
             # ax.tick_params(axis='y', labelrotation=90)
             ax_main = fig.add_subplot(gs[0, :5])
-            ax_last = fig.add_subplot(gs[0, 5])
+            ax_growth = fig.add_subplot(gs[0, 5])
 
-            sns.heatmap(growth_df, ax=ax_last, cmap="Reds", cbar=cbar,
+            sns.heatmap(growth_df, ax=ax_growth, cmap="Reds", cbar=cbar,
                         xticklabels=True, vmin=0.3, vmax=0.6)
             # vmin=round(growth_df.min(), 1),
             # vmax=round(growth_df.max(), 1))
 
-            ax_last.set_ylabel("")  # no duplicate
-            ax_last.set_xticklabels(ax_last.get_xticklabels(), rotation=45, ha='right')
-            ax_last.tick_params(axis='x', labelsize=fontsize - 1)
-            ax_last.set_yticks([])
-            ax_last.set_yticklabels([])
+            ax_growth.set_ylabel("")  # no duplicate
+            ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
+            ax_growth.tick_params(axis='x', labelsize=fontsize - 1)
+            ax_growth.set_yticks([])
+            ax_growth.set_yticklabels([])
             # ax_last.tick_params(axis='y', left=False)
 
             sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,
                                   vmax=vmax, vmin=vmin, cbar=cbar,
                                   )
 
-        for a in [ax_main, ax_last]:
+        for a in [ax_main, ax_growth]:
             for side in ['right', 'left', 'top', 'bottom']:
                 a.spines[side].set_visible(False)
 
@@ -226,9 +227,9 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         return ax_main
 
 def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
-    NUM_MODELS = 5
-    PAM_KCAT_FILES_IJN = [os.path.join('Results', '2_parametrization', 'diagnostics',
-                                       f'pam_parametrizer_diagnostics_iJN1463_{file_nmbr}.xlsx') for file_nmbr in
+    NUM_MODELS = 3
+    PAM_KCAT_FILES_IJN = [os.path.join('Results', '3_analysis', 'parameter_files',
+                                       f'proteinAllocationModel_EnzymaticData_iJN1463{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
     PPUTIDA_PHENOTYPE_FILE_PATH = os.path.join('Data', 'Pputida_phenotypes', 'pputida_phenotypes.xlsx')
 

@@ -8,6 +8,7 @@ import pandas as pd
 import os
 
 from PAModelpy.utils import set_up_pam
+from sympy.printing.pretty.pretty_symbology import line_width
 
 PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
 SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
@@ -61,7 +62,8 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
             i += 1
             color = to_hex(cmap(i/ (len(data_file_paths)-len(other_colors))))
         bin_heights, bin_borders, _ = ax.hist(kcat_values, bins = logbins, histtype='step',
-                                              stacked=True, fill=False, label= label, color=color, cumulative=cumulative)
+                                              stacked=True, fill=False, label= label, color=color,
+                                              cumulative=cumulative, linewidth = 2)
         calculate_distribution_statistics(bin_heights, bin_borders)
 
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
@@ -70,7 +72,7 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     plt.ylabel('Frequency', fontsize = fontsize)
     plt.xscale('log')
     plt.xlabel('Kcat value [s-1]', fontsize = fontsize)
-
+    plt.grid()
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
 
@@ -161,8 +163,6 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         else:
             i += 1
             color = to_hex(cmap(i / (len(data_file_paths) - len(other_colors))))
-            print(i, color)
-            print((len(data_file_paths) - len(other_colors)), i / (len(data_file_paths) - len(other_colors)))
         kwargs = {'cumulative':cumulative}
         if not cumulative:
             kwargs = {**kwargs, 'fill': True,  'alpha':0.5}
@@ -171,13 +171,14 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
             color = 'black'
 
         bin_heights, bin_borders, _ = ax.hist(fluxes, bins=logbins, histtype='step',
-                                              stacked = True, label = label, color = color,
+                                              stacked = True, label = label, color = color,linewidth = 15,
                                               **kwargs)
 
         calculate_distribution_statistics(bin_heights, bin_borders)
 
 
     # plt.yscale('log')
+    plt.grid()
     plt.ylabel('Frequency', fontsize=fontsize)
     plt.xscale('log')
     plt.xlabel('Flux [mmol/gCDW/h]', fontsize=fontsize)
@@ -207,7 +208,7 @@ if __name__ == '__main__':
                                       SECTOR_PARAM_FILE] + other_files,
                                      label_names=['GotEnzymes', 'After preprocessing'] \
                                                  + [f'alternative {i}' for i in range(1,NUM_ALT_MODELS+1)],
-                                     legend = True)
+                                     legend = False)
     #
     # create_kcat_joyplot_old_vs_new([PARAM_FILE_OLD,
     #                                   SECTOR_PARAM_FILE] + other_files,

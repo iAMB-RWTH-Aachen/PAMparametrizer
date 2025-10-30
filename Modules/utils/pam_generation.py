@@ -252,7 +252,7 @@ def set_up_yeast_config():
 
 def setup_pputida_pam(pam_info_file:str= os.path.join(
                                              'Results', '1_preprocessing',
-                                             'proteinAllocationModel_iJN1463_EnzymaticData_250225.xlsx'),
+                                             'proteinAllocationModel_iJN1463_EnzymaticData_250915.xlsx'),
                      model:str = 'Models/iJN1463.xml',
                      total_protein: Union[bool, float] = 0.3, active_enzymes: bool = True,
                     translational_enzymes: bool = True, unused_enzymes: bool = True, sensitivity = True):

@@ -118,6 +118,6 @@ def scan_kcat_factors_cglutanicum():
 
 if __name__ == '__main__':
     # scan_kcat_factors_iML1515()
-    scan_kcat_factors_pputida()
-    # scan_kcat_factors_cglutanicum()
+    # scan_kcat_factors_pputida()
+    scan_kcat_factors_cglutanicum()
     # scan_kcat_factors_yeast9()

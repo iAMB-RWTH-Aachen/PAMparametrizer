@@ -107,7 +107,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
-    pam = setup_cglutanicum_pam(pam_info_file)
+    pam = setup_cglutanicum_pam(pam_info_file_out)
 
     pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 
@@ -160,6 +160,6 @@ if __name__ == "__main__":
     #                      c_sources = ['Glycerol', 'Glucose', 'Succinate', 'Fructose','m-Xylene','Toluene','Benzoate', 'Octanoate'])
     # #
     # pam_parametrizer.run(remove_subruns=True, binned = 'False')
-    run_parametrizations(5, pam_info_file, kcat_increase_factor=8)
+    run_parametrizations(5, pam_info_file, kcat_increase_factor=7)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515
