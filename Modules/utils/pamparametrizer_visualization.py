@@ -12,16 +12,17 @@ RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
                    'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]',
                    'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate [$h^{-1}$]',
                    'BIOMASS_KT2440_WT3': 'Growth rate [$h^{-1}$]',
+                   'Growth': 'Growth rate [$h^{-1}$]',
                    }
 
-RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion',
-                   'EX_glc__D_e': 'Glucose uptake',
-                   'EX_co2_e': 'CO2 secretion',
-                   'EX_o2_e': 'O2 uptake',
-                   'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]',
-                   'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate [$h^{-1}$]',
-                   'BIOMASS_KT2440_WT3': 'Growth rate [$h^{-1}$]',
-                   }
+# RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion',
+#                    'EX_glc__D_e': 'Glucose uptake',
+#                    'EX_co2_e': 'CO2 secretion',
+#                    'EX_o2_e': 'O2 uptake',
+#                    'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]',
+#                    'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate [$h^{-1}$]',
+#                    'BIOMASS_KT2440_WT3': 'Growth rate [$h^{-1}$]',
+#                    }
 
 
 def plot_simulation(fig, axs,

@@ -79,6 +79,30 @@ def get_reactions2plot_pathway_mapping(flux_df):
             rxns_to_plot[pathway] = rxns_in_data
     return rxns_to_plot
 
+
+def get_custom_cmap_and_norm(vmin, vmax):
+    # Define color segments
+    colors_neg = plt.cm.Blues(np.linspace(0.4, 1, 128))
+    colors_zero = np.array([[1, 1, 1, 1]])
+    colors_pos = plt.cm.Reds(np.linspace(0.4, 1, 128))
+    colors = np.vstack((colors_neg, colors_zero, colors_pos))
+    cmap = mcolors.ListedColormap(colors, name='custom_cmap')
+
+    # Handle 3 cases:
+    if vmin < 0 and vmax > 0:
+        # Case 1: both negative and positive values
+        norm = mcolors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    elif vmax <= 0:
+        # Case 2: all values are negative → use blue scale only
+        cmap = plt.cm.Blues
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    else:
+        # Case 3: all values are positive → use red scale only
+        cmap = plt.cm.Reds
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+    return cmap, norm
+
 def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
                                    result_fig_path:str = None,
                                    fontsize:int=16,
@@ -101,14 +125,9 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
     if fig is None: fig= plt.figure(figsize=(15, 10))
     if gs0 is None: gs0 = gridspec.GridSpec(1,1)[0]
 
-    colors_pos = plt.cm.Reds(np.linspace(0, 1, 256))
-    colors_zero = np.array([[0.549, 0.5725, 1, 0.9]])
-    colors_neg = plt.cm.Blues(np.linspace(0, 1, 256))
+    plt.rcParams.update({'font.size': fontsize})
 
-    colors = np.vstack((colors_neg, colors_zero, colors_pos))
-    combined_cmap = mcolors.ListedColormap(colors, name='custom_cmap')
-    bounds = np.linspace(vmin, 0, len(colors_neg))+[0]+np.linspace(0, vmax, len(colors_pos))
-    norm = mcolors.BoundaryNorm(bounds, combined_cmap.N)
+    combined_cmap, norm = get_custom_cmap_and_norm(vmin=vmin, vmax=vmax)
 
     #plot growth rate with different colorbar
     if 'Growth' in rxns_to_plot:
@@ -118,13 +137,13 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         gs = gridspec.GridSpecFromSubplotSpec(
             1, 4,
             subplot_spec=gs0,
-            width_ratios=[5, 0.5, 0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
-            wspace=0.2  # no space between heatmaps
+            width_ratios=[5, 0.5,0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
+            wspace=0.3  # no space between heatmaps
         )
         if cbar:
             ax_main = fig.add_subplot(gs[0, 0])
-            cax_main = fig.add_subplot(gs[0, 1])
-            ax_growth = fig.add_subplot(gs[0, 2])
+            cax_main = fig.add_subplot(gs[0, 2])
+            ax_growth = fig.add_subplot(gs[0, 1])
             cax_growth = fig.add_subplot(gs[0, 3])
 
             sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar, cbar_ax=cax_growth,
@@ -134,11 +153,11 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
                         # vmin=round(growth_df.min(),1),
                         vmax=round(growth_df.max(),1))
 
-            ax_growth.set_title(r"Growth rate", fontsize = fontsize)
-            ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
+            ax_growth.set_title(r"Growth rate", fontsize = fontsize, fontweight = 'bold')
+            # ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
             ax_growth.tick_params(labelsize=fontsize)  # Set tick label font size
             # ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
-            ax_growth.tick_params(axis='x', labelsize=fontsize - 1)
+            ax_growth.tick_params(axis='x', which = 'both', bottom = False, labelbottom = False, top=False)
             ax_growth.set_ylabel("")
 
             sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,
@@ -147,12 +166,16 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             # ax_main.tick_params(axis='y', labelrotation=90)
             # ax_main.set_yticklabels(ax_main.get_yticklabels(), rotation=90, ha='right')
 
+            cbar_growth = ax_growth.collections[0].colorbar
+            cbar_growth.ax.tick_params(labelsize=fontsize)  # Set tick label font size
+            cbar_growth.set_label('Growth rate [1/h]', fontsize=fontsize)
+
         else:
             # ax.tick_params(axis='y', labelrotation=90)
-            ax_main = fig.add_subplot(gs[0, :5])
-            ax_growth = fig.add_subplot(gs[0, 5])
+            ax_main = fig.add_subplot(gs[0, :2])
+            ax_growth = fig.add_subplot(gs[0, 3])
 
-            sns.heatmap(growth_df, ax=ax_growth, cmap="Reds", cbar=cbar,
+            sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar,
                         xticklabels=True, vmin=0.3, vmax=0.6)
             # vmin=round(growth_df.min(), 1),
             # vmax=round(growth_df.max(), 1))
@@ -288,8 +311,8 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, nu
 
 def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
     NUM_MODELS = 5
-    PAM_KCAT_FILES_ICGB = [os.path.join('Results', '2_parametrization', 'diagnostics',
-                                       f'pam_parametrizer_diagnostics_iCGB21FR_{file_nmbr}.xlsx') for file_nmbr in
+    PAM_KCAT_FILES_ICGB = [os.path.join('Results', '3_analysis', 'parameter_files',
+                                       f'proteinAllocationModel_EnzymaticData_iCGB21FR_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
     cglutnicum_phenotype_file_path = os.path.join('Data', 'Cglutanicum_phenotypes', 'cglutanicum_phenotypes.xlsx')
 
@@ -300,7 +323,7 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
 
     flux_df = get_simulated_fluxes_for_rxns(mfa_data,
                                             pam,
-                                            os.path.join('Models', 'iCGB21FR.xml'),
+                                            os.path.join('Models', 'iCGB21FR_annotated_copyable.xml'),
                                             PAM_KCAT_FILES_ICGB)
     fig_out = None
     if gs is None:fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_cglutanicum.png')
@@ -313,8 +336,8 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
     return ax
 
 if __name__ == '__main__':
-    # main_iML1515()
-    main_iJN1463()
+    main_iML1515()
+    # main_iJN1463()
     # main_iCGB21FR()
 
 

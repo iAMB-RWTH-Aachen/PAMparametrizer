@@ -302,8 +302,10 @@ def recreate_progress_plot(best_indiv_files:list[str],
                            pamparam_kwargs: dict = {'max_substrate_uptake_rate':-0.1},
                            rxns_to_plot: List[str] = None,
                            substrate_uptake_id:str = 'EX_glc__D_e',
+                           gem_file: str = os.path.join('Models', 'iML1515.xml'),
                            other_measurements: bool = False,
-                           cmap:dict = None
+                           cmap:dict = None,
+                           enzyme_sector_update:bool = True
                            ):
     j=0
 
@@ -316,12 +318,12 @@ def recreate_progress_plot(best_indiv_files:list[str],
         parametrizer.validation_data.get_by_id(substrate_uptake_id)._reactions_to_plot = rxns_to_plot
 
     substrate_rates = sorted(substrate_rates)
-    gem = read_sbml_model(os.path.join('Models', 'iML1515.xml'))
-    pam = set_up_pam(os.path.join('Results', '2_parametrization',
-                                  'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'),
-                     model = os.path.join('Models', 'iML1515.xml'),
-                     sensitivity = False)
-    parametrizer.pamodel = pam
+    gem = read_sbml_model(gem_file)
+    # pam = set_up_pam(os.path.join('Results', '2_parametrization',
+    #                               'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'),
+    #                  model = os.path.join('Models', 'iML1515.xml'),
+    #                  sensitivity = False)
+    # parametrizer.pamodel = pam
     fig, axs = plot_valid_data(parametrizer,axs, fig, fontsize=fontsize)
     print('Run reference simulations')
 
@@ -330,6 +332,7 @@ def recreate_progress_plot(best_indiv_files:list[str],
         gem.reactions.EX_glc__D_e.lower_bound = rate
         sol = gem.optimize()
         gem_fluxes.append(sol.fluxes)
+    pam = parametrizer.pamodel_no_sensitivity.copy(copy_with_pickle=True)
 
 
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
@@ -347,7 +350,8 @@ def recreate_progress_plot(best_indiv_files:list[str],
         j +=1
         print('\nAlternative ', label, ' from file ', file)
         parametrizer.pamodel = create_pamodel_from_diagnostics_file(file,
-                                                                    pam.copy(copy_with_pickle = True))
+                                                                    pam.copy(copy_with_pickle = True),
+                                                                    enzyme_sector_update = enzyme_sector_update)
         parametrizer.validation_data.EX_glc__D_e.sector_configs = set_up_sector_config_from_diagnostic_file(file)
 
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
