@@ -79,12 +79,12 @@ if __name__ == '__main__':
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
     #
     new_ues_files = [1, 2, 4, 5, 6]
-    for file_nmbr in range(1,4):
-        suffix = f'iJN1463{file_nmbr}'
-        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_iJN1463_{file_nmbr}.xlsx')
+    for file_nmbr in range(1,6):
+        suffix = f'iCGB21FR_{file_nmbr}'
+        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{suffix}.xlsx')
         output_file_path = create_new_aes_parameter_file(
             old_param_file=os.path.join(
-                'Results', '2_parametrization', 'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'
+                'Results', '2_parametrization', 'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx'
             ),
             result_file_path= result_file,
             new_aes_suffix= suffix)
