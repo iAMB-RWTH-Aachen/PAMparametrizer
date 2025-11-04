@@ -349,10 +349,13 @@ def recreate_progress_plot(best_indiv_files:list[str],
     for file, label in zip(best_indiv_files, labels):
         j +=1
         print('\nAlternative ', label, ' from file ', file)
-        parametrizer.pamodel = create_pamodel_from_diagnostics_file(file,
+        parametrizer.pamodel_no_sensitivity = create_pamodel_from_diagnostics_file(file,
                                                                     pam.copy(copy_with_pickle = True),
                                                                     enzyme_sector_update = enzyme_sector_update)
-        parametrizer.validation_data.EX_glc__D_e.sector_configs = set_up_sector_config_from_diagnostic_file(file)
+        parametrizer.pamodel_no_sensitivity.change_reaction_bounds('EX_glc__D_e', -5,0)
+        print(parametrizer.pamodel_no_sensitivity.optimize())
+        if enzyme_sector_update:
+            parametrizer.validation_data.EX_glc__D_e.sector_configs = set_up_sector_config_from_diagnostic_file(file)
 
         fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
                                                                        substrate_rates=substrate_rates,

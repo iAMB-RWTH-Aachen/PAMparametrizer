@@ -25,7 +25,7 @@ RXNS_TO_VALIDATE = {'Peripheral': ['GLCDpp', 'GAD2ktpp', 'GNK', '2DHGLCK', 'PGLC
                     # 'glx': ['ICL'],
                     'Growth': ['BIOMASS_KT2440_WT3', 'BIOMASS_Ec_iML1515_core_75p37M', 'Growth'],
                     }
-NEGATIVE_RXNS = ['SUCOAS', 'PGK', 'PGM']#reactions defined in opposite direction in the model
+NEGATIVE_RXNS = ['SUCOAS', 'PGK', 'PGM', 'RPI']#reactions defined in opposite direction in the model
 rxns_to_save = []
 for rxns in RXNS_TO_VALIDATE.values(): rxns_to_save+=rxns
 
@@ -109,7 +109,8 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
                                    gs0=None,
                                    fig =None,
                                    cbar:bool =True,
-                                   vrange: Tuple[int, int] = None):
+                                   vrange: Tuple[int, int] = None,
+                                   figsize: Tuple[int, int] = (15,10)):
     rxns_to_plot = get_reactions2plot_pathway_mapping(flux_df)
     flux_df = flux_df.rename({rxns_to_plot['Growth'][0]:'Growth rate'}, axis=1)
 
@@ -122,7 +123,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
     # Create heatmap
 
-    if fig is None: fig= plt.figure(figsize=(15, 10))
+    if fig is None: fig= plt.figure(figsize=figsize)
     if gs0 is None: gs0 = gridspec.GridSpec(1,1)[0]
 
     plt.rcParams.update({'font.size': fontsize})
@@ -137,8 +138,8 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         gs = gridspec.GridSpecFromSubplotSpec(
             1, 4,
             subplot_spec=gs0,
-            width_ratios=[5, 0.5,0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
-            wspace=0.3  # no space between heatmaps
+            width_ratios=[5, 0.4, 0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
+            wspace=0.5
         )
         if cbar:
             ax_main = fig.add_subplot(gs[0, 0])
@@ -272,7 +273,8 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
                                    gs0=gs,
                                    fig=fig,
                                    cbar=cbar,
-                                   vrange = vrange
+                                   vrange = vrange,
+                                        figsize=(25,10)
                                    )
     return ax
 
@@ -336,8 +338,8 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
     return ax
 
 if __name__ == '__main__':
-    main_iML1515()
-    # main_iJN1463()
+    # main_iML1515()
+    main_iJN1463()
     # main_iCGB21FR()
 
 

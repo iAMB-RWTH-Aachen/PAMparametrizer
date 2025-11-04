@@ -107,6 +107,20 @@ def compute_final_error_on_full_dataset_for_all_experiments(base_file_path: str,
                 print(final_errors)
     return final_errors
 
+def parse_data_reduction_results_for_plotting(final_errors: pd.DataFrame,
+                                              metrics: Literal['smape', 'r_squared'] ='rsquared',
+                                              )-> pd.DataFrame:
+    reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
+    long_data = final_errors.melt(
+        id_vars=["perc_data"],
+        value_vars=reaction_columns,
+        var_name="reaction",
+        value_name=metrics
+    )
+
+    # Group by `perc_data` and `Reaction` to calculate the mean, min, and max
+    return long_data.groupby(["perc_data", "reaction"])[metrics].agg(['mean', 'min', 'max']).reset_index()
+
 def plot_progression_of_errors(final_errors: pd.DataFrame,
                                metrics: Literal['smape', 'r_squared'] ='rsquared',
                                fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'error_per_reaction_num_datapoints.png'),
@@ -121,23 +135,13 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
                   'EX_o2_e': 'O2 uptake',
                   'EX_ac_e': 'Acetate excretion',
                   'mean': 'mean'}
-    # Extract all columns that start with "rsquared_" (assuming reaction columns follow this pattern)
-    reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
 
+    reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
     model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - 1)
     cmap = dict(zip(reaction_columns[1:], model_colors))
     cmap[f'{metrics}_mean'] = 'black'
 
-    # Melt the DataFrame to make it long-form for easier plotting
-    long_data = final_errors.melt(
-        id_vars=["perc_data"],
-        value_vars=reaction_columns,
-        var_name="reaction",
-        value_name=metrics
-    )
-
-    # Group by `perc_data` and `Reaction` to calculate the mean, min, and max
-    summary_stats = long_data.groupby(["perc_data", "reaction"])[metrics].agg(['mean', 'min', 'max']).reset_index()
+    summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
 
     # Plot
     if ax is None:
@@ -177,6 +181,100 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     #
     plt.savefig(fig_file_path)
 
+def plot_deviation_of_error(final_errors: pd.DataFrame,
+                        metrics: Literal['smape', 'r_squared'] ='rsquared',
+                        fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'deviation_per_reaction_num_datapoints.png'),
+                        fontsize:int = 16,
+                        ax = None,
+                        legend=True
+                        ) -> None:
+    metrics_mapper = {'rsquared': r'$R^{2}$',
+                      'smape': 'Symmetric Mean Absolute Percentage Error'}
+    rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
+                  'EX_co2_e': 'CO2 excretion',
+                  'EX_o2_e': 'O2 uptake',
+                  'EX_ac_e': 'Acetate excretion',
+                  'mean': 'mean'}
+
+    reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
+    model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - 1)
+    cmap = dict(zip(reaction_columns[1:], model_colors))
+    cmap[f'{metrics}_mean'] = 'black'
+
+    summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
+
+    # Plot
+    if ax is None:
+        plt.figure(figsize=(12, 6))
+        plt.subplots_adjust(right=0.75)
+        # plt.tight_layout()
+
+    for reaction in summary_stats['reaction'].unique():
+        reaction_data = summary_stats[summary_stats["reaction"] == reaction]
+        plt.scatter(
+            [perc / 100 * NUM_DATAPOINTS for perc in reaction_data["perc_data"]],
+            reaction_data["max"] - reaction_data["min"],
+            label=rxn_mapper[reaction.replace(f'{metrics}_', '')],
+            color=cmap[reaction]
+        )
+
+    # Customize the plot
+    # plt.title("R_squared Values by Reaction", fontsize=16)
+    plt.xlabel("Number of datapoints", fontsize=fontsize)
+    plt.ylabel(f'Deviation in {metrics_mapper[metrics]}', fontsize=fontsize)
+    if legend:
+        plt.legend(
+            loc='upper center',
+            bbox_to_anchor=(1.2, 1),
+            ncol=1,
+            fontsize=fontsize,
+            frameon=True  # removes the border box
+        )
+
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    # plt.ylim([40,100])
+    #
+    plt.savefig(fig_file_path)
+
+def plot_deviation_of_error_bar(final_errors: pd.DataFrame,
+                        metrics: Literal['smape', 'r_squared'] ='rsquared',
+                        fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'deviation_per_reaction_num_datapoints.png'),
+                        fontsize:int = 16,
+                        ax = None
+                        ) -> None:
+    metrics_mapper = {'rsquared': r'$R^{2}$',
+                      'smape': 'Symmetric Mean Absolute Percentage Error'}
+
+    reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
+    model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - 1)
+    cmap = dict(zip(reaction_columns[1:], model_colors))
+    cmap[f'{metrics}_mean'] = 'black'
+
+    summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
+    summary_stats['total_deviation'] = summary_stats['max']-summary_stats['min']
+    summary_stats = summary_stats.groupby(['perc_data'])['total_deviation'].agg(['mean', 'min', 'max']).reset_index()
+
+    # Plot
+    if ax is None:
+        plt.figure(figsize=(12, 6))
+        plt.subplots_adjust(right=0.75)
+        # plt.tight_layout()
+    perc_data = [perc / 100 * NUM_DATAPOINTS for perc in summary_stats["perc_data"]]
+    plt.bar(perc_data,summary_stats["mean"])
+    plt.errorbar(perc_data,summary_stats["mean"], yerr=[summary_stats['min'],summary_stats['max']], fmt="o", color="r")
+
+    # Customize the plot
+    # plt.title("R_squared Values by Reaction", fontsize=16)
+    plt.xlabel("Number of datapoints", fontsize=fontsize)
+    plt.ylabel(f'Deviation in {metrics_mapper[metrics]}', fontsize=fontsize)
+
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    # plt.ylim([40,100])
+    #
+    plt.savefig(fig_file_path)
+
 if __name__ == '__main__':
     diagnostic_file_path_base = os.path.join('Results', 'data_reduction_results', 'diagnostics', 'pam_parametrizer_diagnostics_datareduc_')
     # final_errors = compute_final_error_on_full_dataset_for_all_experiments(diagnostic_file_path_base,
@@ -185,4 +283,5 @@ if __name__ == '__main__':
     # final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
     plot_progression_of_errors(final_errors, metrics = 'rsquared', legend=True)
+    plot_deviation_of_error(final_errors, metrics = 'rsquared', legend=True)
 

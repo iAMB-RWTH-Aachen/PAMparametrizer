@@ -52,21 +52,29 @@ if __name__ == '__main__':
                        range(1, NUM_MODELS + 1)}
     models_to_check = {name: set_up_pam(file, sensitivity=False) for name, file in models_to_check.items()}
     models_to_check['iML1515'] = read_sbml_model(os.path.join('Models', 'iML1515.xml'))
-    colors = [mplt.colormaps['Set2'](i/len(models_to_check)) for i in [0.1,0.9]]
+    colors = [mplt.colormaps['Set2'](i/4) for i in range(4)]
     substrate_rates = np.arange(0,10)
 
     valid_data_df = pd.read_excel(os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py_rev.xls'), sheet_name='Yields')
     valid_data_df = valid_data_df[valid_data_df.Strain == 'MG1655']
 
     fig, axs = plt.subplots(nrows = 2, ncols = 2)
-    for color, (model_id, model) in zip(colors, models_to_check.items()):
+    for linestyle, (model_id, model) in zip(['--', '-', ':'], models_to_check.items()):
         fluxes = get_model_fluxes(substrate_rates = substrate_rates, model = model)
         p = pickle.dumps(model)
         model_ioj_atpm = change_atm_maintenance(model = pickle.loads(p), ngam = 3.15, gam = 53.95)
         fluxes_old_ngam = get_model_fluxes(substrate_rates = substrate_rates, model = model_ioj_atpm)
+
+        model_more_mntnc = change_atm_maintenance(model = model_ioj_atpm, ngam = 3.15, gam = 75.55)
+        fluxes_more_mntnc = get_model_fluxes(substrate_rates = substrate_rates, model = model_more_mntnc)
+
+        model_more_mntnc1 = change_atm_maintenance(model = model_ioj_atpm, ngam = 6.86*1.1, gam = 75.55*1.1)
+        fluxes_more_mntnc1 = get_model_fluxes(substrate_rates = substrate_rates, model = model_more_mntnc1)
+
         for ax, rxn in zip(axs.flatten(), ['EX_o2_e', 'EX_co2_e', 'BIOMASS_Ec_iML1515_core_75p37M', 'EX_ac_e']):
             ax.scatter([abs(f) for f in valid_data_df['EX_glc__D_e']], [abs(f) for f in valid_data_df[rxn]], color = 'black')
-            for fluxlist, linestyle, annotation in zip([fluxes, fluxes_old_ngam],['--', '-'], [' gam: 75.55, ngam: 6.86', ' gam: 53.95, ngam: 3.15']):
+            for color, fluxlist, annotation in zip(colors,[fluxes, fluxes_old_ngam, fluxes_more_mntnc,  fluxes_more_mntnc1],
+                                                       [' gam: 75.55, ngam: 6.86', ' gam: 53.95, ngam: 3.15',' gam: 75.55, ngam: 3.15',f' gam: {75.55*1.1}, ngam: {6.86*1.1}']):
                 ax.plot([abs(f['EX_glc__D_e']) for f in fluxlist], [abs(f[rxn]) for f in fluxlist],
                     color = color, linestyle = linestyle, label = model_id+annotation)
 

@@ -8,6 +8,10 @@ from Scripts.i2_parametrization.pam_parametrizer_iCGB21FR import set_up_pamparam
 from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_pamparametrizer as pamparam_setup_ijn1463
 
 
+from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iJN1463 as plot_intracell_flux_distribution_ijn
+from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iCGB21FR as plot_intracell_flux_distribution_icgb
+
+
 NUM_MODELS = 5
 PAM_KCAT_FILES_ICG = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                f'pam_parametrizer_diagnostics_iCGB21FR_{file_nmbr}.xlsx') for file_nmbr in
@@ -34,31 +38,45 @@ def main():
            zip([f'Alternative {i + 1}' for i in range(NUM_MODELS)], model_colors)},
         **other_colors}
 
-    fig, axs = plt.subplots(2,4, figsize=(20,20), height_ratios=[1,1])
-    fig.subplots_adjust(
-        left=0.05,  # space on the left side
-        right=0.95,  # space on the right side
-        bottom=0.1,  # space at the bottom
-        top=0.9,  # space at the top
-        hspace=0.4,  # vertical space between rows
-    )
+    # create a pretty figure
+    fig = plt.figure(figsize=(15/2.56, 20/2.56))
+
+    # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
+    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,1])
+    gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[0],
+                                                  wspace=0.2, width_ratios=[1, 1]
+                                                  )
+
+    gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_cgb[0, 0],
+                                                    wspace=0.4,
+                                                    hspace=0.4)
+    gs_ijn = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
+                                                  wspace=0.2, width_ratios=[1, 2]
+                                                  )
+
+    gs_ijn_fluxes = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_ijn[0, 0],
+                                                    hspace=0.4)
+
     i=0
-    for pamparamsetup, gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
+    for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
             [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
+            [gs_cgb_fluxes, gs_ijn_fluxes],
             [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
             [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
             [{'max_substrate_uptake_rate':-0.1,
-              'c_sources': ['Glucose', 'Fructose', 'Succinate','Gluconate', 'Acetate']
+              'c_sources': ['Glucose', 'Fructose', 'Succinate','Gluconate', 'Acetate'],
+                'kcat_increase_factor': 6
               },
              {'max_substrate_uptake_rate':-0.1,
               'min_substrate_uptake_rate':-15,
-              'c_sources': ['Glycerol', 'Glucose','Octanoate','m-Xylene','Succinate', 'Benzoate', 'Fructose']
+              'c_sources': ['Glycerol', 'Glucose','Octanoate','m-Xylene','Succinate', 'Benzoate', 'Fructose'],
+                'kcat_increase_factor': 5
               }
              ],
             [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']]
     ):
-        # ax = [fig.add_subplot(gs_top[i,j]) for j in range(len(rxns_to_plot)+1)]
-        ax = axs[i]
+        ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot)+1)]
+        # ax = axs[i]
         recreate_progress_plot(kcat_file_list,
                                 labels, fig, ax,
                                 legend = False,
@@ -73,15 +91,16 @@ def main():
         i+=1
 
 
-    #create legend in empty cells
-    axs[1,3].axis("off")
-    legend_ax = axs[1,2]
+    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1])
+    plot_intracell_flux_distribution_ijn(gs = gs_ijn[1])
+
+    legend_ax = fig.add_subplot(gs_main[2])
     legend_ax.axis("off")  # Hide axes
-    h, l = axs[0,0].get_legend_handles_labels()
+    h, l = fig.axes[0].get_legend_handles_labels()
 
     legend_ax.legend(h, l, loc="center",
                      fontsize=FONTSIZE,
-                     ncol=1, frameon=False)
+                     ncol=5, frameon=False)
     #add annotation
     annotations = ["A", "B", "C", "D", "E", "F", "", ""]
 
@@ -91,22 +110,22 @@ def main():
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
 
-    # Row 0: Centered across all 4 axes
-    left = axs[1, 0].get_position().x0
-    right = axs[1, 2].get_position().x1
-    mid = (left + right) / 2
-    fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
-
-    # Row 1: Centered between axs[1,1] and axs[1,2]
-    # We'll find the x-position of those two axes and take their midpoint
-    left = axs[1, 0].get_position().x0
-    right = axs[1, 1].get_position().x1
-    mid = (left + right) / 2
-
-    fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
-             0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    # # Row 0: Centered across all 4 axes
+    # left = fig.axes[1, 0].get_position().x0
+    # right = fig.axes[1, 2].get_position().x1
+    # mid = (left + right) / 2
+    # fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    # fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    #
+    # # Row 1: Centered between axs[1,1] and axs[1,2]
+    # # We'll find the x-position of those two axes and take their midpoint
+    # left = axs[1, 0].get_position().x0
+    # right = axs[1, 1].get_position().x1
+    # mid = (left + right) / 2
+    #
+    # fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    # fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
+    #          0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
     # plt.tight_layout()

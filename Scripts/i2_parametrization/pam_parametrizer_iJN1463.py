@@ -205,6 +205,6 @@ if __name__ == "__main__":
     if len(sys.argv)>1:
         pam_info_file = sys.argv[1]
     # set_up_validation_data(pam_info_file=pam_info_file)
-    run_parametrizations(pam_info_file=pam_info_file, kcat_increase_factor=8)
+    run_parametrizations(pam_info_file=pam_info_file, kcat_increase_factor=7)
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515
