@@ -9,7 +9,7 @@ from typing import Dict, List
 
 from cobra.io.sbml import read_sbml_model
 from PAModelpy.utils import set_up_pam
-from Modules.utils.pam_generation import setup_pputida_pam
+from Modules.utils.pam_generation import setup_pputida_pam, setup_cglutanicum_pam
 
 
 def run_and_save_fva(models_to_check: Dict[str, 'Model'],
@@ -137,9 +137,42 @@ def main_pputida():
                       fig_result_file=FIG_RESULT_FILE,
                       other_colors = {'GotEnzymes': 'grey', 'iJN1463': 'purple'})
 
+def main_cglutanicum():
+    NUM_MODELS = 5
+    GLC_UPTAKE_FLUXOMICS = 4.67
+    FVA_RESULT_FILE = os.path.join('Results', '3_analysis', 'fva_central_carbon_metabolism_cglutanicum.xlsx')
+    FIG_RESULT_FILE = os.path.join('Results', '3_analysis','fva_central_carbon_metabolism_iCGB21FR.png')
+    rxns_to_plot = ['GLCptspp', 'HEX1', 'PGI', 'PFK', 'F6PA', 'TALA', 'FBA', 'GAPD', 'PDH', 'CS', 'OAADC', 'ACONTa', 'ACONTb', 'ICDHyr', 'SUCOAS', 'SUCDi', 'FUM', 'MDH', 'ME2']
+    models_to_check = {f'Alternative_{i}': os.path.join('Results', '3_analysis', 'parameter_files',
+                                                        f'proteinAllocationModel_EnzymaticData_iCGB21FR_{i}.xlsx') for i
+                       in range(1, NUM_MODELS + 1)}
+    # models_to_check = {}
+    models_to_check['GotEnzymes'] = (
+        os.path.join('Results', '2_parametrization', 'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx'))
+    models_to_check = {
+        name: setup_cglutanicum_pam(file, sensitivity=False)
+                       for name, file in models_to_check.items()
+    }
+    for model in models_to_check.values():
+        model.change_reaction_bounds('EX_glc__D_e', -GLC_UPTAKE_FLUXOMICS, 0)
 
+    models_to_check['iCGB21FR'] = read_sbml_model(os.path.join('Models', 'iCGB21FR_annotated_copyable.xml'))
+    models_to_check['iCGB21FR'].reactions.EX_glc__D_e.lower_bound = -GLC_UPTAKE_FLUXOMICS
+
+    run_and_save_fva(models_to_check=models_to_check, fva_result_file=FVA_RESULT_FILE)
+    fva_result = pd.concat(
+        [df.reset_index(names='rxn').assign(model=name) for name, df in
+         pd.read_excel(FVA_RESULT_FILE, sheet_name=None, index_col=0).items()],
+        ignore_index=True
+    )
+    fva_result = fva_result[fva_result['rxn'].isin(rxns_to_plot)]
+    print(fva_result.to_markdown())
+    plot_fva_bargraph(fva_result=fva_result,
+                      rxns_to_plot=rxns_to_plot,
+                      fig_result_file=FIG_RESULT_FILE,
+                      other_colors = {'GotEnzymes': 'grey', 'iCGB21FR': 'purple'})
 
 if __name__ == '__main__':
-    main_pputida()
+    main_cglutanicum()
 
 

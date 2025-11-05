@@ -141,7 +141,6 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             width_ratios=[5, 0.4, 0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
             wspace=0.5
         )
-        print(gs)
         if cbar:
             ax_main = fig.add_subplot(gs[0, 0])
             cax_main = fig.add_subplot(gs[0, 2])
@@ -150,10 +149,10 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
             sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar, cbar_ax=cax_growth,
                         yticklabels=False, xticklabels=True,
-                        vmin=0.3,
+                        vmin=0.2, vmax = 0.6)
                         # vmin = 0.3, vmax = 0.6)
                         # vmin=round(growth_df.min(),1),
-                        vmax=round(growth_df.max(),1))
+                        # vmax=round(growth_df.max(),1))
 
             ax_growth.set_title(r"Growth rate", fontsize = fontsize, fontweight = 'bold')
             # ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
@@ -171,7 +170,6 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             cbar_growth = ax_growth.collections[0].colorbar
             cbar_growth.ax.tick_params(labelsize=fontsize)  # Set tick label font size
             cbar_growth.set_label('Growth rate [1/h]', fontsize=fontsize)
-            print('heatmap should be shown!')
 
         else:
             # ax.tick_params(axis='y', labelrotation=90)
@@ -179,7 +177,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             ax_growth = fig.add_subplot(gs[0, 3])
 
             sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar,
-                        xticklabels=True, vmin=0.3, vmax=0.6)
+                        xticklabels=True, vmin=0.2, vmax=0.6)
             # vmin=round(growth_df.min(), 1),
             # vmax=round(growth_df.max(), 1))
 
@@ -252,7 +250,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
     else:
         return ax_main
 
-def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
+def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None, fontsize = 11):
     NUM_MODELS = 5
     PAM_KCAT_FILES_IJN = [os.path.join('Results', '3_analysis', 'parameter_files',
                                        f'proteinAllocationModel_EnzymaticData_iJN1463_{file_nmbr}.xlsx') for file_nmbr in
@@ -277,7 +275,8 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
                                    fig=fig,
                                    cbar=cbar,
                                    vrange = vrange,
-                                        figsize=(25,10)
+                                        figsize=(25,10),
+                                        fontsize=fontsize
                                    )
     return ax
 
@@ -309,12 +308,12 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, nu
                                    gs0=gs,
                                    fig=fig,
                                    cbar=cbar,
-                                   vrange = vrange
+                                   vrange = vrange,
                                    )
     return ax
 
 
-def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
+def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8), fontsize = 11):
     NUM_MODELS = 5
     PAM_KCAT_FILES_ICGB = [os.path.join('Results', '3_analysis', 'parameter_files',
                                        f'proteinAllocationModel_EnzymaticData_iCGB21FR_{file_nmbr}.xlsx') for file_nmbr in
@@ -338,7 +337,7 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
                                    gs0=gs,
                                    fig=fig,
                                    vrange = vrange,
-                                   cbar = cbar)
+                                   cbar = cbar,fontsize=fontsize)
     return ax
 
 if __name__ == '__main__':

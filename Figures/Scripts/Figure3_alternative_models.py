@@ -39,7 +39,7 @@ def main():
         **other_colors}
 
     # create a pretty figure
-    fig = plt.figure(figsize=(20/2.56, 20/2.56))
+    fig = plt.figure(figsize=(30/2.56, 20/2.56))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
     gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.5])
@@ -58,41 +58,41 @@ def main():
                                                     hspace=0.4)
 
     i=0
-    # for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
-    #         [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
-    #         [gs_cgb_fluxes, gs_ijn_fluxes],
-    #         [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
-    #         [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
-    #         [{'max_substrate_uptake_rate':-0.1,
-    #           'c_sources': ['Glucose', 'Fructose', 'Succinate','Gluconate', 'Acetate'],
-    #             'kcat_increase_factor': 6
-    #           },
-    #          {'max_substrate_uptake_rate':-0.1,
-    #           'min_substrate_uptake_rate':-15,
-    #           'c_sources': ['Glycerol', 'Glucose','Octanoate','m-Xylene','Succinate', 'Benzoate', 'Fructose'],
-    #             'kcat_increase_factor': 5
-    #           }
-    #          ],
-    #         [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']]
-    # ):
-    #     ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot)+1)]
-    #     # ax = axs[i]
-    #     recreate_progress_plot(kcat_file_list,
-    #                             labels, fig, ax,
-    #                             legend = False,
-    #                             fontsize=FONTSIZE,
-    #                             pamparam_setup=pamparamsetup,
-    #                             pamparam_kwargs = kwargs,
-    #                             rxns_to_plot = rxns_to_plot,
-    #                            gem_file = gem_file,
-    #                            cmap = cmap,
-    #                             other_measurements = True,
-    #                            enzyme_sector_update = False)
-    #     i+=1
+    for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
+            [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
+            [gs_cgb_fluxes, gs_ijn_fluxes],
+            [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
+            [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
+            [{'max_substrate_uptake_rate':-0.1,
+              'c_sources': ['Glucose', 'Fructose', 'Succinate','Gluconate', 'Acetate'],
+                'kcat_increase_factor': 6
+              },
+             {'max_substrate_uptake_rate':-0.1,
+              'min_substrate_uptake_rate':-15,
+              'c_sources': ['Glycerol', 'Glucose','Octanoate','m-Xylene','Succinate', 'Benzoate', 'Fructose'],
+                'kcat_increase_factor': 5
+              }
+             ],
+            [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']]
+    ):
+        ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot)+1)]
+        # ax = axs[i]
+        recreate_progress_plot(kcat_file_list,
+                                labels, fig, ax,
+                                legend = False,
+                                fontsize=FONTSIZE,
+                                pamparam_setup=pamparamsetup,
+                                pamparam_kwargs = kwargs,
+                                rxns_to_plot = rxns_to_plot,
+                               gem_file = gem_file,
+                               cmap = cmap,
+                                other_measurements = True,
+                               enzyme_sector_update = False)
+        i+=1
 
 
-    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1], fig = fig)
-    plot_intracell_flux_distribution_ijn(gs = gs_ijn[1], fig = fig)
+    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1], fig = fig, fontsize = FONTSIZE, vrange=(-6,13), cbar = False)
+    plot_intracell_flux_distribution_ijn(gs = gs_ijn[1], fig = fig, fontsize = FONTSIZE, vrange=(-6,13), cbar = False)
 
     legend_ax = fig.add_subplot(gs_main[2])
     legend_ax.axis("off")  # Hide axes
@@ -110,25 +110,25 @@ def main():
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
 
-    # # Row 0: Centered across all 4 axes
-    # left = fig.axes[1, 0].get_position().x0
-    # right = fig.axes[1, 2].get_position().x1
-    # mid = (left + right) / 2
-    # fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    # fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
-    #
-    # # Row 1: Centered between axs[1,1] and axs[1,2]
-    # # We'll find the x-position of those two axes and take their midpoint
-    # left = axs[1, 0].get_position().x0
-    # right = axs[1, 1].get_position().x1
-    # mid = (left + right) / 2
-    #
-    # fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    # fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
-    #          0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    # Row 0: Centered across all 4 axes
+    left = fig.axes[1, 0].get_position().x0
+    right = fig.axes[1, 2].get_position().x1
+    mid = (left + right) / 2
+    fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+
+    # Row 1: Centered between axs[1,1] and axs[1,2]
+    # We'll find the x-position of those two axes and take their midpoint
+    left = axs[1, 0].get_position().x0
+    right = axs[1, 1].get_position().x1
+    mid = (left + right) / 2
+
+    fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
+             0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
-    # plt.tight_layout()
+    plt.tight_layout()
     # fig.tight_layout()
     fig.savefig(os.path.join('Figures', 'Figure3_cglutanicum_pputida.png'))
 
