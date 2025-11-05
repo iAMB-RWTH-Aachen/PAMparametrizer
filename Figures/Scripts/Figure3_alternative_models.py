@@ -20,7 +20,7 @@ PAM_KCAT_FILES_ICG = [os.path.join('Results', '2_parametrization', 'diagnostics'
 PAM_KCAT_FILES_IJN = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                f'pam_parametrizer_diagnostics_iJN1463_{file_nmbr}.xlsx') for file_nmbr in
                   range(1, NUM_MODELS -1)]
-FONTSIZE=16
+FONTSIZE=11
 
 labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
 
@@ -39,10 +39,10 @@ def main():
         **other_colors}
 
     # create a pretty figure
-    fig = plt.figure(figsize=(15/2.56, 20/2.56))
+    fig = plt.figure(figsize=(20/2.56, 20/2.56))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,1])
+    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.5])
     gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[0],
                                                   wspace=0.2, width_ratios=[1, 1]
                                                   )
