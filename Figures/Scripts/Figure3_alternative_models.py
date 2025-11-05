@@ -58,41 +58,41 @@ def main():
                                                     hspace=0.4)
 
     i=0
-    for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
-            [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
-            [gs_cgb_fluxes, gs_ijn_fluxes],
-            [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
-            [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
-            [{'max_substrate_uptake_rate':-0.1,
-              'c_sources': ['Glucose', 'Fructose', 'Succinate','Gluconate', 'Acetate'],
-                'kcat_increase_factor': 6
-              },
-             {'max_substrate_uptake_rate':-0.1,
-              'min_substrate_uptake_rate':-15,
-              'c_sources': ['Glycerol', 'Glucose','Octanoate','m-Xylene','Succinate', 'Benzoate', 'Fructose'],
-                'kcat_increase_factor': 5
-              }
-             ],
-            [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']]
-    ):
-        ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot)+1)]
-        # ax = axs[i]
-        recreate_progress_plot(kcat_file_list,
-                                labels, fig, ax,
-                                legend = False,
-                                fontsize=FONTSIZE,
-                                pamparam_setup=pamparamsetup,
-                                pamparam_kwargs = kwargs,
-                                rxns_to_plot = rxns_to_plot,
-                               gem_file = gem_file,
-                               cmap = cmap,
-                                other_measurements = True,
-                               enzyme_sector_update = False)
-        i+=1
+    # for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
+    #         [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
+    #         [gs_cgb_fluxes, gs_ijn_fluxes],
+    #         [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
+    #         [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
+    #         [{'max_substrate_uptake_rate':-0.1,
+    #           'c_sources': ['Glucose', 'Fructose', 'Succinate','Gluconate', 'Acetate'],
+    #             'kcat_increase_factor': 6
+    #           },
+    #          {'max_substrate_uptake_rate':-0.1,
+    #           'min_substrate_uptake_rate':-15,
+    #           'c_sources': ['Glycerol', 'Glucose','Octanoate','m-Xylene','Succinate', 'Benzoate', 'Fructose'],
+    #             'kcat_increase_factor': 5
+    #           }
+    #          ],
+    #         [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']]
+    # ):
+    #     ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot)+1)]
+    #     # ax = axs[i]
+    #     recreate_progress_plot(kcat_file_list,
+    #                             labels, fig, ax,
+    #                             legend = False,
+    #                             fontsize=FONTSIZE,
+    #                             pamparam_setup=pamparamsetup,
+    #                             pamparam_kwargs = kwargs,
+    #                             rxns_to_plot = rxns_to_plot,
+    #                            gem_file = gem_file,
+    #                            cmap = cmap,
+    #                             other_measurements = True,
+    #                            enzyme_sector_update = False)
+    #     i+=1
 
 
-    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1])
-    plot_intracell_flux_distribution_ijn(gs = gs_ijn[1])
+    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1], fig = fig)
+    plot_intracell_flux_distribution_ijn(gs = gs_ijn[1], fig = fig)
 
     legend_ax = fig.add_subplot(gs_main[2])
     legend_ax.axis("off")  # Hide axes

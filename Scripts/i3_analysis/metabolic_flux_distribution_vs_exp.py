@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
 import matplotlib.colors as mcolors
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Callable
 from cobra.io import read_sbml_model
 
 from PAModelpy import PAModel
@@ -32,7 +32,8 @@ for rxns in RXNS_TO_VALIDATE.values(): rxns_to_save+=rxns
 def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
                                   pam:PAModel,
                                   model_file_path: str,
-                                  pam_kcat_files:List[str]):
+                                  pam_kcat_files:List[str],
+                                  setup_pam_function: Callable = set_up_pam):
     reactions_to_plot = [rxn for rxn in rxns_to_save if rxn in mfa_data]
     flux_df = pd.DataFrame(mfa_data[reactions_to_plot+['model']]).T
 
@@ -52,7 +53,7 @@ def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
               }
 
     for i, param_file in enumerate(pam_kcat_files):
-        alt_pam = set_up_pam(param_file, model = model_file_path, sensitivity=False)
+        alt_pam = setup_pam_function(param_file, model = model_file_path, sensitivity=False)
         fluxes[f'Alternative {i + 1}'] = get_results_from_simulations(alt_pam,
                                                                       substrate_rates=[[mfa_data['EX_glc__D_e']]],
                                                                       fluxes_to_save=reactions_to_plot,
@@ -122,7 +123,6 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
 
     # Create heatmap
-
     if fig is None: fig= plt.figure(figsize=figsize)
     if gs0 is None: gs0 = gridspec.GridSpec(1,1)[0]
 
@@ -141,6 +141,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             width_ratios=[5, 0.4, 0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
             wspace=0.5
         )
+        print(gs)
         if cbar:
             ax_main = fig.add_subplot(gs[0, 0])
             cax_main = fig.add_subplot(gs[0, 2])
@@ -170,6 +171,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             cbar_growth = ax_growth.collections[0].colorbar
             cbar_growth.ax.tick_params(labelsize=fontsize)  # Set tick label font size
             cbar_growth.set_label('Growth rate [1/h]', fontsize=fontsize)
+            print('heatmap should be shown!')
 
         else:
             # ax.tick_params(axis='y', labelrotation=90)
@@ -198,7 +200,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
 
     else:
-        ax_main = fig.subplots(gs)
+        ax_main = fig.subplots(gs0)
         # ax.tick_params(axis='y', labelrotation=90)
         ax_main.tick_params(axis='both', labelsize=fontsize)
         sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,
@@ -251,9 +253,9 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         return ax_main
 
 def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
-    NUM_MODELS = 3
+    NUM_MODELS = 5
     PAM_KCAT_FILES_IJN = [os.path.join('Results', '3_analysis', 'parameter_files',
-                                       f'proteinAllocationModel_EnzymaticData_iJN1463{file_nmbr}.xlsx') for file_nmbr in
+                                       f'proteinAllocationModel_EnzymaticData_iJN1463_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
     PPUTIDA_PHENOTYPE_FILE_PATH = os.path.join('Data', 'Pputida_phenotypes', 'pputida_phenotypes.xlsx')
 
@@ -265,7 +267,8 @@ def main_iJN1463(gs = None, fig=None,cbar=True, vrange= None):
     flux_df = get_simulated_fluxes_for_rxns(mfa_data,
                                             pam,
                                             os.path.join('Models', 'iJN1463.xml'),
-                                            PAM_KCAT_FILES_IJN)
+                                            PAM_KCAT_FILES_IJN,
+                                            setup_pam_function=setup_pputida_pam)
     fig_out = None
     if gs is None: fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_pputida.png')
     ax = plot_flux_heatmap_for_pathways(flux_df,
@@ -326,7 +329,8 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8)):
     flux_df = get_simulated_fluxes_for_rxns(mfa_data,
                                             pam,
                                             os.path.join('Models', 'iCGB21FR_annotated_copyable.xml'),
-                                            PAM_KCAT_FILES_ICGB)
+                                            PAM_KCAT_FILES_ICGB,
+                                            setup_pam_function=setup_cglutanicum_pam)
     fig_out = None
     if gs is None:fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_cglutanicum.png')
     ax = plot_flux_heatmap_for_pathways(flux_df,

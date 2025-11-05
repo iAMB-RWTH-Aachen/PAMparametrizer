@@ -53,20 +53,22 @@ def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
 
     return result_file
 
-def change_unused_enzymes_sector_in_excel(result_file_path: str,
-                                          output_file_path: str,
-                                          carbon_source: str) -> None:
+def change_enzyme_sector_in_excel(result_file_path: str,
+                                  output_file_path: str,
+                                  carbon_source: str,
+                                  enzyme_sector: str = 'UnusedEnzymeSector') -> None:
+    sectors_to_sheet = {'UnusedEnzymeSector':'UnusedEnzyme', 'TranslationalProteinSector': 'Translational'}
     parametrization_results = pd.read_excel(
         result_file_path, sheet_name='sector_parameters')
     sector_params = parametrization_results.loc[
         ((parametrization_results.substrate_uptake_id == carbon_source) &
-         (parametrization_results.sector_id == 'UnusedEnzymeSector'))
+         (parametrization_results.sector_id == enzyme_sector))
     ].rename({'substrate_uptake_id': 'lin_rxn_id'},
              axis=1)[['slope', 'intercept']].to_dict('records')[0]
 
     save_sector_information_to_excel(param_vs_lin_rxn = sector_params,
                                      lin_rxn_id=carbon_source,
-                                     sector_id='UnusedEnzyme',
+                                     sector_id=sectors_to_sheet[enzyme_sector],
                                      pam_data_file = output_file_path,
                                      output_file_path = output_file_path
                                      )
@@ -78,7 +80,8 @@ if __name__ == '__main__':
     # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
     #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
     #
-    new_ues_files = [1, 2, 4, 5, 6]
+    # new_ues_files = [1, 2, 4, 5, 6]
+    new_ues_files = np.arange(1,6,1)
     for file_nmbr in range(1,6):
         suffix = f'iCGB21FR_{file_nmbr}'
         result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{suffix}.xlsx')
@@ -89,10 +92,15 @@ if __name__ == '__main__':
             result_file_path= result_file,
             new_aes_suffix= suffix)
 
-        # if file_nmbr in new_ues_files:
-        #     change_unused_enzymes_sector_in_excel(result_file_path=result_file,
-        #                                           output_file_path = output_file_path,
-        #                                           carbon_source='EX_glc__D_e')
+        if file_nmbr in new_ues_files:
+            change_enzyme_sector_in_excel(result_file_path=result_file,
+                                          output_file_path = output_file_path,
+                                          carbon_source='EX_glc__D_e')
+
+            change_enzyme_sector_in_excel(result_file_path=result_file,
+                                          output_file_path = output_file_path,
+                                          enzyme_sector='TranslationalProteinSector',
+                                          carbon_source='EX_glc__D_e')
     # result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
     #                            f'pam_parametrizer_diagnostics_mciML1515.xlsx')
     # create_new_aes_parameter_file(result_file_path= result_file,

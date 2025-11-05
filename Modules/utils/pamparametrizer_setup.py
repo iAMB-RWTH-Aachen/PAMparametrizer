@@ -56,7 +56,7 @@ def save_sector_information_to_excel(
                                                                                             output_file_path=output_file_path)
 
 
-    slope_id, intercept_id = ('tps_mu', 'tps_0') if sector_id == 'Translational' else ('ups_mu', 'ups_0')
+    slope_id, intercept_id = ('tps_mu', 'tps_0') if 'Translational' in sector_id else ('ups_mu', 'ups_0')
 
     if param_vs_growth is None:
         sector_vs_growthrate = pam_parameter_information[sector_id].set_index('Parameter').Value_for_growth
