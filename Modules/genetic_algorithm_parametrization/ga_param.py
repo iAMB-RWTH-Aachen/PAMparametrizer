@@ -159,6 +159,8 @@ class Genetic_Algorithm():
                 # cross the kcat_lists of two individuals with probability CXPB
                 if random.random() < self.crossover_probability:
                     child1.kcat_list, child2.kcat_list =toolbox.mate(child1.kcat_list, child2.kcat_list)
+                    child1 = self._check_if_kcats_are_in_bounds(individual = child1)
+                    child2 = self._check_if_kcats_are_in_bounds(individual=child2)
 
                     # fitness values of the children
                     # must be recalculated later
@@ -234,6 +236,13 @@ class Genetic_Algorithm():
         if print_progress:
             print("({1}) Population {0}: End of (successful) evolution --".format(pop_id, print_time()))
         return (pop, fitness_dict)
+
+    def _check_if_kcats_are_in_bounds(self, individual) -> 'Individual':
+        for i, bound in enumerate(individual.kcat_bounds):
+            kcat = individual.kcat_list[i]
+            individual.kcat_list[i] = kcat if kcat < 1 / bound['min_kcat'] else 1 / bound['min_kcat']
+            individual.kcat_list[i] = kcat if kcat > 1 / bound['max_kcat'] else 1 / bound['max_kcat']
+        return individual
 
     def _get_best_individual_from_population(self, population:list):
         elite = population[0]
