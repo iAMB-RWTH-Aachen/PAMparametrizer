@@ -42,7 +42,7 @@ def main():
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.5])
+    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.2])
     gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[0],
                                                   wspace=0.2, width_ratios=[1, 1]
                                                   )
@@ -51,11 +51,11 @@ def main():
                                                     wspace=0.4,
                                                     hspace=0.4)
     gs_ijn = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
-                                                  wspace=0.2, width_ratios=[1, 2]
+                                                  wspace=0.2, width_ratios=[1, 4]
                                                   )
 
     gs_ijn_fluxes = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_ijn[0, 0],
-                                                    hspace=0.4)
+                                                    hspace=0.2)
 
     i=0
     for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
@@ -91,7 +91,7 @@ def main():
         i+=1
 
 
-    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1], fig = fig, fontsize = FONTSIZE, vrange=(-6,13), cbar = False)
+    plot_intracell_flux_distribution_icgb(gs = gs_cgb[1], fig = fig, fontsize = FONTSIZE, vrange=(-6,13))
     plot_intracell_flux_distribution_ijn(gs = gs_ijn[1], fig = fig, fontsize = FONTSIZE, vrange=(-6,13), cbar = False)
 
     legend_ax = fig.add_subplot(gs_main[2])
@@ -102,7 +102,7 @@ def main():
                      fontsize=FONTSIZE,
                      ncol=5, frameon=False)
     #add annotation
-    annotations = ["A", "B", "C", "D", "E", "F", "", ""]
+    annotations = ["A", "B", "C", "D", "E", "F", "G", "H"]
 
     for ax, label in zip(fig.axes, annotations):
         ax.annotate(label, xy=(0, 1), xycoords="axes fraction",
@@ -111,21 +111,21 @@ def main():
                     ha="right", va="bottom")
 
     # Row 0: Centered across all 4 axes
-    left = fig.axes[1, 0].get_position().x0
-    right = fig.axes[1, 2].get_position().x1
-    mid = (left + right) / 2
-    fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
-
-    # Row 1: Centered between axs[1,1] and axs[1,2]
-    # We'll find the x-position of those two axes and take their midpoint
-    left = axs[1, 0].get_position().x0
-    right = axs[1, 1].get_position().x1
-    mid = (left + right) / 2
-
-    fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
-             0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    # left = fig.axes[1, 0].get_position().x0
+    # right = fig.axes[1, 2].get_position().x1
+    # mid = (left + right) / 2
+    # fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    # fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    #
+    # # Row 1: Centered between axs[1,1] and axs[1,2]
+    # # We'll find the x-position of those two axes and take their midpoint
+    # left = axs[1, 0].get_position().x0
+    # right = axs[1, 1].get_position().x1
+    # mid = (left + right) / 2
+    #
+    # fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    # fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
+    #          0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
     plt.tight_layout()

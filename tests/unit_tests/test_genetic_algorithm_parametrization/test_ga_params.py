@@ -182,3 +182,26 @@ def test_mutate_kcat_with_is_within_bounds(original_kcat, min_kcat, max_kcat, to
     assert min_kcat <= 1/mutated <= max_kcat, (
         f"Mutated kcat {mutated} should be between {min_kcat} and {max_kcat}"
     )
+
+@pytest.mark.parametrize("original_kcat,min_kcat,max_kcat", [
+    (1e4,1e-6, 1e3),
+    (10,1e-3, 1e2),
+    (1e4,1e-6, 1e3),
+    (10,1e-3, 1e2),
+])
+def test_core_ga_checks_kcat_with_is_within_bounds(original_kcat, min_kcat, max_kcat):
+    #Arrange
+    sut = GeneticAlgorithmMock()
+    sut_ga = sut.ga
+    population = sut.get_initial_population()
+    individual_ut = population[0]
+    individual_ut.kcat_list[0] = original_kcat
+    individual_ut.kcat_bounds[0] = {'min_kcat': min_kcat, 'max_kcat': max_kcat}
+
+    #Act
+    updated_individual = sut_ga._check_if_kcats_are_in_bounds(individual=individual_ut)
+
+    #Assert
+    assert min_kcat <= 1/updated_individual.kcat_list[0] <= max_kcat, (
+        f"Kcat {updated_individual.kcat_list[0]} should be between {min_kcat} and {max_kcat}"
+    )
