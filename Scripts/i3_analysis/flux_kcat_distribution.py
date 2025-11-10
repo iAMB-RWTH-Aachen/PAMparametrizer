@@ -147,9 +147,9 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                model=MODEL_FILE,
                                sensitivity=False)
             model.change_reaction_bounds(SUBSTRATE_ID, -11,0)
-        solution = model.optimize()
+        model.optimize()
 
-        fluxes = [abs(flux) for flux in solution.fluxes.values if flux!=0]
+        fluxes = [abs(rxn.flux) for rxn in model.reactions if rxn.flux!=0 and 'CE_' not in rxn.id] #CE to ignore the catalytic events
         print(
             f'Model {label} has:\n \ta growth rate of:\t\t{model.objective.value} h-1 with 11 mmol_glc/gCDW/h \n '
             f'\tMedian fluxes:\t\t\t{np.median(fluxes)} mmol/gCDW/h\n\tMean fluxes:\t\t\t{np.mean(fluxes)} mmol/gCDW/h')
