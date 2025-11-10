@@ -173,7 +173,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
         else:
             # ax.tick_params(axis='y', labelrotation=90)
-            ax_main = fig.add_subplot(gs[0, :2])
+            ax_main = fig.add_subplot(gs[0, :3])
             ax_growth = fig.add_subplot(gs[0, 3])
 
             sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar,

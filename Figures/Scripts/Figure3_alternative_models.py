@@ -23,6 +23,8 @@ PAM_KCAT_FILES_IJN = [os.path.join('Results', '2_parametrization', 'diagnostics'
 FONTSIZE=11
 
 labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
+rxns2label = {'EX_o2_e': 'O2 uptake', 'EX_co2_e': 'CO2 excretion', 'EX_glc__D_e': 'glc uptake', 'Growth': 'Growth',
+              'BIOMASS_KT2440_WT3':'Growth'}
 
 def main():
     # fig, axs = plt.subplots(figsize=(20,20))
@@ -42,16 +44,16 @@ def main():
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.2])
+    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.1], hspace=0.6)
     gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[0],
-                                                  wspace=0.2, width_ratios=[1, 1]
+                                                  wspace=0.4, width_ratios=[1, 1]
                                                   )
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_cgb[0, 0],
                                                     wspace=0.4,
                                                     hspace=0.4)
     gs_ijn = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
-                                                  wspace=0.2, width_ratios=[1, 4]
+                                                  wspace=0.4, width_ratios=[1, 4]
                                                   )
 
     gs_ijn_fluxes = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_ijn[0, 0],
@@ -87,7 +89,10 @@ def main():
                                gem_file = gem_file,
                                cmap = cmap,
                                 other_measurements = True,
-                               enzyme_sector_update = False)
+                               enzyme_sector_update = True)
+        for i,a in enumerate(ax[:-1]):
+            a.set_xlabel(rxns2label[rxns_to_plot[i]])
+
         i+=1
 
 
@@ -102,7 +107,7 @@ def main():
                      fontsize=FONTSIZE,
                      ncol=5, frameon=False)
     #add annotation
-    annotations = ["A", "B", "C", "D", "E", "F", "G", "H"]
+    annotations = ["A", "B", "C", "D", "F", "G","E", "H"]
 
     for ax, label in zip(fig.axes, annotations):
         ax.annotate(label, xy=(0, 1), xycoords="axes fraction",
@@ -128,7 +133,7 @@ def main():
     #          0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
-    plt.tight_layout()
+    # plt.tight_layout()
     # fig.tight_layout()
     fig.savefig(os.path.join('Figures', 'Figure3_cglutanicum_pputida.png'))
 
