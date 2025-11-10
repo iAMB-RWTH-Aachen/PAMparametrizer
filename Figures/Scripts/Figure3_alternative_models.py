@@ -44,22 +44,23 @@ def main():
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
 
     # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.1], hspace=0.6)
+    gs_main = gridspec.GridSpec(3, 1, height_ratios=[4,4,0.05], hspace=0.6)
     gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[0],
                                                   wspace=0.4, width_ratios=[1, 1]
                                                   )
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_cgb[0, 0],
                                                     wspace=0.4,
-                                                    hspace=0.4)
+                                                    hspace=0.5)
     gs_ijn = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
-                                                  wspace=0.4, width_ratios=[1, 4]
+                                                  wspace=0.4, width_ratios=[1, 3]
                                                   )
 
     gs_ijn_fluxes = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_ijn[0, 0],
-                                                    hspace=0.2)
+                                                    hspace=0.5)
 
     i=0
+    axs = []
     for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
             [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
             [gs_cgb_fluxes, gs_ijn_fluxes],
@@ -79,19 +80,20 @@ def main():
     ):
         ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot)+1)]
         # ax = axs[i]
-        recreate_progress_plot(kcat_file_list,
-                                labels, fig, ax,
-                                legend = False,
-                                fontsize=FONTSIZE,
-                                pamparam_setup=pamparamsetup,
-                                pamparam_kwargs = kwargs,
-                                rxns_to_plot = rxns_to_plot,
-                               gem_file = gem_file,
-                               cmap = cmap,
-                                other_measurements = True,
-                               enzyme_sector_update = True)
+        # recreate_progress_plot(kcat_file_list,
+        #                         labels, fig, ax,
+        #                         legend = False,
+        #                         fontsize=FONTSIZE,
+        #                         pamparam_setup=pamparamsetup,
+        #                         pamparam_kwargs = kwargs,
+        #                         rxns_to_plot = rxns_to_plot,
+        #                        gem_file = gem_file,
+        #                        cmap = cmap,
+        #                         other_measurements = True,
+        #                        enzyme_sector_update = False)
+        axs.append(ax)
         for i,a in enumerate(ax[:-1]):
-            a.set_xlabel(rxns2label[rxns_to_plot[i]])
+            a.set_ylabel(rxns2label[rxns_to_plot[i]])
 
         i+=1
 
@@ -107,30 +109,30 @@ def main():
                      fontsize=FONTSIZE,
                      ncol=5, frameon=False)
     #add annotation
-    annotations = ["A", "B", "C", "D", "F", "G","E", "H"]
+    annotations = ["A", "B", "C", "D", "F", "G","E", "","","","H"]
 
     for ax, label in zip(fig.axes, annotations):
-        ax.annotate(label, xy=(0, 1), xycoords="axes fraction",
+        ax.annotate(label, xy=(-0.15, 1), xycoords="axes fraction",
                     fontsize=FONTSIZE, fontweight='bold',
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
 
     # Row 0: Centered across all 4 axes
-    # left = fig.axes[1, 0].get_position().x0
-    # right = fig.axes[1, 2].get_position().x1
-    # mid = (left + right) / 2
-    # fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    # fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    left = fig.axes[1, 0].get_position().x0
+    right = fig.axes[1, 2].get_position().x1
+    mid = (left + right) / 2
+    fig.text(0.5, 0.95, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    fig.text(mid, 0.52, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
     #
     # # Row 1: Centered between axs[1,1] and axs[1,2]
     # # We'll find the x-position of those two axes and take their midpoint
-    # left = axs[1, 0].get_position().x0
-    # right = axs[1, 1].get_position().x1
-    # mid = (left + right) / 2
-    #
-    # fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
-    # fig.text((axs[1, 0].get_position().x0+axs[1, 0].get_position().x1)/2,
-    #          0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+    left = axs[0].get_position().x0
+    right = axs[-1].get_position().x1
+    mid = (left + right) / 2
+
+    fig.text(mid, 0.48, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold')
+    fig.text((axs[0].get_position().x0+axs[1].get_position().x1)/2,
+             0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
     # plt.tight_layout()

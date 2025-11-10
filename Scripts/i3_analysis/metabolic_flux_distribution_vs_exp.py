@@ -136,16 +136,16 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         flux_df = flux_df.drop('Growth rate', axis =1)
 
         gs = gridspec.GridSpecFromSubplotSpec(
-            1, 4,
+            1, 6,
             subplot_spec=gs0,
-            width_ratios=[5, 0.4, 0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
-            wspace=0.5
+            width_ratios=[5, 0.4, 0.5,0.5,0.5, 0.5],  # main heatmap, cbar, growth heatmap, cbar
+            wspace=0.05
         )
         if cbar:
             ax_main = fig.add_subplot(gs[0, 0])
-            cax_main = fig.add_subplot(gs[0, 2])
+            cax_main = fig.add_subplot(gs[0, 3])
             ax_growth = fig.add_subplot(gs[0, 1])
-            cax_growth = fig.add_subplot(gs[0, 3])
+            cax_growth = fig.add_subplot(gs[0, 5])
 
             sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar, cbar_ax=cax_growth,
                         yticklabels=False, xticklabels=True,
@@ -154,10 +154,10 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
                         # vmin=round(growth_df.min(),1),
                         # vmax=round(growth_df.max(),1))
 
-            ax_growth.set_title(r"Growth rate", fontsize = fontsize, fontweight = 'bold')
+            # ax_growth.set_title(r"Growth rate", fontsize = fontsize, fontweight = 'bold')
             # ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
             ax_growth.tick_params(labelsize=fontsize)  # Set tick label font size
-            # ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
+            ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
             ax_growth.tick_params(axis='x', which = 'both', bottom = False, labelbottom = False, top=False)
             ax_growth.set_ylabel("")
 
@@ -173,8 +173,8 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
 
         else:
             # ax.tick_params(axis='y', labelrotation=90)
-            ax_main = fig.add_subplot(gs[0, :3])
-            ax_growth = fig.add_subplot(gs[0, 3])
+            ax_main = fig.add_subplot(gs[0, :5])
+            ax_growth = fig.add_subplot(gs[0, 5])
 
             sns.heatmap(growth_df, ax=ax_growth, cmap="Greys", cbar=cbar,
                         xticklabels=True, vmin=0.2, vmax=0.6)
