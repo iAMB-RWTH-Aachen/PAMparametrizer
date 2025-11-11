@@ -89,7 +89,8 @@ def recreate_progress_plot(best_individual_df:pd.DataFrame,
 
     sector_configs = set_up_sector_config_from_diagnostic_file(diagnostic_file=best_individual_df)
     print(sector_configs)
-    change_sector_parameters_with_config_dict(pamodel = parametrizer.pamodel_no_sensitivity,
+    if 'UnusedEnzymeSector' in sector_configs:
+        change_sector_parameters_with_config_dict(pamodel = parametrizer.pamodel_no_sensitivity,
                                               sector_config = sector_configs['UnusedEnzymeSector'],
                                               substrate_uptake_id = 'EX_glc__D_e',
                                               sector_id = 'UnusedEnzymeSector')
@@ -166,5 +167,5 @@ def main_mcecoli():
                            set_up_parametrizer=set_up_pamparametrizer_mcpam)
 
 if __name__ == '__main__':
-    main_ecoli()
+    main_putida()
 

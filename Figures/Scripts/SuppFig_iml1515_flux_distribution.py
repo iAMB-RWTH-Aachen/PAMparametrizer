@@ -35,7 +35,6 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         print(
             f'Model {label} has:\n \ta growth rate of:\t\t{model.objective.value} h-1 with 11 mmol_glc/gCDW/h \n '
             f'\tMedian fluxes:\t\t\t{np.median(fluxes)} mmol/gCDW/h\n\tMean fluxes:\t\t\t{np.mean(fluxes)} mmol/gCDW/h')
-
         hist, bins = np.histogram(fluxes, bins=n_bins)
         logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
 

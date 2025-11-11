@@ -158,7 +158,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
             # ax_growth.set_ylabel(r"Growth rate [$\text{h}^{-1}$]", fontsize=fontsize)
             ax_growth.tick_params(labelsize=fontsize)  # Set tick label font size
             ax_growth.set_xticklabels(ax_growth.get_xticklabels(), rotation=45, ha='right')
-            ax_growth.tick_params(axis='x', which = 'both', bottom = False, labelbottom = False, top=False)
+            # ax_growth.tick_params(axis='x', which = 'both', bottom = False, labelbottom = False, top=False)
             ax_growth.set_ylabel("")
 
             sns.heatmap(flux_df, annot=False, cmap=combined_cmap, norm=norm, fmt=".2f", ax=ax_main,

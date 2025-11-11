@@ -120,6 +120,7 @@ def plot_valid_data(parametrizer, axs=None, fig =None, fontsize:int = 12):
 
     valid_data = parametrizer.validation_data.get_by_id(parametrizer.substrate_uptake_id)
     for r, ax in zip(valid_data._reactions_to_plot, axs):
+        if r not in RXN_NAME_MAPPER.keys():continue
         # plot data
         x = [abs(glc) for glc in valid_data.valid_data[parametrizer.substrate_uptake_id + '_ub']]
         y = [abs(data) for data in valid_data.valid_data[r]]

@@ -10,6 +10,7 @@ from Scripts.i3_analysis.PAMparametrizer_compare_alternative_solutions import se
 
 from Modules.utils.error_calculation import nanaverage, calculate_smape_for_reaction
 from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
+from matplotlib.pyplot import savefig
 
 NUM_DATAPOINTS = 53
 
@@ -142,17 +143,18 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     cmap[f'{metrics}_mean'] = 'black'
 
     summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
-
+    save_fig = False
     # Plot
     if ax is None:
-        plt.figure(figsize=(12, 6))
+        ax = plt.figure(figsize=(12, 6))
         plt.subplots_adjust(right=0.75)
+        save_fig = True
         # plt.tight_layout()
 
     # Plot each reaction with error bars
     for reaction in summary_stats['reaction'].unique():
         reaction_data = summary_stats[summary_stats["reaction"] == reaction]
-        plt.errorbar(
+        ax.errorbar(
             [perc / 100 * NUM_DATAPOINTS for perc in reaction_data["perc_data"]],
             reaction_data["mean"],
             yerr=[reaction_data["mean"] - reaction_data["min"], reaction_data["max"] - reaction_data["mean"]],
@@ -164,10 +166,10 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
 
     # Customize the plot
     # plt.title("R_squared Values by Reaction", fontsize=16)
-    plt.xlabel("Number of datapoints", fontsize=fontsize)
-    plt.ylabel(metrics_mapper[metrics], fontsize=fontsize)
+    ax.set_xlabel("Number of datapoints", fontsize=fontsize)
+    ax.set_ylabel(metrics_mapper[metrics], fontsize=fontsize)
     if legend:
-        plt.legend(
+        ax.legend(
             loc='upper center',
             bbox_to_anchor=(1.2, 1),
             ncol=1,
@@ -175,11 +177,10 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
             frameon=True  # removes the border box
         )
 
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
+    ax.tick_params(axis='both', which='major', labelsize=fontsize)
     # plt.ylim([40,100])
     #
-    plt.savefig(fig_file_path)
+    if save_fig: plt.savefig(fig_file_path)
 
 def plot_deviation_of_error(final_errors: pd.DataFrame,
                         metrics: Literal['smape', 'r_squared'] ='rsquared',
@@ -201,41 +202,42 @@ def plot_deviation_of_error(final_errors: pd.DataFrame,
     cmap = dict(zip(reaction_columns[1:], model_colors))
     cmap[f'{metrics}_mean'] = 'black'
 
-    summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
+    markers = [".", 'v', 's', 'H', 'P', 'X', 'D', '_']
 
+    summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
+    save_fig = False
     # Plot
     if ax is None:
-        plt.figure(figsize=(12, 6))
+        ax = plt.figure(figsize=(12, 6))
         plt.subplots_adjust(right=0.75)
+        save_fig = True
         # plt.tight_layout()
 
-    for reaction in summary_stats['reaction'].unique():
+    for i,reaction in enumerate(summary_stats['reaction'].unique()):
         reaction_data = summary_stats[summary_stats["reaction"] == reaction]
-        plt.scatter(
+        ax.scatter(
             [perc / 100 * NUM_DATAPOINTS for perc in reaction_data["perc_data"]],
             reaction_data["max"] - reaction_data["min"],
             label=rxn_mapper[reaction.replace(f'{metrics}_', '')],
-            color=cmap[reaction]
+            color=cmap[reaction],
+            marker=markers[i]
         )
 
     # Customize the plot
     # plt.title("R_squared Values by Reaction", fontsize=16)
-    plt.xlabel("Number of datapoints", fontsize=fontsize)
-    plt.ylabel(f'Deviation in {metrics_mapper[metrics]}', fontsize=fontsize)
+    ax.set_xlabel("Number of datapoints", fontsize=fontsize)
+    ax.set_ylabel(f'Deviation in {metrics_mapper[metrics]}', fontsize=fontsize)
     if legend:
-        plt.legend(
+        ax.legend(
             loc='upper center',
             bbox_to_anchor=(1.2, 1),
             ncol=1,
             fontsize=fontsize,
             frameon=True  # removes the border box
         )
-
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
     # plt.ylim([40,100])
-    #
-    plt.savefig(fig_file_path)
+    ax.tick_params(axis='both', which='major', labelsize=fontsize)
+    if save_fig: plt.savefig(fig_file_path)
 
 def plot_deviation_of_error_bar(final_errors: pd.DataFrame,
                         metrics: Literal['smape', 'r_squared'] ='rsquared',

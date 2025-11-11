@@ -31,6 +31,7 @@ def calculate_distribution_statistics(bin_heigths: list[float],
 
     print(
         f'\tMost frequent flux:\t\t{peak_bin_value} mmol/gCDW/h\n\tArea under the curve:\t\t{area_under_curve} mmol/gCDW/h\n')
+    return area_under_curve
 
 def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
                                      label_names:list[str],
@@ -134,6 +135,7 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
     n_bins = 50
     i = 0
     cmap = plt.get_cmap("viridis")
+    df_list = []
 
 
     for label, data_file_path in zip(label_names, data_file_paths):
@@ -153,7 +155,6 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         print(
             f'Model {label} has:\n \ta growth rate of:\t\t{model.objective.value} h-1 with 11 mmol_glc/gCDW/h \n '
             f'\tMedian fluxes:\t\t\t{np.median(fluxes)} mmol/gCDW/h\n\tMean fluxes:\t\t\t{np.mean(fluxes)} mmol/gCDW/h')
-
         hist, bins = np.histogram(fluxes, bins=n_bins)
         logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
 
@@ -171,12 +172,13 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
             color = 'black'
 
         bin_heights, bin_borders, _ = ax.hist(fluxes, bins=logbins, histtype='step',
-                                              stacked = True, label = label, color = color,linewidth = 15,
+                                              stacked = True, label = label, color = color,linewidth = 2,
                                               **kwargs)
 
-        calculate_distribution_statistics(bin_heights, bin_borders)
+        auc = calculate_distribution_statistics(bin_heights, bin_borders)
+        df_list.append({'Model':label,'Median':round(np.median(fluxes),2), 'Mean':round(np.mean(fluxes),2),'AUC':round(auc,2), 'growth':round(model.objective.value,2)})
 
-
+    print(pd.DataFrame(df_list).to_latex())
     # plt.yscale('log')
     plt.grid()
     plt.ylabel('Frequency', fontsize=fontsize)
