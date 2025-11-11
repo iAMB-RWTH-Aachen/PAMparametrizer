@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 import matplotlib.container as mcontainer
+from matplotlib.collections import PathCollection
 import pandas as pd
 import os
 import seaborn as sns
@@ -14,7 +15,6 @@ from Scripts.Data_requirements.analyse_data_reduction_results import plot_progre
 def extract_color_and_marker(handle):
     """Extract line color and marker style from different matplotlib handle types."""
     color, marker, mface, medge = None, None, None, None
-
     if isinstance(handle, mcontainer.ErrorbarContainer):
         # Extract the main line and markerline
         if handle.lines[0]:  # main line
@@ -30,13 +30,54 @@ def extract_color_and_marker(handle):
         marker = handle.get_marker()
         mface = handle.get_markerfacecolor()
         medge = handle.get_markeredgecolor()
+    color, marker, mface, medge = None, None, None, None
+
+    if isinstance(handle, mcontainer.ErrorbarContainer):
+        # Extract color and marker from errorbar container
+        if handle.lines[0]:  # main line
+            color = handle.lines[0].get_color()
+        if handle.lines[1]:  # marker line
+            markerline = handle.lines[1][0]
+            marker = markerline.get_marker()
+            mface = markerline.get_markerfacecolor()
+            medge = markerline.get_markeredgecolor()
+
+    elif isinstance(handle, Line2D):
+        # Standard line plot
+        color = handle.get_color()
+        marker = handle.get_marker()
+        mface = handle.get_markerfacecolor()
+        medge = handle.get_markeredgecolor()
+
+    elif isinstance(handle, PathCollection):
+        # Scatter plots
+        # get_facecolors() returns an array of RGBA colors
+        fc = handle.get_facecolors()
+        ec = handle.get_edgecolors()
+
+        if len(fc) > 0:
+            color = mface = fc[0]  # use first color
+        elif len(ec) > 0:
+            color = mface = ec[0]
+        else:
+            color = mface = 'black'  # fallback
+
+        medge = ec[0] if len(ec) > 0 else 'black'
+
+        # Unfortunately, PathCollection doesn’t directly expose the marker symbol.
+        # We can try to infer it from the legend handle if available.
+        marker = getattr(handle, '_marker', None)
 
     else:
-        # fallback (e.g., Patch, Collection)
         try:
             color = handle.get_facecolor()[0]
         except Exception:
             color = 'black'
+
+        try:
+            marker = handle.get_marker()
+        except Exception:
+            marker = None
 
     return color, marker, mface, medge
 
@@ -79,13 +120,13 @@ def main():
 
 def main_datareduc():
     fig = plt.figure(figsize=(10.5/2.56, 15/2.56))  # Adjust overall size as needed
-    gs = gridspec.GridSpec(3, 1, hspace = 0.2, height_ratios=[1,1,0.05])
+    gs = gridspec.GridSpec(3, 1, hspace = 0.2, height_ratios=[1,1,0.1])
 
     ax_a = fig.add_subplot(gs[0])
     ax_b = fig.add_subplot(gs[1])
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
-    plot_progression_of_errors(final_errors, ax = ax_a, legend=False)
-    plot_deviation_of_error(final_errors, ax = ax_b, legend=False)
+    plot_progression_of_errors(final_errors, ax = ax_a, legend=False, fontsize = FONTSIZE)
+    plot_deviation_of_error(final_errors, ax = ax_b, legend=False, fontsize = FONTSIZE)
 
     # ax_a = fig.add_subplot(gs[0])
 
@@ -103,14 +144,14 @@ def main_datareduc():
         handle_b = h_b[l_b.index(label)]
 
         color_a, _, _, _ = extract_color_and_marker(handle_a)
-        _, marker_b, mface_b, medge_b = extract_color_and_marker(handle_b)
+        # _, marker_b, mface_b, medge_b = extract_color_and_marker(handle_b)
+        marker_b = [".", 'v', 's', 'H', 'P', 'X', 'D', '_'][l_a.index(label)]
 
         combined_handles.append(Line2D(
             [0], [0],
             color=color_a,
             marker=marker_b or 'o',
-            markerfacecolor=mface_b or color_a,
-            markeredgecolor=medge_b or 'black',
+            markerfacecolor=color_a,
             linestyle='-',
             linewidth=2,
             markersize=6
