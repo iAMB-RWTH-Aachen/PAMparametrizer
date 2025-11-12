@@ -120,14 +120,20 @@ def main():
 
 def main_datareduc():
     fig = plt.figure(figsize=(10.5/2.56, 15/2.56))  # Adjust overall size as needed
-    gs = gridspec.GridSpec(3, 1, hspace = 0.2, height_ratios=[1,1,0.1])
+    gs = gridspec.GridSpec(3, 1, hspace = 0, height_ratios=[1,1,0.1])
 
-    ax_a = fig.add_subplot(gs[0])
     ax_b = fig.add_subplot(gs[1])
+    ax_a = fig.add_subplot(gs[0], sharex=ax_b)
+    ax_b.grid(axis ='both', visible = True)
+    ax_a.grid(axis ='both', visible = True)
+
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
     plot_progression_of_errors(final_errors, ax = ax_a, legend=False, fontsize = FONTSIZE)
     plot_deviation_of_error(final_errors, ax = ax_b, legend=False, fontsize = FONTSIZE)
 
+    ax_a.xaxis.grid(True)  # explicitly draw shared x-grid
+    ax_a.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax_a.set_xlabel("")
     # ax_a = fig.add_subplot(gs[0])
 
     ax_legend = fig.add_subplot(gs[-1])
@@ -165,10 +171,10 @@ def main_datareduc():
         fontsize=FONTSIZE,
         ncol=2,
         frameon=False,
-        bbox_to_anchor=(-0.1, 0.5)
+        bbox_to_anchor=(-0.2, -0.7)
     )
 
-    annotations = ["A","B"]
+    annotations = ["B","A"]
     fontsize = FONTSIZE  # Adjust as needed
 
     for ax, label in zip(fig.axes, annotations):
@@ -177,7 +183,8 @@ def main_datareduc():
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
 
-    # fig.tight_layout()
+    fig.tight_layout()
+    fig.subplots_adjust(left = 0.2)
     fig.savefig(os.path.join('Figures', 'Figure4_data_reduction.png'))
 
 if __name__ == "__main__":

@@ -75,19 +75,17 @@ def main():
         **other_colors}
 
     fig = plt.figure(figsize=(21/2.56, 30/2.56))
-    gs_main = gridspec.GridSpec(4, 1, height_ratios=[4,4,4,0.01], hspace=0.5)
+    gs_main = gridspec.GridSpec(4, 1, height_ratios=[4,4,4,3], hspace=0.5)
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main[0],
                                                     wspace=0.4)
-    gs_mixed = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],
-                                                    wspace=0.4,
-                                                    width_ratios=[3,2])
-    gs_ijn_fluxes =gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_mixed[1])
+    # gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[1])
+    gs_ijn_fluxes_legend =gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[-1], width_ratios=[2,1])
     i=0
     axs = []
     for pamparamsetup, gs,gem_file, kcat_file_list, kwargs, rxns_to_plot in zip(
             [pamparam_setup_icgb21fr, pamparam_setup_ijn1463],
-            [gs_cgb_fluxes, gs_ijn_fluxes],
+            [gs_cgb_fluxes, gs_ijn_fluxes_legend],
             [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
             [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
             [{'max_substrate_uptake_rate':-0.1,
@@ -122,16 +120,16 @@ def main():
         i+=1
 
 
-    plot_intracell_flux_distribution_icgb(gs = gs_mixed[0], fig = fig, fontsize = FONTSIZE, vrange=(-6,13))
+    plot_intracell_flux_distribution_icgb(gs = gs_main[1], fig = fig, fontsize = FONTSIZE, vrange=(-6,13))
     plot_intracell_flux_distribution_ijn(gs = gs_main[2], fig = fig, fontsize = FONTSIZE, vrange=(-6,13), cbar = False)
 
-    legend_ax = fig.add_subplot(gs_main[3])
+    legend_ax = fig.add_subplot(gs_ijn_fluxes_legend[-1])
     legend_ax.axis("off")  # Hide axes
     h, l = fig.axes[0].get_legend_handles_labels()
 
     legend_ax.legend(h, l, loc="center",
                      fontsize=FONTSIZE,
-                     ncol=5, frameon=False)
+                     ncol=1, frameon=False)
     #add annotation
     annotations = ["A", "B", "C", "D", "F", "G","E", "","","","","H"]
 
