@@ -120,7 +120,7 @@ def main():
 
 def main_datareduc():
     fig = plt.figure(figsize=(10.5/2.56, 15/2.56))  # Adjust overall size as needed
-    gs = gridspec.GridSpec(3, 1, hspace = 0, height_ratios=[1,1,0.1])
+    gs = gridspec.GridSpec(3, 1, hspace = 0, height_ratios=[1.2,1,0.1])
 
     ax_b = fig.add_subplot(gs[1])
     ax_a = fig.add_subplot(gs[0], sharex=ax_b)
@@ -178,7 +178,7 @@ def main_datareduc():
     fontsize = FONTSIZE  # Adjust as needed
 
     for ax, label in zip(fig.axes, annotations):
-        ax.annotate(label, xy=(-0.15, 1), xycoords="axes fraction",
+        ax.annotate(label, xy=(-0.15, 0.9), xycoords="axes fraction",
                     fontsize=fontsize, fontweight='bold',
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
