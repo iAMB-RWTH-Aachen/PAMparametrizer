@@ -138,7 +138,7 @@ def plot_flux_heatmap_for_pathways(flux_df:pd.DataFrame,
         gs = gridspec.GridSpecFromSubplotSpec(
             1, 6,
             subplot_spec=gs0,
-            width_ratios=[5, 0.4, 0.2,0.4,0.6, 0.4],  # main heatmap, cbar, growth heatmap, cbar
+            width_ratios=[5, 0.4, 0.2,0.3,0.8, 0.3],  # main heatmap, cbar, growth heatmap, cbar
             wspace=0.05
         )
         if cbar:
