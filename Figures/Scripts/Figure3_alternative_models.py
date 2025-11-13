@@ -30,19 +30,17 @@ FONTSIZE=11
 
 labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
 rxns2label = {'EX_o2_e': 'O2 uptake\n[mmol/gCDW/h]', 'EX_co2_e': 'CO2 excretion\n[mmol/gCDW/h]', 'EX_glc__D_e': 'glc uptake\n[mmol/gCDW/h]', 'Growth': 'Growth',
-              'BIOMASS_KT2440_WT3':'Growth [1/h]'}
+              'BIOMASS_KT2440_WT3':'Growth [1/h]', 'Growth':'Growth [1/h]'}
 
 def plot_simulations_vs_experiments(pamodel: 'PAModel', diagnostic_files, gem,
                                     exp_data: pd.DataFrame, to_plot,cmap,
                                     fig, gs,sub_uptake: str = 'EX_glc__D_e'):
     models = {'GEM': gem, 'After preprocessing':pamodel}
-    i = 5
-    for file in diagnostic_files:
-        models[f'Alternative {i}'] = create_pamodel_from_diagnostics_file(file,
+    for i, file in enumerate(diagnostic_files):
+        models[f'Alternative {i+1}'] = create_pamodel_from_diagnostics_file(file,
                                                                           pamodel.copy(copy_with_pickle =True),
                                                                           enzyme_sector_update=False)
     axs = [fig.add_subplot(gs[j]) for j in range(len(to_plot))]
-    print(models)
 
     for j, rxn in enumerate(to_plot):
         axs[j].scatter([abs(r) for r in exp_data[sub_uptake]], [abs(f) for f in exp_data[rxn]], color='black')
@@ -63,7 +61,9 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel', diagnostic_files, gem,
         for j,rxn in enumerate(to_plot):
             kwargs = {'color':cmap[model_id]}
             if model_id == 'GEM': kwargs = {'linestyle':'--', 'color': 'black'}
-            axs[j].plot(sub_rates, [abs(f[rxn]) for f in flux], **kwargs)
+            print('this_model',model_id, kwargs)
+            axs[j].plot(sub_rates, [abs(f[rxn]) for f in flux], **kwargs, label = model_id)
+
     return axs
 
 
@@ -104,12 +104,13 @@ def main():
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main[0],
                                                     wspace=0.4)
 
-    gs_cgb_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],width_ratios=[1,10])[1]
+    gs_cgb_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],width_ratios=[1,20])[1]
     # gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[1])
     gs_ijn_fluxes_legend =gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[-1], width_ratios=[2,2])
-    gs_ijn_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[2],width_ratios=[1,10])[1]
+    gs_ijn_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[2],width_ratios=[1,20])[1]
 
     i=0
+    axs = []
     for pamodel, gs,gem_file, kcat_file_list, rxns_to_plot, exp_data in zip(
             [pam_icgb, pam_ijn],
             [gs_cgb_fluxes, gs_ijn_fluxes_legend],
@@ -134,24 +135,26 @@ def main():
         #                        cmap = cmap,
         #                         other_measurements = False,
         #                        enzyme_sector_update = False)
-        axs= plot_simulations_vs_experiments(pamodel = pamodel,
+        ax = plot_simulations_vs_experiments(pamodel = pamodel,
                                         gem=gem,
                                         gs=gs, fig = fig,
                                         diagnostic_files=kcat_file_list,
                                         to_plot=rxns_to_plot,
                                         cmap = cmap,
                                         exp_data=exp_data)
-        for i,a in enumerate(axs):
+        for i,a in enumerate(ax):
             a.set_ylabel(rxns2label[rxns_to_plot[i]])
-
+        axs+=ax
+        print(ax[0].get_legend_handles_labels(), 'handles')
         i+=1
 
     plot_intracell_flux_distribution_icgb(gs = gs_cgb_heatmap, fig = fig, fontsize = FONTSIZE, vrange=(-6,13))
     plot_intracell_flux_distribution_ijn(gs = gs_ijn_heatmap, fig = fig, fontsize = FONTSIZE, vrange=(-6,13), cbar = False)
 
-    legend_ax = fig.add_subplot(gs_ijn_fluxes_legend[-1])
+    legend_ax = fig.add_subplot(gs_ijn_fluxes_legend[1])
     legend_ax.axis("off")  # Hide axes
-    h, l = fig.axes[1].get_legend_handles_labels()
+    h, l = axs[0].get_legend_handles_labels()
+    print(h, l)
 
     legend_ax.legend(h, l, loc="center",
                      fontsize=FONTSIZE,
@@ -170,9 +173,9 @@ def main():
     # fig.text(-0.1, 0.25, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold', rotation = 90)
     for x,y in zip([(fig.axes[0].get_position().x0+fig.axes[2].get_position().x1)/2,
                     (fig.axes[-2].get_position().x0+fig.axes[-2].get_position().x1)/2],
-                   [fig.axes[0].get_position().y0,fig.axes[-1].get_position().y0]
+                   [fig.axes[0].get_position().y0,fig.axes[-2].get_position().y0]
                    ):
-        fig.text(x,y-0.05, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
+        fig.text(x,y-0.03, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
     # plt.tight_layout()
