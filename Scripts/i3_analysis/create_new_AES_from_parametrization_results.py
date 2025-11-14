@@ -19,7 +19,9 @@ def search_index_in_parameter_file(df:pd.DataFrame, protein:str, reaction:str, d
 
 def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
                                   result_file_path:str = RESULT_PARAMETRIZATION_FILE,
-                                  new_aes_suffix: str = NEW_AES_SUFFIX) -> str:
+                                  new_aes_suffix: str = NEW_AES_SUFFIX,
+                                  default_enzyme_id_pattern: str = r'E[0-9][0-9]*|Enzyme_*'
+                                  ) -> str:
 
     parameter_files = pd.read_excel(old_param_file, sheet_name=None)
     aes_parameter_file =parameter_files['ActiveEnzymes']
@@ -29,8 +31,12 @@ def create_new_aes_parameter_file(old_param_file:str = SECTOR_PARAM_FILE,
         ['rxn_id', 'direction', 'enzyme_id'], keep='last')
 
     # extract reaction id from catalytic event id
-    parametrization_results['rxn_id'] = [CatalyticEvent._extract_reaction_id_from_catalytic_reaction_id(id) for id in
-                                         parametrization_results['rxn_id']]
+    parametrization_results['rxn_id'] = [
+        CatalyticEvent._extract_reaction_id_from_catalytic_reaction_id(id,
+                                                                       default_enzyme_id_pattern = default_enzyme_id_pattern
+                                                                       )
+        for id in parametrization_results['rxn_id']
+    ]
 
     for index, row in parametrization_results.iterrows():
         aes_index = search_index_in_parameter_file(aes_parameter_file, row.enzyme_id, row.rxn_id, row.direction)
@@ -76,33 +82,70 @@ def change_enzyme_sector_in_excel(result_file_path: str,
 def gaussian(x, mean, amplitude, standard_deviation):
     return amplitude * np.exp( - (x - mean)**2 / (2*standard_deviation ** 2))
 
-if __name__ == '__main__':
-    # other_files = [os.path.join('Results', '3_analysis', 'parameter_files',
-    #                            'proteinAllocationModel_EnzymaticData_iML1515_241009.xlsx')]
-    #
-    # new_ues_files = [1, 2, 4, 5, 6]
-    new_ues_files = np.arange(1,6,1)
-    for file_nmbr in range(1,6):
+def main_icgb21fr():
+    new_ues_files = np.arange(1, 6, 1)
+    for file_nmbr in range(1, 6):
         suffix = f'iCGB21FR_{file_nmbr}'
-        result_file = os.path.join('Results', '2_parametrization', 'diagnostics', f'pam_parametrizer_diagnostics_{suffix}.xlsx')
+        result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
+                                   f'pam_parametrizer_diagnostics_{suffix}.xlsx')
         output_file_path = create_new_aes_parameter_file(
             old_param_file=os.path.join(
                 'Results', '2_parametrization', 'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx'
             ),
-            result_file_path= result_file,
-            new_aes_suffix= suffix)
+            result_file_path=result_file,
+            new_aes_suffix=suffix,
+            default_enzyme_id_pattern=r'Enzyme_cg[0-9]+'
+        )
 
         if file_nmbr in new_ues_files:
             change_enzyme_sector_in_excel(result_file_path=result_file,
-                                          output_file_path = output_file_path,
+                                          output_file_path=output_file_path,
                                           carbon_source='EX_glc__D_e')
 
             change_enzyme_sector_in_excel(result_file_path=result_file,
-                                          output_file_path = output_file_path,
+                                          output_file_path=output_file_path,
                                           enzyme_sector='TranslationalProteinSector',
                                           carbon_source='EX_glc__D_e')
-    # result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
-    #                            f'pam_parametrizer_diagnostics_mciML1515.xlsx')
-    # create_new_aes_parameter_file(result_file_path= result_file,
-    #                                   new_aes_suffix= 'mciML1515')
+
+def main_ijn1463():
+    for file_nmbr in range(1, 6):
+        suffix = f'iJN1463_{file_nmbr}'
+        result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
+                                   f'pam_parametrizer_diagnostics_{suffix}.xlsx')
+        create_new_aes_parameter_file(
+            old_param_file=os.path.join(
+                'Results', '2_parametrization', 'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'
+            ),
+            result_file_path=result_file,
+            new_aes_suffix=suffix,
+            default_enzyme_id_pattern=r'Enzyme_*|Enzyme_PP_[0-9]+'
+        )
+
+
+def main_iml1515():
+    new_ues_files = [1, 2, 4, 5, 6]
+    for file_nmbr in range(1, 11):
+        suffix = f'iML1515_{file_nmbr}'
+        result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
+                                   f'pam_parametrizer_diagnostics_{suffix}.xlsx')
+        output_file_path = create_new_aes_parameter_file(
+            old_param_file=os.path.join(
+                'Results', '2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx'
+            ),
+            result_file_path=result_file,
+            new_aes_suffix=suffix,
+        )
+
+        if file_nmbr in new_ues_files:
+            change_enzyme_sector_in_excel(result_file_path=result_file,
+                                          output_file_path=output_file_path,
+                                          carbon_source='EX_glc__D_e')
+
+            change_enzyme_sector_in_excel(result_file_path=result_file,
+                                          output_file_path=output_file_path,
+                                          enzyme_sector='TranslationalProteinSector',
+                                          carbon_source='EX_glc__D_e')
+
+if __name__ == '__main__':
+    main_ijn1463()
 
