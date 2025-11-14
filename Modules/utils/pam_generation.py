@@ -276,6 +276,7 @@ def setup_cglutanicum_pam(pam_info_file:str= os.path.join(
     config = Config()
     config.reset()
     config.BIOMASS_REACTION = 'Growth'
+    config.ENZYME_ID_REGEX = r'Enzyme_cg[0-9]+'
 
     model = read_sbml_model(model)
     #change medium to CGXII by removing 3,4-Dihydroxybenzoate

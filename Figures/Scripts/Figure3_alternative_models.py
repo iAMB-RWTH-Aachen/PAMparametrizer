@@ -32,14 +32,18 @@ labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
 rxns2label = {'EX_o2_e': 'O2 uptake\n[mmol/gCDW/h]', 'EX_co2_e': 'CO2 excretion\n[mmol/gCDW/h]', 'EX_glc__D_e': 'glc uptake\n[mmol/gCDW/h]', 'Growth': 'Growth',
               'BIOMASS_KT2440_WT3':'Growth [1/h]', 'Growth':'Growth [1/h]'}
 
-def plot_simulations_vs_experiments(pamodel: 'PAModel', diagnostic_files, gem,
+def plot_simulations_vs_experiments(pamodel: 'PAModel',
+                                    diagnostic_files: List[str],
+                                    other_enzyme_id_pattern: str,
+                                    gem:'Model',
                                     exp_data: pd.DataFrame, to_plot,cmap,
                                     fig, gs,sub_uptake: str = 'EX_glc__D_e'):
     models = {'GEM': gem, 'After preprocessing':pamodel}
     for i, file in enumerate(diagnostic_files):
         models[f'Alternative {i+1}'] = create_pamodel_from_diagnostics_file(file,
                                                                           pamodel.copy(copy_with_pickle =True),
-                                                                          enzyme_sector_update=False)
+                                                                          enzyme_sector_update=True,
+                                                                            other_enzyme_id_pattern = other_enzyme_id_pattern)
     axs = [fig.add_subplot(gs[j]) for j in range(len(to_plot))]
 
     for j, rxn in enumerate(to_plot):
@@ -91,7 +95,7 @@ def main():
     exp_data_ijn = refdata_setup_ijn1463(pam_info_file=os.path.join('Results', '2_parametrization',
                                                   'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'),
                                            csources = ['Glucose'])[0].valid_data.sort_values('EX_glc__D_e')
-    fig = plt.figure(figsize=(21/2.56, 25/2.56))
+    fig = plt.figure(figsize=(21/2.56, 22/2.56))
     gs_main = gridspec.GridSpec(4, 1, height_ratios=[4,4,4,3], hspace=0.8)
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main[0],
@@ -104,10 +108,11 @@ def main():
 
     i=0
     axs = []
-    for pamodel, gs,gem_file, kcat_file_list, rxns_to_plot, exp_data in zip(
+    for pamodel, gs,gem_file, kcat_file_list, regex ,rxns_to_plot, exp_data in zip(
             [pam_icgb, pam_ijn],
             [gs_cgb_fluxes, gs_ijn_fluxes_legend],
             [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
+            [r'|Enzyme_cg[0-9]+',r'|Enzyme_*|Enzyme_PP_[0-9]+'],
             [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
             [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']],
             [exp_data_icgb, exp_data_ijn]
@@ -132,6 +137,7 @@ def main():
                                         gem=gem,
                                         gs=gs, fig = fig,
                                         diagnostic_files=kcat_file_list,
+                                             other_enzyme_id_pattern = regex,
                                         to_plot=rxns_to_plot,
                                         cmap = cmap,
                                         exp_data=exp_data)
