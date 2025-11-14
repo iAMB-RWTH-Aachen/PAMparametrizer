@@ -1,5 +1,5 @@
 import os
-
+from typing import List, Dict
 import pandas as pd
 from matplotlib import gridspec
 import seaborn as sns
@@ -25,7 +25,7 @@ PAM_KCAT_FILES_ICG = [os.path.join('Results', '2_parametrization', 'diagnostics'
 
 PAM_KCAT_FILES_IJN = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                f'pam_parametrizer_diagnostics_iJN1463_{file_nmbr}.xlsx') for file_nmbr in
-                  range(1, NUM_MODELS -1)]
+                  range(1, NUM_MODELS + 1)]
 FONTSIZE=11
 
 labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
@@ -36,14 +36,18 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
                                     diagnostic_files: List[str],
                                     other_enzyme_id_pattern: str,
                                     gem:'Model',
-                                    exp_data: pd.DataFrame, to_plot,cmap,
-                                    fig, gs,sub_uptake: str = 'EX_glc__D_e'):
+                                    exp_data: pd.DataFrame,
+                                    to_plot: List[str],
+                                    cmap: Dict[str, 'Color'],
+                                    fig: plt.Figure, gs: 'GridSpec',
+                                    sub_uptake: str = 'EX_glc__D_e',
+                                    enzyme_sector_update: bool = False):
     models = {'GEM': gem, 'After preprocessing':pamodel}
     for i, file in enumerate(diagnostic_files):
         models[f'Alternative {i+1}'] = create_pamodel_from_diagnostics_file(file,
                                                                           pamodel.copy(copy_with_pickle =True),
-                                                                          enzyme_sector_update=True,
-                                                                            other_enzyme_id_pattern = other_enzyme_id_pattern)
+                                                                          enzyme_sector_update=enzyme_sector_update,
+                                                                        other_enzyme_id_pattern = other_enzyme_id_pattern)
     axs = [fig.add_subplot(gs[j]) for j in range(len(to_plot))]
 
     for j, rxn in enumerate(to_plot):
@@ -70,9 +74,6 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
     return axs
 
 
-
-
-
 def main():
     model_colors = sns.color_palette("viridis", n_colors=NUM_MODELS)
     other_colors = {'GotEnzymes': 'grey', 'After preprocessing': 'black', 'iCGB21FR': 'purple','iJN1463': 'purple', 'GEM': 'grey'}
@@ -95,7 +96,7 @@ def main():
     exp_data_ijn = refdata_setup_ijn1463(pam_info_file=os.path.join('Results', '2_parametrization',
                                                   'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'),
                                            csources = ['Glucose'])[0].valid_data.sort_values('EX_glc__D_e')
-    fig = plt.figure(figsize=(21/2.56, 22/2.56))
+    fig = plt.figure(figsize=(21/2.56, 25/2.56))
     gs_main = gridspec.GridSpec(4, 1, height_ratios=[4,4,4,3], hspace=0.8)
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main[0],
@@ -108,39 +109,28 @@ def main():
 
     i=0
     axs = []
-    for pamodel, gs,gem_file, kcat_file_list, regex ,rxns_to_plot, exp_data in zip(
+    for pamodel, gs,gem_file, kcat_file_list, regex,rxns_to_plot, exp_data, update_enz_sector in zip(
             [pam_icgb, pam_ijn],
             [gs_cgb_fluxes, gs_ijn_fluxes_legend],
             [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
-            [r'|Enzyme_cg[0-9]+',r'|Enzyme_*|Enzyme_PP_[0-9]+'],
             [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
+            [r'|Enzyme_cg[0-9]+',r'|Enzyme_*|Enzyme_PP_[0-9]+'],
             [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']],
-            [exp_data_icgb, exp_data_ijn]
+            [exp_data_icgb, exp_data_ijn],
+            [False, False]
     ):
         gem = read_sbml_model(gem_file)
         for rxn in [gem.reactions.EX_o2_e, gem.reactions.EX_co2_e]:#in icgb21FR oxygen and co2 uptake are bounded
             rxn.bounds = (-1000,1000)
-        # ax = [fig.add_subplot(gs[j]) for j in range(len(rxns_to_plot))]
-        # ax = axs[i]
-        # recreate_progress_plot(kcat_file_list,
-        #                         labels, fig, ax,
-        #                         legend = False,
-        #                         fontsize=FONTSIZE,
-        #                         pamparam_setup=pamparamsetup,
-        #                         pamparam_kwargs = kwargs,
-        #                         rxns_to_plot = rxns_to_plot,
-        #                        gem_file = gem_file,
-        #                        cmap = cmap,
-        #                         other_measurements = False,
-        #                        enzyme_sector_update = False)
         ax = plot_simulations_vs_experiments(pamodel = pamodel,
-                                        gem=gem,
-                                        gs=gs, fig = fig,
-                                        diagnostic_files=kcat_file_list,
+                                             gem=gem,
+                                             gs=gs, fig = fig,
+                                             diagnostic_files=kcat_file_list,
                                              other_enzyme_id_pattern = regex,
-                                        to_plot=rxns_to_plot,
-                                        cmap = cmap,
-                                        exp_data=exp_data)
+                                             to_plot=rxns_to_plot,
+                                             cmap = cmap,
+                                             exp_data=exp_data,
+                                             enzyme_sector_update=update_enz_sector)
         for i,a in enumerate(ax):
             a.set_ylabel(rxns2label[rxns_to_plot[i]])
         axs+=ax
