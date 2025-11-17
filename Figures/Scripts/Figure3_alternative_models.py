@@ -43,11 +43,14 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
                                     sub_uptake: str = 'EX_glc__D_e',
                                     enzyme_sector_update: bool = False):
     models = {'GEM': gem, 'After preprocessing':pamodel}
+    print(gem.optimize(), pamodel.optimize())
     for i, file in enumerate(diagnostic_files):
-        models[f'Alternative {i+1}'] = create_pamodel_from_diagnostics_file(file,
-                                                                          pamodel.copy(copy_with_pickle =True),
-                                                                          enzyme_sector_update=enzyme_sector_update,
-                                                                        other_enzyme_id_pattern = other_enzyme_id_pattern)
+        alt_pam = create_pamodel_from_diagnostics_file(file,
+                                                       pamodel.copy(copy_with_pickle =True),
+                                                       enzyme_sector_update=enzyme_sector_update,
+                                                       other_enzyme_id_pattern = other_enzyme_id_pattern
+                                                       )
+        models[f'Alternative {i+1}'] = alt_pam
     axs = [fig.add_subplot(gs[j]) for j in range(len(to_plot))]
 
     for j, rxn in enumerate(to_plot):
@@ -90,6 +93,7 @@ def main():
                                                   'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'),
                                      sensitivity=False
                                      )
+    pam_ijn = ''
     exp_data_icgb = refdata_setup_icgb21fr(pam_info_file=os.path.join('Results', '2_parametrization',
                                                   'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx'),
                                            csources = ['Glucose'])[0].valid_data.sort_values('EX_glc__D_e')
@@ -109,15 +113,15 @@ def main():
 
     i=0
     axs = []
-    for pamodel, gs,gem_file, kcat_file_list, regex,rxns_to_plot, exp_data, update_enz_sector in zip(
+    for pamodel, gs,gem_file, kcat_file_list, regex, rxns_to_plot, exp_data, update_enz_sector in zip(
             [pam_icgb, pam_ijn],
             [gs_cgb_fluxes, gs_ijn_fluxes_legend],
             [os.path.join('Models', file) for file in ['iCGB21FR_annotated_copyable.xml', 'iJN1463.xml']],
             [PAM_KCAT_FILES_ICG, PAM_KCAT_FILES_IJN],
-            [r'|Enzyme_cg[0-9]+',r'|Enzyme_*|Enzyme_PP_[0-9]+'],
+            [r'Enzyme_cg[0-9]+',r'Enzyme_*|Enzyme_PP_[0-9]+'],
             [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']],
             [exp_data_icgb, exp_data_ijn],
-            [False, False]
+            [True, False]
     ):
         gem = read_sbml_model(gem_file)
         for rxn in [gem.reactions.EX_o2_e, gem.reactions.EX_co2_e]:#in icgb21FR oxygen and co2 uptake are bounded
