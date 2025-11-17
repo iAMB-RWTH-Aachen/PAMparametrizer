@@ -97,16 +97,6 @@ def main_icgb21fr():
             default_enzyme_id_pattern=r'Enzyme_cg[0-9]+'
         )
 
-        if file_nmbr in new_ues_files:
-            change_enzyme_sector_in_excel(result_file_path=result_file,
-                                          output_file_path=output_file_path,
-                                          carbon_source='EX_glc__D_e')
-
-            change_enzyme_sector_in_excel(result_file_path=result_file,
-                                          output_file_path=output_file_path,
-                                          enzyme_sector='TranslationalProteinSector',
-                                          carbon_source='EX_glc__D_e')
-
 def main_ijn1463():
     for file_nmbr in range(1, 6):
         suffix = f'iJN1463_{file_nmbr}'
@@ -147,5 +137,6 @@ def main_iml1515():
                                           carbon_source='EX_glc__D_e')
 
 if __name__ == '__main__':
-    main_ijn1463()
+    # main_ijn1463()
+    main_icgb21fr()
 
