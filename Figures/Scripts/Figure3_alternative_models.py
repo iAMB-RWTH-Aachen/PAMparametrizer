@@ -43,7 +43,6 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
                                     sub_uptake: str = 'EX_glc__D_e',
                                     enzyme_sector_update: bool = False):
     models = {'GEM': gem, 'After preprocessing':pamodel}
-    print(gem.optimize(), pamodel.optimize())
     for i, file in enumerate(diagnostic_files):
         alt_pam = create_pamodel_from_diagnostics_file(file,
                                                        pamodel.copy(copy_with_pickle =True),
@@ -93,14 +92,13 @@ def main():
                                                   'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'),
                                      sensitivity=False
                                      )
-    pam_ijn = ''
     exp_data_icgb = refdata_setup_icgb21fr(pam_info_file=os.path.join('Results', '2_parametrization',
                                                   'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx'),
                                            csources = ['Glucose'])[0].valid_data.sort_values('EX_glc__D_e')
     exp_data_ijn = refdata_setup_ijn1463(pam_info_file=os.path.join('Results', '2_parametrization',
                                                   'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'),
                                            csources = ['Glucose'])[0].valid_data.sort_values('EX_glc__D_e')
-    fig = plt.figure(figsize=(21/2.56, 25/2.56))
+    fig = plt.figure(figsize=(21/2.56, 30/2.56))
     gs_main = gridspec.GridSpec(4, 1, height_ratios=[4,4,4,3], hspace=0.8)
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main[0],
@@ -121,7 +119,7 @@ def main():
             [r'Enzyme_cg[0-9]+',r'Enzyme_*|Enzyme_PP_[0-9]+'],
             [['Growth', 'EX_co2_e', 'EX_o2_e'],['BIOMASS_KT2440_WT3']],
             [exp_data_icgb, exp_data_ijn],
-            [True, False]
+            [False, False]
     ):
         gem = read_sbml_model(gem_file)
         for rxn in [gem.reactions.EX_o2_e, gem.reactions.EX_co2_e]:#in icgb21FR oxygen and co2 uptake are bounded
@@ -170,7 +168,7 @@ def main():
 
 
     # plt.tight_layout()
-    # fig.tight_layout()
+    fig.tight_layout()
     fig.savefig(os.path.join('Figures', 'Figure3_cglutanicum_pputida.png'))
 
 if __name__ == '__main__':
