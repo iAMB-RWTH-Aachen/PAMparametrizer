@@ -207,29 +207,30 @@ def change_sector_parameters_with_config_dict(pamodel: PAModel,
     # pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].lb = pamodel.constraints[pamodel.TOTAL_PROTEIN_CONSTRAINT_ID].ub #reset
 
 
-def get_translational_sector_config(pamodel:PAModel,
-                                    substrate_id: str,
-                                    substrate_range:Iterable[Union[int, float]],
-                                    rxn_to_relate_to: str = None
-                                    )->SectorParameterDict:
+def get_protein_sector_config(pamodel:PAModel,
+                              substrate_id: str,
+                              substrate_range:Iterable[Union[int, float]],
+                              rxn_to_relate_to: str = None,
+                              protein_sector: str = 'TranslationalProteinSector'
+                              )->SectorParameterDict:
     #generate a pam with only the translational sector
     #make a copy of the pam using pickle (the copy method for some reason does not work properly)
-    pamtransl = pamodel.copy(copy_with_pickle=True)
+    pam_no_sector = pamodel.copy(copy_with_pickle=True)
 
     #remove total protein to remove protein relations
-    pamtransl.remove_cons_vars([pamtransl.constraints[pamtransl.TOTAL_PROTEIN_CONSTRAINT_ID]])
-    trans_sector = pamodel.sectors.TranslationalProteinSector
+    pam_no_sector.remove_cons_vars([pam_no_sector.constraints[pam_no_sector.TOTAL_PROTEIN_CONSTRAINT_ID]])
+    sector = pamodel.sectors.get_by_id(protein_sector)
 
     #get the simulations for relatively low substrate uptake rates
     if rxn_to_relate_to is None: rxn_to_relate_to = pamodel.BIOMASS_REACTION
-    simulation_results = get_model_simulations_vs_sector(pamodel = pamtransl,
+    simulation_results = get_model_simulations_vs_sector(pamodel = pam_no_sector,
                                                              sub_uptake_rxn = substrate_id,
                                                              rxn_id_to_relate_to = rxn_to_relate_to,
                                                              substrate_range = substrate_range,
-                                                             intercept = trans_sector.tps_0[0],
-                                                             slope = trans_sector.tps_mu[0])
+                                                             intercept = sector.intercept/1e3,
+                                                             slope = sector.slope/1e3)
     if len(simulation_results)==0 or len(simulation_results[substrate_id].unique()) ==1: # model was infeasible for all datapoints or did not change at all
-        slope, intercept = trans_sector.tps_mu[0],trans_sector.tps_0[0],
+        slope, intercept = sector.tps_mu[0],sector.tps_0[0],
     else:
         slope, intercept = perform_linear_regression(
             x=simulation_results[substrate_id], y=simulation_results["translational_protein"])
