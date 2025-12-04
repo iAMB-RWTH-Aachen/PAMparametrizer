@@ -39,7 +39,8 @@ def get_results_from_simulations(model: Union[PAModel, 'Model'],
                                  substrate_ids: Union[str, list[str]] = ['EX_glc__D_e'],
                                  fluxes_to_save: list[str] = None,
                                  proteins_to_save:list[str] = None,
-                                 transl_sector_config: Union[dict[str,SectorParameterDict], bool]=True) -> dict[str, pd.DataFrame]:
+                                 sectors_config: Union[dict[str,SectorParameterDict], bool]=True
+                                 ) -> dict[str, pd.DataFrame]:
 
     if isinstance(substrate_ids, str):
         substrate_ids = [substrate_ids]
@@ -49,12 +50,13 @@ def get_results_from_simulations(model: Union[PAModel, 'Model'],
     solution_information = _set_up_solution_info(fluxes_to_save, proteins_to_save)
 
     for substrate_list, substrate_id in zip(substrate_rates, substrate_ids):
-        transl_sector = transl_sector_config
-        if isinstance(transl_sector_config, dict):
-            if substrate_id not in transl_sector_config: continue
-            transl_sector = transl_sector_config[substrate_id]
+        sectors_to_adjust = {}
+        if isinstance(sectors_config, dict):
+            for sector, config in sectors_config:
+                if substrate_id not in config: continue
+                sectors_to_adjust[sector] = config[substrate_id]
         model.optimize()
-        if isinstance(model, PAModel): _set_up_pamodel_for_simulations(model, substrate_id, transl_sector)
+        if isinstance(model, PAModel): _set_up_pamodel_for_simulations(model, substrate_id, sectors_to_adjust)
 
         for substrate in substrate_list:
             try:
@@ -136,17 +138,19 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
     return solution_information
 
 def _set_up_pamodel_for_simulations(pamodel:PAModel,
-                                   substrate_id: str,
-                                   transl_sector_config:Union[bool, SectorParameterDict]) -> None:
-    if not isinstance(transl_sector_config, dict) and transl_sector_config:
-        transl_sector_config = {'slope': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_mu[0],
-                                'intercept': pamodel.sectors.get_by_id('TranslationalProteinSector').tps_0[0]}
+                                    substrate_id: str,
+                                    sectors_config:Union[bool, Dict[str,SectorParameterDict]])-> None:
+    if not isinstance(sectors_config, dict) and sectors_config:
+        sectors_config = {sectorid:{'slope': pamodel.sectors.get_by_id(sectorid).slope/1e3,
+                                'intercept': pamodel.sectors.get_by_id(sectorid).intercepts/1e3}
+                          for sectorid in ['TranslationalProteinSector', 'UnusedEnzymeSector']}
 
-    if transl_sector_config is not False:
-        change_sector_parameters_with_config_dict(pamodel=pamodel,
-                                                     sector_config = transl_sector_config,
-                                                     substrate_uptake_id = substrate_id,
-                                                  sector_id = 'TranslationalProteinSector')
+    if sectors_config is not False:
+        for sectorid, config in sectors_config.items():
+            change_sector_parameters_with_config_dict(pamodel=pamodel,
+                                                      sector_config = sectors_config,
+                                                      substrate_uptake_id = substrate_id,
+                                                      sector_id = sectorid)
 
 def _set_up_solution_info(fluxes_to_save: list[str],
                           proteins_to_save:list[str],

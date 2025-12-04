@@ -230,7 +230,7 @@ def get_protein_sector_config(pamodel:PAModel,
                                                              intercept = sector.intercept/1e3,
                                                              slope = sector.slope/1e3)
     if len(simulation_results)==0 or len(simulation_results[substrate_id].unique()) ==1: # model was infeasible for all datapoints or did not change at all
-        slope, intercept = sector.tps_mu[0],sector.tps_0[0],
+        slope, intercept = sector.slope/1e3,sector.intercept/1e3
     else:
         slope, intercept = perform_linear_regression(
             x=simulation_results[substrate_id], y=simulation_results["translational_protein"])
