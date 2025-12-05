@@ -93,6 +93,8 @@ def main_sfig_error_progression():
         ax.set_ylabel(rf'Mean $R^{2}$ from {annotation}', fontsize = fontsize)
         ax.tick_params(axis='both', which='major', labelsize=fontsize)
         ax.tick_params(axis='both', which='minor', labelsize=fontsize)
+        ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+        ax.set_axisbelow(True)
 
     axs[1].legend(bbox_to_anchor=(1, 1), fontsize = fontsize)
     # Add alphabet annotations
@@ -115,6 +117,6 @@ def main_sfig_ecoli_intracell_flux():
     )
 
 if __name__ == '__main__':
-    # main_sfig_ecoli_intracell_flux()
-    # main_sfig_error_progression()
+    main_sfig_ecoli_intracell_flux()
+    main_sfig_error_progression()
     main_sfig_flux_distribution()

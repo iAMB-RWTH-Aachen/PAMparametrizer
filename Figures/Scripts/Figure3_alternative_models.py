@@ -54,7 +54,8 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
 
     for j, rxn in enumerate(to_plot):
         axs[j].scatter([abs(r) for r in exp_data[sub_uptake]], [abs(f) for f in exp_data[rxn]], color='black')
-        axs[j].grid()
+        axs[j].grid(visible=True, alpha=0.2, linewidth=0.7)
+        axs[j].set_axisbelow(True)
 
     for model_id, model in models.items():
         sub_rates = []

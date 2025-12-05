@@ -43,12 +43,12 @@ def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
     fluxes = {'GotEnzymes': get_results_from_simulations(pam,
                                                          substrate_rates=[[mfa_data['EX_glc__D_e']]],
                                                          fluxes_to_save=reactions_to_plot,
-                                                         transl_sector_config=False
+                                                         sectors_config=False
                                                          )['fluxes'],
               'GSM': get_results_from_simulations(read_sbml_model(model_file_path),
                                                          substrate_rates=[[mfa_data['EX_glc__D_e']]],
                                                          fluxes_to_save=reactions_to_plot,
-                                                         transl_sector_config=False
+                                                         sectors_config=False
                                                          )['fluxes'],
               }
 
@@ -57,7 +57,7 @@ def get_simulated_fluxes_for_rxns(mfa_data:pd.Series,
         fluxes[f'Alternative {i + 1}'] = get_results_from_simulations(alt_pam,
                                                                       substrate_rates=[[mfa_data['EX_glc__D_e']]],
                                                                       fluxes_to_save=reactions_to_plot,
-                                                                      transl_sector_config=False
+                                                                      sectors_config=False
                                                                       )['fluxes']
 
     for model, df in fluxes.items():

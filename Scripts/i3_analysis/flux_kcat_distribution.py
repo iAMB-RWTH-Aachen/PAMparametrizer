@@ -68,6 +68,8 @@ def create_kcat_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         calculate_distribution_statistics(bin_heights, bin_borders)
 
     ax.vlines([13.7], 0, 1e4, linestyles='dotted')
+    ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+    ax.set_axisbelow(True)
 
     plt.yscale('log')
     plt.ylabel('Frequency', fontsize = fontsize)
@@ -180,7 +182,7 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
 
     print(pd.DataFrame(df_list).to_latex())
     # plt.yscale('log')
-    plt.grid()
+    plt.grid(visible=True, alpha=0.2, linewidth=0.7)
     plt.ylabel('Frequency', fontsize=fontsize)
     plt.xscale('log')
     plt.xlabel('Flux [mmol/gCDW/h]', fontsize=fontsize)

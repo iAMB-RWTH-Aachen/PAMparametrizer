@@ -101,9 +101,9 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
                                           substrate_id: str = 'EX_glc__D_e',
                                           fluxes_to_save: list[str] = None,
                                           proteins_to_save:list[str] = None,
-                                          transl_sector_config=True,
+                                          sector_config=True,
                                           method_ids: list[str]= None) -> dict[str, pd.DataFrame]:
-    _set_up_pamodel_for_simulations(pamodel, substrate_id, transl_sector_config)
+    _set_up_pamodel_for_simulations(pamodel, substrate_id, sector_config)
     solution_information = _set_up_solution_info(fluxes_to_save, proteins_to_save, method_ids)
 
     #leave the substrate rate open until maximal physiological accurate uptake rate
@@ -139,16 +139,16 @@ def get_results_from_simulations_fixed_mu(pamodel: PAModel,
 
 def _set_up_pamodel_for_simulations(pamodel:PAModel,
                                     substrate_id: str,
-                                    sectors_config:Union[bool, Dict[str,SectorParameterDict]])-> None:
+                                    sectors_config:Union[bool, Dict[str,SectorParameterDict]]
+                                    )-> None:
     if not isinstance(sectors_config, dict) and sectors_config:
         sectors_config = {sectorid:{'slope': pamodel.sectors.get_by_id(sectorid).slope/1e3,
-                                'intercept': pamodel.sectors.get_by_id(sectorid).intercepts/1e3}
+                                'intercept': pamodel.sectors.get_by_id(sectorid).intercept/1e3}
                           for sectorid in ['TranslationalProteinSector', 'UnusedEnzymeSector']}
-
     if sectors_config is not False:
         for sectorid, config in sectors_config.items():
             change_sector_parameters_with_config_dict(pamodel=pamodel,
-                                                      sector_config = sectors_config,
+                                                      sector_config = config,
                                                       substrate_uptake_id = substrate_id,
                                                       sector_id = sectorid)
 

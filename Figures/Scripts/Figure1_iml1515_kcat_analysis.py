@@ -280,7 +280,8 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # Label axes
     ax.set_xlabel(xlabel, fontsize=fontsize * 1.5)
     # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
-    ax.grid()
+    ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+    ax.set_axisbelow(True)
 
     # Add legend (ensuring all alternatives are included)
     if legend:
@@ -307,6 +308,10 @@ def recreate_progress_plot(best_indiv_files:list[str],
                            cmap:dict = None,
                            enzyme_sector_update:bool = True
                            ):
+    rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
+                  'EX_co2_e': 'CO2 excretion',
+                  'EX_o2_e': 'O2 uptake',
+                  'EX_ac_e': 'Acetate excretion'}
     j=0
 
     if pamparam_setup is None:
@@ -316,6 +321,8 @@ def recreate_progress_plot(best_indiv_files:list[str],
                                                                                                pamparam_kwargs)
     if rxns_to_plot is not None:
         parametrizer.validation_data.get_by_id(substrate_uptake_id)._reactions_to_plot = rxns_to_plot
+    else:
+        rxns_to_plot = parametrizer.validation_data.get_by_id(substrate_uptake_id)._reactions_to_plot
 
     substrate_rates = sorted(substrate_rates)
     gem = read_sbml_model(gem_file)
@@ -353,7 +360,6 @@ def recreate_progress_plot(best_indiv_files:list[str],
                                                                     pam.copy(copy_with_pickle = True),
                                                                     enzyme_sector_update = enzyme_sector_update)
         parametrizer.pamodel_no_sensitivity.change_reaction_bounds('EX_glc__D_e', -5,0)
-        print(parametrizer.pamodel_no_sensitivity.optimize())
         if enzyme_sector_update:
             parametrizer.validation_data.EX_glc__D_e.sector_configs = set_up_sector_config_from_diagnostic_file(file)
 
@@ -369,7 +375,8 @@ def recreate_progress_plot(best_indiv_files:list[str],
             plot_flux_vs_experiment(axs[len(rxns_to_plot)], parametrizer,
                                     color, fontsize)
 
-
+    for rxn, ax in zip(rxns_to_plot,axs):
+        ax.set_ylabel(rxn_mapper[rxn])
     lines, labels = fig.axes[1].get_legend_handles_labels()
 
     if legend:
@@ -456,7 +463,8 @@ def main():
                                                                  + [f'Alternative {i}' for i in
                                                                     range(1, NUM_ALT_MODELS + 1)],
                                                      legend=False, fontsize=FONTSIZE, cmap = cmap)
-    hist_ax.grid()
+    hist_ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+    hist_ax.set_axisbelow(True)
 
     # create a legend
     legend_ax = fig.add_subplot(gs_inner_r[1])
@@ -480,7 +488,8 @@ def main():
                      ncol=round(len(labels)/5), frameon=False)
     # ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
     for ax in line_axs:
-        ax.grid()
+        ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+        ax.set_axisbelow(True)
 
     ax3 = fig.add_subplot(gs_inner_r[0])
     bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,

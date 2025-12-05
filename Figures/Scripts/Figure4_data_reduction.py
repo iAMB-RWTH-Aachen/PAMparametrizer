@@ -124,14 +124,16 @@ def main_datareduc():
 
     ax_b = fig.add_subplot(gs[1])
     ax_a = fig.add_subplot(gs[0], sharex=ax_b)
-    ax_b.grid(axis ='both', visible = True)
-    ax_a.grid(axis ='both', visible = True)
+    ax_b.grid(axis ='both', visible = True, alpha=0.2, linewidth=0.7)
+    ax_b.set_axisbelow(True)
+    ax_a.grid(axis ='both', visible = True, alpha=0.2, linewidth=0.7)
+    ax_a.set_axisbelow(True)
 
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
     plot_progression_of_errors(final_errors, ax = ax_a, legend=False, fontsize = FONTSIZE)
     plot_deviation_of_error(final_errors, ax = ax_b, legend=False, fontsize = FONTSIZE)
 
-    ax_a.xaxis.grid(True)  # explicitly draw shared x-grid
+    ax_a.xaxis.grid(visible=True, alpha=0.2, linewidth=0.7)
     ax_a.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     ax_a.set_xlabel("")
     # ax_a = fig.add_subplot(gs[0])

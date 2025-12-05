@@ -50,6 +50,8 @@ def create_flux_histogram_old_vs_new(data_file_paths: list[pd.DataFrame],
         bin_heights, bin_borders, _ = ax.hist(fluxes, bins=logbins, histtype='step',
                                               stacked = True, label = label, color = color,
                                               **kwargs)
+        ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+        ax.set_axisbelow(True)
 
         i += 1
         calculate_distribution_statistics(bin_heights, bin_borders)
