@@ -15,6 +15,7 @@ The PAM parametrizer is organized as follows:
    * `Hyperparameter`: all hyperparameters for the parametrizer and the genetic algorithm
    * `ParametrizationResults`: results of the parametrization workflows, such as fluxes, sensitivities and best parameter sets
    * `FluxResults`: class storing the simulation results (fluxes and error to experimental measurements) for a single substrate uptake reaction. Stored in ParameterizationResults.flux_results.
+3. `KcatConstraintConfig`
 
 The parametrization workflow can make use of experimental measurements of growth on different substrates.
 This is enabled by providing a separate ValidationData instance for each substrate. This way, each substrate 

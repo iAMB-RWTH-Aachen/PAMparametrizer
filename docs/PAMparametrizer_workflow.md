@@ -169,6 +169,31 @@ limited, it is wise to use data that the PAMparametrizer cannot use as validatio
  - Measurements for growth on different cultivation media composition (minimal versus complex)
  - Intracellular flux measurements
 
+### 3.5 Setting upper or lower bounds on k<sub>cat</sub> values
+In some cases you are working with microorganisms with specific metabolic patterns, which rely on very inefficient, but well studied, enzymes.
+One such example is in some litho-autotrophic bacteria such as *Cupriavidus necator*. These organisms can fix CO<sub>2</sub>
+through the Calvin-Benson-Bassham cycle, which is often burdened by a few very inefficient enzymes, amongst which RUBISCO.
+Since the great impact of changing the efficiency of RUBISCO on the overal simulated phenotype, there is a high chance that
+the genetic algorithm targets the k<sub>cat</sub> of RUBISCO for modification. Since we know the *in vitro* k<sub>cat</sub>
+value, we can actually guide the genetic algorithm to more biological plausible conditions by providing an upper bound
+on the k<sub>cat</sub> value the genetic algorithm can sample. Similarly, there might be conditions where you want to provide 
+lower bounds on k<sub>cat</sub> values. In this case, you can provide bounds on enzyme-reaction-direction pairs with
+the `KcatConstraintConfigTable` object. Similar to information about the enzyme sectors, this information can be easily passed to the PAMparametrizer
+by providing an Excel sheet with the information about the numeric values in a table format.
+
+**Input**:
+ - Protein sector parameter file `Results/1_preprocessing/proteinAllocationModel_EnzymaticData_<your-model>_yymmdd.xlsx`
+ - Upper or lower bounds on k<sub>cat</sub> values, `min_kcat` and `max_kcat` respectively.
+
+**Output**: 
+ - Excel file saved in `Results/1_preprocessing/proteinAllocationModel_EnzymaticData_<your-model>_yymmdd.xlsx`
+ - Sheet: `KcatBounds` with the following information for each enzyme-reaction-direction relation:
+
+| **enzyme_id** | **reaction_id** | **direction** | **min_kcat**              | **max_kcat**             | **source**                       |
+|---------------|-----------------|---------------|---------------------------|--------------------------|----------------------------------|
+| from model    | from model      | 'f' or 'b'    | >0 1/s, default 1e-6 1/s  | >0 1/s, default 1e6 1/s  | Please mention source/assumption |
+
+
 ## 4. Working with the PAMparametrizer
 ### 4.1 Building and running the PAMparametrizer
 **Instructions**: [PAMparamertizer setup instructions](Example.md)
