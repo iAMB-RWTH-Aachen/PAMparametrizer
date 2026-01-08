@@ -3,25 +3,22 @@ name = "PAMparametrizer"
 version = "0.1.0"
 description = "Parametrization framework for creating protein allocation models"
 authors = [{name = 'Samira van den Bogaard'}]
-readme = ""
+readme = "README.md"
 requires-python = '>=3.9, <3.12'
 
 dependencies = [
-    "cobra==0.29.0",
     "matplotlib",
     "gurobipy",
-    "numpy==1.24.3",
-    "tabulate==0.9.0",
-    "seaborn",
     "PAModelpy",
     "deap==1.4.*",
-    "scipy",
-    "scikit-learn"
+    "scipy"
 ]
 
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["genetic_algorithm_parametrization", "PAM_parametrizer", "utils"]
+#[tool.setuptools]
+#packages = ["genetic_algorithm_parametrization", "PAM_parametrizer", "utils"]
+[tool.setuptools.packages.find]
+where = ["."]

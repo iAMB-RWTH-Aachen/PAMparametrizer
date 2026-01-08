@@ -1,6 +1,6 @@
 __pycache__/
 Data/Cglutanicum_phenotypes/Corynebacterium glutamicum
-Modules/PAM_parametrizer/__pycache__/
+Modules/PAMparametrizer/PAM_parametrizer/__pycache__/
 Scripts/scratch.py
 */__pycache__/
 *.ipynb_checkpoints
@@ -10,3 +10,5 @@ Scripts/SoF1
 *.~lock.
 *.xlsx#
 *[tT]urn[uU]p*
+Modules/build
+Modules/PAMparametrizer.egg-info

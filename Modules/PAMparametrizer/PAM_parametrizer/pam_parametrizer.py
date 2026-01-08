@@ -23,11 +23,10 @@ from ..genetic_algorithm_parametrization import GAPOGaussian as GAPOGauss
 from ..utils.error_calculation import calculate_r_squared_for_reaction, nanaverage
 from ..utils.sampling_functions import adaptive_sampling
 from ..utils.pam_generation import _extract_reaction_id_from_catalytic_reaction_id
-from ..utils.sector_config_functions import (get_model_simulations_vs_sector,
-                                                   perform_linear_regression,
-                                                   change_sector_parameters_with_config_dict,
-                                                   change_proteinsector_relation_from_growth_to_substrate_uptake,
-                                                   SectorParameterDict)
+from ..utils.sector_config_functions import (
+    change_sector_parameters_with_config_dict,
+    change_proteinsector_relation_from_growth_to_substrate_uptake,
+    SectorParameterDict)
 
 #TYPEHINTS
 Reaction2KcatDict = Dict[

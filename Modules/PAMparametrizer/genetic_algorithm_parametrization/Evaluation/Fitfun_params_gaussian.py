@@ -17,8 +17,8 @@ from typing import List
 from PAModelpy import PAModel
 from ..core_parametrization_gaussian import MyFitness
 
-from ...utils.error_calculation import calculate_r_squared_for_reaction
-from ...utils.sector_config_functions import change_sector_parameters_with_config_dict
+from PAM_Parametrization.Modules.PAMparametrizer.utils.error_calculation import calculate_r_squared_for_reaction
+from PAM_Parametrization.Modules.PAMparametrizer.utils.sector_config_functions import change_sector_parameters_with_config_dict
 
 # set standard paths
 FILE_PATH = Path(abspath(dirname(__file__)))
