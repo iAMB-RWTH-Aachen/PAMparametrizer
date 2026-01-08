@@ -15,7 +15,6 @@ The PAM parametrizer is organized as follows:
    * `Hyperparameter`: all hyperparameters for the parametrizer and the genetic algorithm
    * `ParametrizationResults`: results of the parametrization workflows, such as fluxes, sensitivities and best parameter sets
    * `FluxResults`: class storing the simulation results (fluxes and error to experimental measurements) for a single substrate uptake reaction. Stored in ParameterizationResults.flux_results.
-3. `KcatConstraintConfig`: container for user-defined k<sub>cat</sub> upper and lower bounds to guide k<sub>cat</sub> optimization
 
 The parametrization workflow can make use of experimental measurements of growth on different substrates.
 This is enabled by providing a separate ValidationData instance for each substrate. This way, each substrate 
@@ -39,7 +38,7 @@ The `PAMparametrizer` is run with the `run` function. The workflow is organized 
 > while (iteration <= hyperparameters.threshold_iteration) & (final_error <= hyperparameters.threshold_error):
 >>0. Initialize result objects in `ParametrizationResults`.
 >>1. Run simulations over range of substrate uptake rates
->>2. Based on the sensitivity analysis described in van den Bogaard, et al. (2024), select enzymes to evaluate
+>>2. Based on the sensitivity analysis described in van den Bogaard, et al. (2024), select enzymes to evaluat
 >>3. Initiate genetic algorithm with sampled validation data and associated substrate uptake rates
 >>4. genetic_algorithm.start() (more details in Genetic Algorithm README file)
 >>5. Parse the results of the genetic algorithm, save intermediate results to excel file
@@ -100,39 +99,39 @@ parametersets.
 A genetic algorithm is a very flexible tool for optimizing a set of parameters based on some type of error calculation.
 It can, however, be sensitive to different hyperparameters, such as the mutation probability and rate, the number of
 generations, the population size, etc. On top of that, the PAMparametrizer itself also needs some manual input. For
-examples the number of iterations, the convergence threshold, the number of k<sub>cat</sub>s to optimize, etc. For easy handling 
+examples the number of iterations, the convergence threshold, the number of kcats to optimize, etc. For easy handling 
 and easy reproduction, all this information is saved in the HyperParameters data object. 
 
 Below follows a summary off all the inputs you can change in this object, including an explanation of its effects.
 
 
-| Attribute                      | Default value                      | Explanation                                                                                                                                                                                   |
-|--------------------------------|------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Attribute                      | Default value            | Explanation                                                                                                                                                                                   |
+|--------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **PAMparametrizer**            |
-| threshold_error                | 0.9                                | R<sup>2</sup> value at which workflow stops                                                                                                                                                   |
-| threshold_iteration            | 10                                 | max number of iterations                                                                                                                                                                      |
-| threshold_convergence          | 0.09                               | max difference between subsequent errors to consider the error to be converging                                                                                                               |
-| threshold_nmbr_convergence     | 2                                  | number of final error to consider for convergence                                                                                                                                             |
-| number_of_kcats_to_mutate      | 5                                  | number of k<sub></sub> to optimize per iteration                                                                                                                                              |
-| genetic_algorithm_file_base    | 'genetic_algorithm_run_'           | base of files in which the genetic algorithm results are saves                                                                                                                                |
-| filename_extension             | ''                                 | filename extension to recognize output files with                                                                                                                                             |
-| genetic_algorithm              | GAPOUniform                        | personalized genetic algorithm object <br/>(if you want to change something in the genetic algorithm structure)                                                                               |
-| genetic_algorithm_hyperparams  | dict()<br/> see below              | dictionary containing all hyperparameters for the genetic algorithm<br/>see below for all inputs                                                                                              |
+| threshold_error                | 0.9                      | R<sup>2</sup> value at which workflow stops                                                                                                                                                   |
+| threshold_iteration            | 100                      | max number of iterations                                                                                                                                                                      |
+| threshold_convergence          | 1e-3                     | max difference between subsequent errors to consider the error to be converging                                                                                                               |
+| threshold_nmbr_convergence     | 3                        | number of final error to consider for convergence                                                                                                                                             |
+| number_of_kcats_to_mutate      | 5                        | number of k<sub></sub> to optimize per iteration                                                                                                                                              |
+| genetic_algorithm_file_base    | 'genetic_algorithm_run_' | base of files in which the genetic algorithm results are saves                                                                                                                                |
+| filename_extension             | ''                       | filename extension to recognize output files with                                                                                                                                             |
+| genetic_algorithm              | GAPOUniform              | personalized genetic algorithm object <br/>(if you want to change something in the genetic algorithm structure)                                                                               |
+| genetic_algorithm_hyperparams  | dict()<br/> see below    | dictionary containing all hyperparameters for the genetic algorithm<br/>see below for all inputs                                                                                              |
 | **Genetic Algorithm**          |
-| mutation_probability           | 0.9                                | probability with which an individual (solution) is mutated in a generation                                                                                                                    |
-| mutation_rate                  | 0.9                                | probability with which an attribute (e.g. gene) of an individual is mutated                                                                                                                   |
-| population_size                | 5                                  | number of individuals (solution) per population                                                                                                                                               |
-| crossover_probability          | 0.8                                | probability with which two indivduals/offsprings are crossed over                                                                                                                             |
-| number_generations             | 10                                 | number of consecutive generations per gene flow event                                                                                                                                         |
-| number_gene_flow_events        | 2                                  | number of gene flow events, <br/>i.e. merging of multiple populations independently evolved on parallel workers                                                                               |
-| init_attribute_probability     | 0                                  | probability with which the initial population is mutated                                                                                                                                      |
-| fitness_class                  | 'Fitfun_params_uniform'            | name of the file containing the personalized fitness function                                                                                                                                 |
-| processes                      | 2                                  | number of parallel workers                                                                                                                                                                    |
-| time_limit                     | 600000                             | time limit in seconds                                                                                                                                                                         |
-| error_weights                  | dict()                             | reaction which should have a different impact on the error calculation <br/>than other reactions<br/>e.g. {'EX_ac_e':5}:acetate has 5 times more impact on the error than the other reactions |
-| folderpath_save                | Path(r"Results/2_parametrization") | path for saving results                                                                                                                                                                       |
-| overwrite_intermediate_results | True                               | if true, saved intermediate results are overwritten                                                                                                                                                                                              |
-| print_progress                 | True                               | if True, progress of the genetic algorithm is printed                                                                                                                                                                                              |
+| mutation_probability           | 0.5                      | probability with which an individual (solution) is mutated in a generation                                                                                                                    |
+| mutation_rate                  | 0.5                      | probability with which an attribute (e.g. gene) of an individual is mutated                                                                                                                   |
+| population_size                | 10                       | number of individuals (solution) per population                                                                                                                                               |
+| crossover_probability          | 0.8                      | probability with which two indivduals/offsprings are crossed over                                                                                                                             |
+| number_generations             | 20                       | number of consecutive generations per gene flow event                                                                                                                                         |
+| number_gene_flow_events        | 2                        | number of gene flow events, <br/>i.e. merging of multiple populations independently evolved on parallel workers                                                                               |
+| init_attribute_probability     | 0                        | probability with which the initial population is mutated                                                                                                                                      |
+| fitness_class                  | 'Fitfun_params_uniform'  | name of the file containing the personalized fitness function                                                                                                                                 |
+| processes                      | 2                        | number of parallel workers                                                                                                                                                                    |
+| time_limit                     | 600                      | time limit in seconds                                                                                                                                                                         |
+| error_weights                  | dict()                   | reaction which should have a different impact on the error calculation <br/>than other reactions<br/>e.g. {'EX_ac_e':5}:acetate has 5 times more impact on the error than the other reactions |
+| folderpath_save                | Path(r"Results")         | path for saving results                                                                                                                                                                       |
+| overwrite_intermediate_results | True                     | if true, saved intermediate results are overwritten                                                                                                                                                                                              |
+| print_progress                 | True                     | if True, progress of the genetic algorithm is printed                                                                                                                                                                                              |
 
 
 ### ParametrizationResults <Intermediate OUTPUT>
@@ -158,20 +157,3 @@ ValidationData). It stores the following:
 - **error_df**: dataframe to store the error for this specific conditions
 - **fluxes_df**: dataframe to store the reaction fluxes required to calculate the error (defined by `ValidationData.reactions_to_validate`)
 - **substrate_range**: a list with the substrate uptake rates to validate. The substrate uptake rates are obtained from `ValidationData.sampled_valid_data`
-
-## Constraining possible k<sub>cat</sub> values
-In some cases, it is desirable to constrain k<sub>cat</sub> values to a specific range of values. This could be because there 
-are experimental observations which indicate that an important enzyme is inefficient, or that a seemingly unimportant
-enzyme is very efficient and thereby essential for the observed phenotype. In this case, the user can provide bounds on 
-k<sub>cat</sub> values using a KcatConstraintConfig. This object is parsed from an Excel sheet (see [PAMparametrizer workflow](PAMparametrizer_workflow.md#35-setting-upper-or-lower-bounds-on-ksubcatsub-values)).
-It contains the following:
-
-- **df**: dataframe to store the enzyme-reaction-direction relation and the associated upper and lower bounds on 
-k<sub>cat</sub> values in 1/s
-- **df_model_constraints**: similar to `df`, but here the bounds are not represented as k<sub>cat</sub> bounds, but 
-as coefficients for the relation between enzyme concentrations and reaction rates (in h).
-
-Besides storing the bounds in different formats, the object also contains function to get the bounds for a specific 
-enzyme-reaction-direction relation in k<sub>cat</sub> (1/s) ('get') or model coefficient (h) ('get_in_model_constraints'),
-to adapt a file containing the information for building an active enzyme sector to be consistent with the k<sub>cat</sub> 
-bounds (`ensure_kcats_in_pam_info_file_are_within_bounds`), and to add new k<sub>cat</sub> bounds to the object (`add`, in 1/s).
