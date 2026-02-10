@@ -1574,7 +1574,6 @@ class PAMParametrizer():
                     try:
                         axs.flatten()[-1].scatter(exp_measurements, simulations, color = color, alpha = alpha)
                     except:
-                        print(exp_measurements, simulations)
                         continue
 
         # Add colorbar
