@@ -11,9 +11,9 @@ from cobra.io import read_sbml_model
 from PAModelpy import PAModel
 from PAModelpy.utils import set_up_pam
 
-from Modules.utils.pam_generation import setup_pputida_pam, setup_cglutanicum_pam
-from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
-from Modules.utils.pamparametrizer_analysis import get_results_from_simulations
+from Modules.PAMparametrizer.utils.pam_generation import setup_pputida_pam, setup_cglutamicum_pam
+from Modules.PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
+from Modules.PAMparametrizer.utils.pamparametrizer_analysis import get_results_from_simulations
 
 RXNS_TO_VALIDATE = {'Peripheral': ['GLCDpp', 'GAD2ktpp', 'GNK', '2DHGLCK', 'PGLCNDH', 'EX_tre_e', 'GLCt2pp'], #EX_gly_e
                     'EMP': ['HEX1', 'PGI', 'PFK', 'FBA','FBA3', 'FBP', 'TPI', 'GAPD', 'PGK', 'PGM', 'ENO', 'PYK'],
@@ -318,20 +318,20 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8), fontsize = 11
     PAM_KCAT_FILES_ICGB = [os.path.join('Results', '3_analysis', 'parameter_files',
                                        f'proteinAllocationModel_EnzymaticData_iCGB21FR_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
-    cglutnicum_phenotype_file_path = os.path.join('Data', 'Cglutamicum_phenotypes', 'cglutamicum_phenotypes.xlsx')
+    cglutamicum_phenotype_file_path = os.path.join('Data', 'Cglutamicum_phenotypes', 'cglutamicum_phenotypes.xlsx')
 
-    mfa_data = pd.read_excel(cglutnicum_phenotype_file_path,
+    mfa_data = pd.read_excel(cglutamicum_phenotype_file_path,
                              sheet_name='fluxomics_glucose').iloc[1]  # second row has the flux data in the right units
     mfa_data['model'] = 'Peifer, et al (2012)'
-    pam = setup_cglutanicum_pam(sensitivity=False)
+    pam = setup_cglutamicum_pam(sensitivity=False)
 
     flux_df = get_simulated_fluxes_for_rxns(mfa_data,
                                             pam,
                                             os.path.join('Models', 'iCGB21FR_annotated_copyable.xml'),
                                             PAM_KCAT_FILES_ICGB,
-                                            setup_pam_function=setup_cglutanicum_pam)
+                                            setup_pam_function=setup_cglutamicum_pam)
     fig_out = None
-    if gs is None:fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_cglutanicum.png')
+    if gs is None:fig_out = os.path.join('Results', '3_analysis', 'Metabolic_pathways_cglutamicum.png')
     ax = plot_flux_heatmap_for_pathways(flux_df,
                                    result_fig_path=fig_out,
                                    gs0=gs,

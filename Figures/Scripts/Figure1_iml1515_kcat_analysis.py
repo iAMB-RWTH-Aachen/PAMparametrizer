@@ -11,20 +11,20 @@ from PAModelpy.utils import set_up_pam
 
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
 
-from Modules.utils.pam_generation import (get_rxn2kcat_protein2gene_dict,
+from Modules.PAMparametrizer.utils.pam_generation import (get_rxn2kcat_protein2gene_dict,
                                           _extract_reaction_id_from_catalytic_reaction_id,
                                           _get_rxn2kcat_as_series,
                                           create_pamodel_from_diagnostics_file
                                          )
-from Modules.utils.pamparametrizer_analysis import (calculate_kcat_differences,
+from Modules.PAMparametrizer.utils.pamparametrizer_analysis import (calculate_kcat_differences,
                                                     plot_histogram_logspace,
                                                     select_clustered_rows_by_variation,
                                                     get_clusters_from_clustermap,
                                                     set_up_pam_parametrizer_and_get_substrate_uptake_rates
                                                    )
 
-from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation, plot_flux_vs_experiment
-from Modules.utils.pamparametrizer_setup import set_up_sector_config_from_diagnostic_file
+from Modules.PAMparametrizer.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation, plot_flux_vs_experiment
+from Modules.PAMparametrizer.utils.pamparametrizer_setup import set_up_sector_config_from_diagnostic_file
 
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Carbohydrate transport and metabolism': 'Carbon metabolism',

@@ -9,11 +9,11 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
-from Modules.PAM_parametrizer import PAMParametrizer
-from Modules.utils.pam_generation import setup_cglutanicum_pam
+from Modules.PAMparametrizer.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
+from Modules.PAMparametrizer.PAM_parametrizer import PAMParametrizer
+from Modules.PAMparametrizer.utils.pam_generation import setup_cglutamicum_pam
 from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
-from Modules.utils.pamparametrizer_setup import set_up_sector_config
+from Modules.PAMparametrizer.utils.pamparametrizer_setup import set_up_sector_config
 
 
 
@@ -26,7 +26,7 @@ def set_up_validation_data(pam_info_file: str,
                        'Succinate': 'EX_succ_e',
                         'Fructose': 'EX_fru_e'}
     if csources is None: csources = list(condition2uptake.keys())
-    model = setup_cglutanicum_pam(pam_info_file, sensitivity =False)
+    model = setup_cglutamicum_pam(pam_info_file, sensitivity =False)
     model_reactions = [rxn.id for rxn in model.reactions]
 
     VALID_DATA_PATH = os.path.join('Data', 'Cglutamicum_phenotypes', 'cglutamicum_phenotypes.xlsx')
@@ -107,7 +107,7 @@ def set_up_pamparametrizer(max_substrate_uptake_rate:float,
                                          pam_info_file_path_ori=pam_info_file,
                                          pam_info_file_path_out=pam_info_file_path_out)
 
-    pam = setup_cglutanicum_pam(pam_info_file_path_out)
+    pam = setup_cglutamicum_pam(pam_info_file_path_out)
 
     pam.GLUCOSE_EXCHANGE_RXNID = 'EX_glc__D_e'
 

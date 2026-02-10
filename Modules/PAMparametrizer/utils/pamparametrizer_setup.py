@@ -7,7 +7,7 @@ import ast
 import warnings
 
 from .sector_config_functions import SectorParameterDict
-from PAM_Parametrization.Modules.PAMparametrizer.PAM_parametrizer import SectorConfig, KcatConstraintConfigTable
+from ..PAM_parametrizer import SectorConfig, KcatConstraintConfigTable
 
 
 def save_sector_information_to_excel(

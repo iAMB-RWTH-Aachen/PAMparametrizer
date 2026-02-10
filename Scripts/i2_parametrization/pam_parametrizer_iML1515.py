@@ -10,10 +10,10 @@ warnings.filterwarnings("ignore")
 from PAModelpy.configuration import Config
 from PAModelpy.utils.pam_generation import set_up_pam, increase_kcats_in_parameter_file
 
-from Modules.utils.pam_generation import turn_of_exchanges
-from Modules.utils.pamparametrizer_setup import set_up_sector_config
-from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults, KcatConstraintConfigTable
-from Modules.PAM_parametrizer import PAMParametrizer
+from Modules.PAMparametrizer.utils.pam_generation import turn_of_exchanges
+from Modules.PAMparametrizer.utils.pamparametrizer_setup import set_up_sector_config
+from Modules.PAMparametrizer.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults, KcatConstraintConfigTable
+from Modules.PAMparametrizer.PAM_parametrizer import PAMParametrizer
 
 MAX_SUBSTRATE_UPTAKE_RATE = -0.1
 MIN_SUBSTRATE_UPTAKE_RATE = -10

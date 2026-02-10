@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from cobra.io import read_sbml_model
 
-from Modules.utils.pam_generation import setup_cglutanicum_pam, setup_pputida_pam
+from Modules.PAMparametrizer.utils.pam_generation import setup_cglutamicum_pam, setup_pputida_pam
 from PAModelpy import PAModel
 from Figures.Scripts.Figure1_iml1515_kcat_analysis import recreate_progress_plot
 from Scripts.i2_parametrization.pam_parametrizer_iCGB21FR import set_up_validation_data as refdata_setup_icgb21fr
@@ -16,7 +16,7 @@ from Scripts.i2_parametrization.pam_parametrizer_iJN1463 import set_up_validatio
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iJN1463 as plot_intracell_flux_distribution_ijn
 from Scripts.i3_analysis.metabolic_flux_distribution_vs_exp import main_iCGB21FR as plot_intracell_flux_distribution_icgb
 
-from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
+from Modules.PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
 
 NUM_MODELS = 5
 PAM_KCAT_FILES_ICG = [os.path.join('Results', '2_parametrization', 'diagnostics',
@@ -85,7 +85,7 @@ def main():
            zip([f'Alternative {i + 1}' for i in range(NUM_MODELS)], model_colors)},
         **other_colors}
 
-    pam_icgb = setup_cglutanicum_pam(os.path.join('Results', '2_parametrization',
+    pam_icgb = setup_cglutamicum_pam(os.path.join('Results', '2_parametrization',
                                                   'proteinAllocationModel_iCGB21FR_EnzymaticData_multi.xlsx'),
                                      sensitivity=False
                                      )
@@ -109,6 +109,14 @@ def main():
     # gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[1])
     gs_ijn_fluxes_legend =gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[-1], width_ratios=[2,2])
     gs_ijn_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[2],width_ratios=[1,20])[1]
+
+    for title, gs in zip(
+            [r'\textit{Corynebacterium glutamicum} ATCC 13032', r'\textit{Pseudomonas putida} KT2440'],
+            [gs_cgb_fluxes,gs_ijn_heatmap]
+    ):
+        ax = fig.add_subplot(gs[:])
+        ax.axis('off')
+        ax.set_title(title)
 
     i=0
     axs = []
@@ -159,7 +167,7 @@ def main():
                     ha="right", va="bottom")
 
     # Row 0: Centered across all 4 axes
-    # fig.text(-0.1, 0.75, 'Corynebacterium glutanicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold', rotation = 90)
+    # fig.text(-0.1, 0.75, 'Corynebacterium glutamicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold', rotation = 90)
     # fig.text(-0.1, 0.25, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold', rotation = 90)
     for x,y in zip([(fig.axes[0].get_position().x0+fig.axes[2].get_position().x1)/2,
                     (fig.axes[3].get_position().x0+fig.axes[3].get_position().x1)/2],
@@ -170,7 +178,7 @@ def main():
 
     # plt.tight_layout()
     fig.tight_layout()
-    fig.savefig(os.path.join('Figures', 'Figure3_cglutanicum_pputida.png'))
+    fig.savefig(os.path.join('Figures', 'Figure3_cglutamicum_pputida.png'))
 
 if __name__ == '__main__':
     main()

@@ -10,11 +10,11 @@ warnings.filterwarnings("ignore")
 
 from PAModelpy.configuration import Config
 
-from Modules.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
-from Modules.PAM_parametrizer import PAMParametrizer
-from Modules.utils.pam_generation import setup_pputida_pam
+from Modules.PAMparametrizer.PAM_parametrizer import ValidationData, HyperParameters, ParametrizationResults
+from Modules.PAMparametrizer.PAM_parametrizer import PAMParametrizer
+from Modules.PAMparametrizer.utils.pam_generation import setup_pputida_pam
 from PAModelpy.utils.pam_generation import increase_kcats_in_parameter_file
-from Modules.utils.pamparametrizer_setup import set_up_sector_config
+from Modules.PAMparametrizer.utils.pamparametrizer_setup import set_up_sector_config
 
 
 
