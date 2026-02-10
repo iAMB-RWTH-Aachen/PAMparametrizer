@@ -93,7 +93,7 @@ def run_parametrization_workflow(iteration, iterations,
                                               num_kcats_to_mutate = num_kcats_to_mutate,
                                               c_sources = ['Glucose'],
                                               threshold_iteration = 15,
-                                              kcat_increase_factor=3#, 'Glycerol', 'Acetate']
+                                              kcat_increase_factor=7#, 'Glycerol', 'Acetate']
                                               #['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
                                               )
         pamodel_copy = parametrizer.pamodel.copy(copy_with_pickle = True)
