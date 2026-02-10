@@ -318,7 +318,7 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8), fontsize = 11
     PAM_KCAT_FILES_ICGB = [os.path.join('Results', '3_analysis', 'parameter_files',
                                        f'proteinAllocationModel_EnzymaticData_iCGB21FR_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
-    cglutnicum_phenotype_file_path = os.path.join('Data', 'Cglutanicum_phenotypes', 'cglutanicum_phenotypes.xlsx')
+    cglutnicum_phenotype_file_path = os.path.join('Data', 'Cglutamicum_phenotypes', 'cglutamicum_phenotypes.xlsx')
 
     mfa_data = pd.read_excel(cglutnicum_phenotype_file_path,
                              sheet_name='fluxomics_glucose').iloc[1]  # second row has the flux data in the right units

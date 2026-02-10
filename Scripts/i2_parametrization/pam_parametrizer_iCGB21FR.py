@@ -29,7 +29,7 @@ def set_up_validation_data(pam_info_file: str,
     model = setup_cglutanicum_pam(pam_info_file, sensitivity =False)
     model_reactions = [rxn.id for rxn in model.reactions]
 
-    VALID_DATA_PATH = os.path.join('Data', 'Cglutanicum_phenotypes', 'cglutanicum_phenotypes.xlsx')
+    VALID_DATA_PATH = os.path.join('Data', 'Cglutamicum_phenotypes', 'cglutamicum_phenotypes.xlsx')
     filtered_condition2uptake = {}
     for csource, uptake_rxn in condition2uptake.items():
         if (uptake_rxn in model_reactions) and (csource in csources):

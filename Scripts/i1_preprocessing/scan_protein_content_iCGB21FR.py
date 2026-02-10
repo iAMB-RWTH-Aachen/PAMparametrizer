@@ -17,8 +17,8 @@ MAX_GROWTH_ALE = 0.94#1/h; EVO5 strain from Graf et al 2019, growth rate obtaine
 UNUSED_PROTEIN_INTERCEPT = 0.37 #g_unusedprotein/g_protein; 37% (Bruggeman et al (2020)) of all the proteins which can be measured in E.coli
 
 def main():
-    DATA_FILE_PATH = os.path.join('Data', 'Cglutanicum_phenotypes',
-                                  'cglutanicum_proteomics.xlsx') # measurements to setup translational_protein_sector
+    DATA_FILE_PATH = os.path.join('Data', 'Cglutamicum_phenotypes',
+                                  'cglutamicum_proteomics.xlsx') # measurements to setup translational_protein_sector
     df_proteomics = pd.read_excel(DATA_FILE_PATH, sheet_name='ribosome_fraction')
 
     total_protein_range = np.arange(0.51,0.7,0.01) #g_p/g_CDW based on experimental quatitative proteomics measurements
