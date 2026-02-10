@@ -177,19 +177,54 @@ def set_up_pamparametrizer(min_substrate_uptake_rate:float, max_substrate_uptake
                            max_substrate_uptake_rate=max_substrate_uptake_rate,
                            min_substrate_uptake_rate=min_substrate_uptake_rate)
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser("pam_parametrizer_iML1515")
+    parser.add_argument("--pam_info_file",
+                        help="path to the file containing information about the parameters to build the pam",
+                        type=str, default = os.path.join('Results', '1_preprocessing',
+                                     'proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx'))
+    parser.add_argument("--num_csources",
+                        help="Number of carbon sources to use for parametrization. If not provided defaults to 1 (glucose)",
+                        type=int, default = 1)
+    parser.add_argument("--iterations",
+                        help="Number of parametrization runs to perform for calculating mean error",
+                        type=int, default = 10)
+    parser.add_argument("--filename_extension",
+                        help="Filename extension to use",
+                        type=str, default = 'iML1515')
+    parser.add_argument("--kcat_increase_factor",
+                        help="baseline factor for increasing median kcat values to get more meaningful results",
+                        type=int, default=4)
+    parser.add_argument("--hyper_processes",
+                        help="Number of parallel workers for parametrization workflow",
+                        type=int, default = 4)
+    parser.add_argument("--hyper_gfe",
+                        help="Number of gene flow events, i.e. merging of multiple populations independently evolved on parallel workers",
+                        type=int, default=4)
+
+    args = parser.parse_args()
+    return args
+
+
+
 if __name__ == "__main__":
+    available_conditions = ['Glucose','Glycerol','Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
+
     pam_info_file = os.path.join(
         'Results', '1_preprocessing', 'proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
-
-    if len(sys.argv)>1:
-        pam_info_file = sys.argv[1]
+    args = parse_arguments()
+    if args.num_csources> len(available_conditions):num_csources = len(available_conditions)
+    csources = available_conditions[:args.num_csources]
 
     pam_parametrizer = set_up_pamparametrizer(MIN_SUBSTRATE_UPTAKE_RATE, MAX_SUBSTRATE_UPTAKE_RATE,
-                                              pam_info_file= pam_info_file,
-                                              filename_extension= 'iML1515',
-                                              c_sources = ['Glucose'],
-                                              kcat_increase_factor=4, #9,
-                                              threshold_iteration= 5)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
+                                              pam_info_file= args.pam_info_file,
+                                              filename_extension= args.filename_extension,
+                                              c_sources = csources,
+                                              processes = args.hyper_processes,
+                                              gene_flow_events=args.hyper_gfe,
+                                              kcat_increase_factor=args.kcat_increase_factor, #9,
+                                              threshold_iteration= args.iterations)# ['Glycerol', 'Glucose', 'Acetate'])#, 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose'])
     pam_parametrizer.run(remove_subruns=True, binned = 'False')
 # for running:
 # python -m Scripts.i2_parametrization.pam_parametrizer_iML1515
