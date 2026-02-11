@@ -112,9 +112,9 @@ def main():
 
     for title, gs in zip(
             [r'\textit{Corynebacterium glutamicum} ATCC 13032', r'\textit{Pseudomonas putida} KT2440'],
-            [gs_cgb_fluxes,gs_ijn_heatmap]
+            [gs_main[0],gs_main[2]]
     ):
-        ax = fig.add_subplot(gs[:])
+        ax = fig.add_subplot(gs)
         ax.axis('off')
         ax.set_title(title)
 
