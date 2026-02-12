@@ -100,23 +100,25 @@ def main():
                                                   'proteinAllocationModel_iJN1463_EnzymaticData_multi.xlsx'),
                                            csources = ['Glucose'])[0].valid_data.sort_values('EX_glc__D_e')
     fig = plt.figure(figsize=(21/2.56, 30/2.56))
-    gs_main = gridspec.GridSpec(4, 1, height_ratios=[4,4,4,3], hspace=0.8)
+    gs_main = gridspec.GridSpec(2, 1, height_ratios=[1,1], hspace=0.45)
+    gs_main_top = gridspec.GridSpecFromSubplotSpec(2, 1, height_ratios=[1,1], hspace=0.6,subplot_spec=gs_main[0])
+    gs_main_bottom = gridspec.GridSpecFromSubplotSpec(2, 1, height_ratios=[4,3], hspace=0.6, subplot_spec=gs_main[1])
 
-    gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main[0],
+    gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main_top[0],
                                                     wspace=0.4)
 
-    gs_cgb_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[1],width_ratios=[1,20])[1]
+    gs_cgb_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main_top[1],width_ratios=[1,20])[1]
     # gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[1])
-    gs_ijn_fluxes_legend =gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[-1], width_ratios=[2,2])
-    gs_ijn_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[2],width_ratios=[1,20])[1]
+    gs_ijn_fluxes_legend =gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main_bottom[-1], width_ratios=[2,2])
+    gs_ijn_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main_bottom[0],width_ratios=[1,20])[1]
 
     for title, gs in zip(
-            [r'\textit{Corynebacterium glutamicum} ATCC 13032', r'\textit{Pseudomonas putida} KT2440'],
-            [gs_main[0],gs_main[2]]
+            [r'$\mathbf{\it{Corynebacterium\, glutamicum}}$ ATCC 13032', r'$\mathbf{\it{Pseudomonas\, putida}}$ KT2440'],
+            [gs_main[0],gs_main[1]]
     ):
         ax = fig.add_subplot(gs)
         ax.axis('off')
-        ax.set_title(title)
+        ax.set_title(title, pad = 35, fontsize = FONTSIZE+4)
 
     i=0
     axs = []
@@ -158,7 +160,7 @@ def main():
                      fontsize=FONTSIZE,
                      ncol=2, frameon=False)
     #add annotation
-    annotations = ["A", "B", "C", "F", "D", "","", "","","","","E"]
+    annotations = ["","","A", "B", "C", "F", "D", "","", "","","","","E"]
 
     for ax, label in zip(fig.axes, annotations):
         ax.annotate(label, xy=(-0.1, 1), xycoords="axes fraction",
@@ -169,16 +171,16 @@ def main():
     # Row 0: Centered across all 4 axes
     # fig.text(-0.1, 0.75, 'Corynebacterium glutamicum', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold', rotation = 90)
     # fig.text(-0.1, 0.25, 'Pseudomonas putida', ha='center', va='center', fontsize=FONTSIZE, weight = 'bold', rotation = 90)
-    for x,y in zip([(fig.axes[0].get_position().x0+fig.axes[2].get_position().x1)/2,
-                    (fig.axes[3].get_position().x0+fig.axes[3].get_position().x1)/2],
-                   [fig.axes[0].get_position().y0,fig.axes[3].get_position().y0]
+    for x,y in zip([(fig.axes[2].get_position().x0+fig.axes[4].get_position().x1)/2,
+                    (fig.axes[5].get_position().x0+fig.axes[5].get_position().x1)/2],
+                   [fig.axes[2].get_position().y0+0.005,fig.axes[5].get_position().y0]
                    ):
         fig.text(x,y-0.04, r'Glucose uptake rate [mmol/$\text{g}_\text{CDW}$/h]', ha='center', va='center', fontsize=FONTSIZE)
 
 
     # plt.tight_layout()
     fig.tight_layout()
-    fig.savefig(os.path.join('Figures', 'Figure3_cglutamicum_pputida.png'))
+    fig.savefig(os.path.join('Figures', 'Figure5_cglutamicum_pputida.png'))
 
 if __name__ == '__main__':
     main()
