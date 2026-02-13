@@ -286,6 +286,8 @@ def main_iML1515(gs=None, fig = None, fig_out=None, cbar=True, vrange = None, nu
     PAM_KCAT_FILES_IML = [os.path.join('Results', '3_analysis', 'parameter_files',
                                        f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx') for file_nmbr in
                           range(1, NUM_MODELS + 1)]
+    PAM_KCAT_FILES_IML.append(os.path.join('Results', '3_analysis', 'parameter_files',
+                                       'proteinAllocationModel_EnzymaticData_iML1515_csources.xlsx'))
 
     mfa_data = pd.read_excel(os.path.join('Data', 'Ecoli_phenotypes', 'fluxomics_datasets_gerosa.xlsx'))
     mfa_data_glc = mfa_data[mfa_data.condition == 'Glucose'][['reaction', 'measured']].set_index('reaction').squeeze()
@@ -341,8 +343,8 @@ def main_iCGB21FR(gs=None, fig = None, cbar=True, vrange = (0, 8), fontsize = 11
     return ax
 
 if __name__ == '__main__':
-    # main_iML1515()
-    main_iJN1463()
+    main_iML1515()
+    # main_iJN1463()
     # main_iCGB21FR()
 
 

@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from PAModelpy import CatalyticEvent
-from Modules.utils.pamparametrizer_setup import save_sector_information_to_excel
+from Modules.PAMparametrizer.utils.pamparametrizer_setup import save_sector_information_to_excel
 
 
 RESULT_PARAMETRIZATION_FILE = os.path.join('Results', '2_parametrization', 'pam_parametrizer_diagnostics_iML1515_randomized.xlsx')
@@ -115,7 +115,8 @@ def main_ijn1463():
 def main_iml1515():
     new_ues_files = [1, 2, 4, 5, 6]
     for file_nmbr in range(1, 11):
-        suffix = f'iML1515_{file_nmbr}'
+        # suffix = f'iML1515_{file_nmbr}'
+        suffix = 'iML1515_csources'
         result_file = os.path.join('Results', '2_parametrization', 'diagnostics',
                                    f'pam_parametrizer_diagnostics_{suffix}.xlsx')
         output_file_path = create_new_aes_parameter_file(
@@ -138,5 +139,5 @@ def main_iml1515():
 
 if __name__ == '__main__':
     # main_ijn1463()
-    main_icgb21fr()
+    main_iml1515()
 
