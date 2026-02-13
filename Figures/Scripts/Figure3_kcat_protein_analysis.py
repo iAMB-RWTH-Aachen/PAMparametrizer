@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from cobra.io.sbml import read_sbml_model
-from matplotlib.colors import to_hex
+from matplotlib.colors import to_hex, LogNorm
 from matplotlib import gridspec
 import seaborn as sns
 import numpy as np
@@ -29,6 +29,7 @@ from Modules.PAMparametrizer.utils.pamparametrizer_analysis import (calculate_kc
 
 from Modules.PAMparametrizer.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation, plot_flux_vs_experiment
 from Modules.PAMparametrizer.utils.pamparametrizer_setup import set_up_sector_config_from_diagnostic_file
+
 
 COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Carbohydrate transport and metabolism': 'Carbon metabolism',
@@ -517,10 +518,9 @@ def create_proteomics_linegraphs(got_enzymes_file: str,
                               .sum()
                               .reset_index()
                               )
-    top_cog = (protein_conc_vs_cog_df.groupby('COG Name')
+    cog_order = (protein_conc_vs_cog_df.groupby('COG Name')
                .sum()
                .sort_values(by=['normalized_fraction'], ascending=False)
-               .head(5)
                .reset_index()
                )['COG Name']
 
@@ -530,31 +530,51 @@ def create_proteomics_linegraphs(got_enzymes_file: str,
            zip([f'Alternative {i + 1}' for i in range(10)], model_colors)},
         **{'After preprocessing': 'black', 'measurements': 'black'}}
 
-    print(cmap)
     method2mu = {'Batch': 0.67, 'mu_5': 0.5, 'mu_35':0.35}
     protein_conc_vs_cog_df['growth_rate'] = protein_conc_vs_cog_df['method'].apply(
         lambda x: method2mu[x])
     protein_conc_vs_cog_df = protein_conc_vs_cog_df.sort_values(by=['growth_rate'])
-    fig, ax = plt.subplots(nrows=len(top_cog),figsize = (10,15))
-    cog2index = {cog:i for i, cog in enumerate(top_cog)}
-    for (model, cog), df in protein_conc_vs_cog_df.groupby(['model', 'COG Name']):
-        if not cog in top_cog.to_list():continue
-        i = cog2index[cog]
-        ax[i].set_title(cog)
-        ax[i].plot(df.growth_rate, df.normalized_fraction, label = model, color =cmap[model])
-        ax[i].scatter(df.growth_rate, df.fraction, label = 'measurements', color =cmap['measurements'])
-        ax[i].set_ylabel('Normalized Fraction [gProtein/gCDW]')
-    h, l = ax[0].get_legend_handles_labels()
-    handles, labels = [], []
-    for handle, label in zip(h,l):
-        if label in labels: continue
-        handles.append(handle)
-        labels.append(label)
+    fig, ax = plt.subplots(nrows=len(method2mu),figsize = (10,15), sharex=True)
+    mu2index = {mu:i for i, mu in enumerate(protein_conc_vs_cog_df['growth_rate'].unique())}
+    for growth_rate, df in protein_conc_vs_cog_df.groupby(['growth_rate']):
+        df_preproc = df[df.model == 'After preprocessing'].sort_values(
+            'COG Name',key=lambda s: pd.Categorical(s, categories=cog_order, ordered=True)
+)
+        df = df[df.model != 'After preprocessing']
+        fraction_per_cog = [df[df['COG Name'] == cog]['normalized_fraction'].values for cog in cog_order]
+        i = mu2index[growth_rate]
+        ax[i].set_title(f'Growth rate {growth_rate} 1/h')
+        ax[i].boxplot(fraction_per_cog)
 
-    fig.legend(handles,labels, loc='upper right')
+        ax[i].scatter(range(1, len(df['COG Name'].unique())+1), df_preproc['normalized_fraction'])
+        ax[i].set_xticks(range(1, len(df['COG Name'].unique())+1), df['COG Name'].unique(), rotation=90)
+        ax[i].set_ylabel('Normalized Fraction [gProtein/gCDW]')
+        ax[i].set_yscale('log')
+    # h, l = ax[0].get_legend_handles_labels()
+    # handles, labels = [], []
+    # for handle, label in zip(h,l):
+    #     if label in labels: continue
+    #     handles.append(handle)
+    #     labels.append(label)
+    #
+    # fig.legend(handles,labels, loc='upper right')
     fig.tight_layout()
     fig.subplots_adjust(right=0.8)
     fig.savefig('Figures/tests.png')
+
+    fig, ax = plt.subplots(nrows=len(method2mu), figsize=(10, 15), sharex=True)
+    for growth_rate, df in protein_conc_vs_cog_df.groupby(['growth_rate']):
+        i = mu2index[growth_rate]
+        heatmap_data = df.pivot(index='COG Name', columns='model', values='normalized_fraction').loc[cog_order]
+        sns.heatmap(heatmap_data, cmap="viridis", cbar_kws={'label':'Normalized Fraction'},
+                    ax = ax[i])#, norm=LogNorm(vmin=1e-6, vmax=heatmap_data.max().max()))
+        ax[i].set_title(f"Growth Rate {growth_rate}")
+        ax[i].set_ylabel("Functional Category")
+        ax[i].set_xlabel("Model")
+    plt.tight_layout()
+    fig.savefig('Figures/tests_heatmap.png')
+
+
 
 def main():
     NUM_ALT_MODELS = 10

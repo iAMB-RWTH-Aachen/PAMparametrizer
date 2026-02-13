@@ -52,7 +52,7 @@ def get_results_from_simulations(model: Union[PAModel, 'Model'],
     for substrate_list, substrate_id in zip(substrate_rates, substrate_ids):
         sectors_to_adjust = {}
         if isinstance(sectors_config, dict):
-            for sector, config in sectors_config:
+            for sector, config in sectors_config.items():
                 if substrate_id not in config: continue
                 sectors_to_adjust[sector] = config[substrate_id]
         model.optimize()
