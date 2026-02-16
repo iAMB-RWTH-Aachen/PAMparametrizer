@@ -414,10 +414,11 @@ def parse_input_proteomics_data(ref_proteome_data_file:str,
                                 var_name='experiment', value_name='fraction').rename({'experiment': 'method'}, axis = 1)
     return ref_proteomics_normalized
 
-def get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df):
+def get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df,
+                                             per_method = False):
     measured_proteins = protein_conc_vs_cog_df.drop_duplicates(['enzyme_id', 'method'])
     measured_proteins['model'] = 'Measurements'
-    measured_proteins['fraction'] = measured_proteins['normalized_fraction']
+    protein_conc_vs_cog_df['fraction'] = protein_conc_vs_cog_df['normalized_fraction']
     total_proteome_df_cog_sum = pd.concat([protein_conc_vs_cog_df, measured_proteins])
     total_proteome_df_cog_sum = total_proteome_df_cog_sum.drop_duplicates()
 
@@ -428,20 +429,22 @@ def get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df):
         lambda x: x if x < 0 else 0)
 
     # Compute the sum of 'fraction' for each model
-    total_proteome_df_cog_sum['fraction_sums'] = total_proteome_df_cog_sum.groupby(['model'])['fraction'].transform(
+    fraction_groups = ['model', 'method'] if per_method else ['model']
+    total_proteome_df_cog_sum['fraction_sums'] = total_proteome_df_cog_sum.groupby(fraction_groups)['fraction'].transform(
         'sum')
+    print(total_proteome_df_cog_sum)
     total_proteome_df_cog_sum['positive_change'] = total_proteome_df_cog_sum['positive_change'] / \
                                                    total_proteome_df_cog_sum['fraction_sums']
     # Aggregate the data and divide by the fraction sum per model
 
-    cog_summary_sum = total_proteome_df_cog_sum.groupby(['COG Name', 'model']).agg({
+    cog_summary_sum = total_proteome_df_cog_sum.groupby(['COG Name']+fraction_groups).agg({
         'positive_change': 'sum',
         'negative_change': 'sum'
     }).reset_index()
 
     cog_summary_long_sum = pd.melt(
         cog_summary_sum,
-        id_vars=['COG Name', 'model'],
+        id_vars=['COG Name']+fraction_groups,
         value_vars=['positive_change', 'negative_change'],
         var_name='Change Type',
         value_name='Change'
@@ -472,6 +475,8 @@ def create_proteomics_bargraph(got_enzymes_file: str,
     measured_protein_concentrations = parse_input_proteomics_data(ref_proteome_data_file=ref_proteome_data_file,
                                                                   uniprot_ref_file=uniprot_ref_file,
                                                                   got_enzymes_file=got_enzymes_file)
+    # print(simulated_protein_concentrations)
+    # print(measured_protein_concentrations)
     all_protein_concentrations = pd.merge(simulated_protein_concentrations, measured_protein_concentrations,
                                  on=['method', 'enzyme_id', 'rxn_id'], how='inner')
 
@@ -479,10 +484,33 @@ def create_proteomics_bargraph(got_enzymes_file: str,
                                                         left_on='b_number',
                                                         right_index=True).drop_duplicates()
     cog_changed_protein_conc = get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df,)
+    # measured_proteins = all_protein_concentrations.drop_duplicates(['enzyme_id', 'method'])
+    # measured_proteins['model'] = 'Measurements'
+    # total_proteome_df_cog_sum = pd.concat([all_protein_concentrations, measured_proteins])
+    # protein_conc_vs_cog_df = (total_proteome_df_cog_sum
+    #                           .merge(protein2cog_df[['COG Name']],
+    #                                  left_on='b_number',
+    #                                  right_index=True)
+    #                           .drop_duplicates()[
+    #                               ['enzyme_id', 'rxn_id', 'model', 'COG Name', 'method', 'normalized_fraction',
+    #                                'fraction']]
+    #                           .groupby(['model', 'COG Name', 'method'])
+    #                           .sum()
+    #                           .reset_index()
+    #                           )
+    # protein_conc_vs_cog_df = protein_conc_vs_cog_df.drop_duplicates()
+    # cog_changed_protein_conc = protein_conc_vs_cog_df
+    # # cog_changed_protein_conc = protein_conc_vs_cog_df[protein_conc_vs_cog_df.method == 'Batch']
+    # cog_changed_protein_conc['COG description'] = cog_changed_protein_conc['COG Name']
+    # cog_changed_protein_conc['Change'] = cog_changed_protein_conc['normalized_fraction']
+    # cog_changed_protein_conc['alternative'] = cog_changed_protein_conc['model']
+    # print(cog_changed_protein_conc.alternative.unique())
 
     create_cog_barplot(cog_changed_protein_conc, ax, plotting_threshold=0.2, legend=True,
                        xlabel=r'$\sum\frac{g_{prot,COG}}{g_{protein}}$',
-                       other_colors={'GotEnzymes': 'grey', 'Measurements': 'grey', 'After preprocessing': 'black'})
+                       other_colors={'Measurements': 'grey','After preprocessing': 'black'})
+
+                       # other_colors={'GotEnzymes': 'grey',  'After preprocessing': 'black'})
 
 def create_proteomics_linegraphs(got_enzymes_file: str,
                                multi_file: str,
@@ -509,47 +537,64 @@ def create_proteomics_linegraphs(got_enzymes_file: str,
     all_protein_concentrations = pd.merge(simulated_protein_concentrations, measured_protein_concentrations,
                                  on=['method', 'enzyme_id', 'rxn_id'], how='inner')
 
-    protein_conc_vs_cog_df = (all_protein_concentrations
-                              .merge(protein2cog_df[['COG Name']],
-                                                        left_on='b_number',
-                                                        right_index=True)
-                              .drop_duplicates()[['enzyme_id', 'rxn_id', 'model', 'COG Name','method', 'normalized_fraction', 'fraction']]
-                              .groupby(['model', 'COG Name','method'])
-                              .sum()
-                              .reset_index()
-                              )
-    cog_order = (protein_conc_vs_cog_df.groupby('COG Name')
-               .sum()
-               .sort_values(by=['normalized_fraction'], ascending=False)
-               .reset_index()
-               )['COG Name']
 
+    protein_conc_vs_cog_df = all_protein_concentrations.merge(protein2cog_df[['COG Name']],
+                                                        left_on='b_number',
+                                                        right_index=True).drop_duplicates()
+    cog_changed_protein_conc = get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df,
+                                                                        per_method = True)
+    cog_changed_protein_conc['model'] = cog_changed_protein_conc['alternative']
+
+    # protein_conc_vs_cog_df = (all_protein_concentrations
+    #                           .merge(protein2cog_df[['COG Name']],
+    #                                                     left_on='b_number',
+    #                                                     right_index=True)
+    #                           .drop_duplicates()[['enzyme_id', 'rxn_id', 'model', 'COG Name','method', 'normalized_fraction', 'fraction']]
+    #                           .groupby(['model', 'COG Name','method'])
+    #                           .sum()
+    #                           .reset_index()
+    #                           )
+    print(cog_changed_protein_conc.columns)
+    cog_order = (cog_changed_protein_conc.groupby('COG description')
+               .sum()
+               .sort_values(by=['Change'], ascending=False)
+               .reset_index()
+               )['COG description']
+    print(cog_order)
+    print(cog_changed_protein_conc.groupby('COG description')
+               .sum()
+               .sort_values(by=['Change'], ascending=False))
     model_colors = sns.color_palette("viridis", n_colors=10)
     cmap = {
         **{l: c for l, c in
            zip([f'Alternative {i + 1}' for i in range(10)], model_colors)},
-        **{'After preprocessing': 'black', 'measurements': 'black'}}
+        **{'After preprocessing': 'blue', 'Measurements': 'black'}}
 
     method2mu = {'Batch': 0.67, 'mu_5': 0.5, 'mu_35':0.35}
-    protein_conc_vs_cog_df['growth_rate'] = protein_conc_vs_cog_df['method'].apply(
+    cog_changed_protein_conc['growth_rate'] = cog_changed_protein_conc['method'].apply(
         lambda x: method2mu[x])
-    protein_conc_vs_cog_df = protein_conc_vs_cog_df.sort_values(by=['growth_rate'])
+    cog_changed_protein_conc = cog_changed_protein_conc.sort_values(by=['growth_rate'])
     fig, ax = plt.subplots(nrows=len(method2mu),figsize = (10,15), sharex=True)
-    mu2index = {mu:i for i, mu in enumerate(protein_conc_vs_cog_df['growth_rate'].unique())}
-    for growth_rate, df in protein_conc_vs_cog_df.groupby(['growth_rate']):
-        df_preproc = df[df.model == 'After preprocessing'].sort_values(
-            'COG Name',key=lambda s: pd.Categorical(s, categories=cog_order, ordered=True)
-)
-        df = df[df.model != 'After preprocessing']
-        fraction_per_cog = [df[df['COG Name'] == cog]['normalized_fraction'].values for cog in cog_order]
+    mu2index = {mu:i for i, mu in enumerate(cog_changed_protein_conc['growth_rate'].unique())}
+    for growth_rate, df in cog_changed_protein_conc.groupby(['growth_rate']):
         i = mu2index[growth_rate]
+
+        df = df[df['Change Type'] == 'positive_change'] #by definition change cannot be negative, this is in the columns for reusability of the function
+        for other_datapoint, marker in zip(['Measurements', 'After preprocessing'], [',', '^']):
+            df_other = df[df.model == other_datapoint].sort_values(
+                'COG description',key=lambda s: pd.Categorical(s, categories=cog_order, ordered=True)
+            )
+            ax[i].scatter(range(1, len(df_other['COG description'].unique())+1), df_other['Change'],
+                          label = other_datapoint, color = cmap[other_datapoint], marker=marker)
+        df = df[df.model != 'After preprocessing']
+        df= df[df.model != 'Measurements']
+        fraction_per_cog = [df[df['COG description'] == cog]['Change'].values for cog in cog_order]
         ax[i].set_title(f'Growth rate {growth_rate} 1/h')
         ax[i].boxplot(fraction_per_cog)
 
-        ax[i].scatter(range(1, len(df['COG Name'].unique())+1), df_preproc['normalized_fraction'])
-        ax[i].set_xticks(range(1, len(df['COG Name'].unique())+1), df['COG Name'].unique(), rotation=90)
+        ax[i].set_xticks(range(1, len(df['COG description'].unique())+1), cog_order, rotation=90)
         ax[i].set_ylabel('Normalized Fraction [gProtein/gCDW]')
-        ax[i].set_yscale('log')
+        # ax[i].set_yscale('log')
     # h, l = ax[0].get_legend_handles_labels()
     # handles, labels = [], []
     # for handle, label in zip(h,l):
@@ -701,3 +746,13 @@ if __name__ == '__main__':
                                  ax = ''
                                )
     # main()
+    # fig,ax = plt.subplots()
+    # create_proteomics_bargraph(got_enzymes_file=PARAM_FILE_ORI,
+    #                            multi_file=PARAM_FILE_PREPROC,
+    #                            diagnostic_files=diagnostic_files,
+    #                            model_file_path=MODEL_FILE,
+    #                            ref_proteome_data_file=REF_PROTEOMICS_FILE,
+    #                            uniprot_ref_file=UNIPROT_INFO_FILE,
+    #                              ax = ax
+    #                            )
+    # fig.savefig('Figures/test_bar.png')
