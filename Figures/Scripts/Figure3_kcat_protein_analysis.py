@@ -37,7 +37,7 @@ COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Cell wall/membrane/envelope biogenesis':"Cell membrane biogenesis",
        'Coenzyme transport and metabolism': 'Coenzyme metabolism',
               'Defense mechanisms':'Defense mechanisms',
-       'Energy production and conversion': 'Energy generation', 'Function unknown': 'Function unknown',
+       'Energy production and conversion': 'Energy\n generation', 'Function unknown': 'Function unknown',
        'General function prediction only': 'General function',
        'Inorganic ion transport and metabolism': 'Inorganic ion metabolism',
        'Intracellular trafficking, secretion, and vesicular transport': 'Intracellular transport',
@@ -208,18 +208,26 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        ax:plt.Axes,
                        plotting_threshold=5e4,
                        bar_width=0.2, spacing_factor = 3,  # Increase spacing
-                       fontsize = 15,
+                       fontsize = 12,
                        legend = True,
                        xlabel=r'$\sum \frac{k_{cat,new}-k_{cat,old}}{k_{cat,old}}$',
                        other_colors:dict={},
-                       cmap:dict = None):
+                       cmap:dict = None,
+                       top_n = 7):
     # only plot the most important cogs
-    cog_summary_long = cog_summary_long.groupby('COG description').filter(
-        lambda x: x['Change'].abs().sum() > plotting_threshold
-    )
+    # cog_summary_long = cog_summary_long.groupby('COG description').filter(
+    #     lambda x: x['Change'].abs().sum() > plotting_threshold
+    # )
+
+    cog_summary_long['abs_change'] = cog_summary_long['Change'].abs()  # Compute absolute changes
+    cog_order = (cog_summary_long[['abs_change','COG description']].groupby('COG description')
+                 .sum()
+                 .sort_values(by=['abs_change'], ascending=False)
+                 .reset_index()
+                 )['COG description'][:top_n]
+    cog_summary_long = cog_summary_long[cog_summary_long['COG description'].isin(cog_order)]
 
     # Sort COG descriptions by total absolute change to get a nice descending plot
-    cog_summary_long['abs_change'] = cog_summary_long['Change'].abs()  # Compute absolute changes
     # cog_summary_long = cog_summary_long.sort_values('abs_change').iloc[:num_pathways_to_plot,:]
     cog_order = sorted(
         set(cog_summary_long['COG description']),
@@ -240,9 +248,6 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
         cmap = {
             **{l: c for l, c in zip([f'Alternative {i + 1}' for i in range(len(alternatives)-len(other_colors))], model_colors)},
             **other_colors}
-
-        print(cmap)
-        cmap['Alternative 10'] = model_colors[0]
 
 
     # Plot each alternative separately
@@ -282,7 +287,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # Adjust y-axis labels
     ax.tick_params(axis='both', labelsize=fontsize)
     ax.set_yticks(y_positions)
-    ax.set_yticklabels([COG_MAPPER[cog] for cog in cog_order],
+    ax.set_yticklabels([COG_MAPPER[cog].replace('metabolism', '\nmetabolism').replace('biogenesis', '\nbiogenesis') for cog in cog_order],
                        fontsize=fontsize)  # Set labels in sorted order
 
     # Label axes
@@ -290,6 +295,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
     # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
     ax.grid(visible=True, alpha=0.2, linewidth=0.7)
     ax.set_axisbelow(True)
+    ax.ticklabel_format(axis='x', style='sci', scilimits=(0, 0))
 
     # Add legend (ensuring all alternatives are included)
     if legend:
@@ -383,7 +389,7 @@ def parse_input_proteomics_data(ref_proteome_data_file:str,
 
     # get the gene id from the gene names
     uniprot_info_df['b_number'] = uniprot_info_df['Gene Names'].str.extract(locustag_regex)
-    print(uniprot_info_df)
+
     uniprot_df = uniprot_info_df[['b_number', 'Entry', 'Mass']]
     ref_proteomics_data_mapped = pd.merge(ref_proteomics_data, uniprot_df, how = 'right',
                                left_on = 'Bnumber', right_on='b_number')
@@ -432,7 +438,7 @@ def get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df,
     fraction_groups = ['model', 'method'] if per_method else ['model']
     total_proteome_df_cog_sum['fraction_sums'] = total_proteome_df_cog_sum.groupby(fraction_groups)['fraction'].transform(
         'sum')
-    print(total_proteome_df_cog_sum)
+
     total_proteome_df_cog_sum['positive_change'] = total_proteome_df_cog_sum['positive_change'] / \
                                                    total_proteome_df_cog_sum['fraction_sums']
     # Aggregate the data and divide by the fraction sum per model
@@ -484,27 +490,6 @@ def create_proteomics_bargraph(got_enzymes_file: str,
                                                         left_on='b_number',
                                                         right_index=True).drop_duplicates()
     cog_changed_protein_conc = get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df,)
-    # measured_proteins = all_protein_concentrations.drop_duplicates(['enzyme_id', 'method'])
-    # measured_proteins['model'] = 'Measurements'
-    # total_proteome_df_cog_sum = pd.concat([all_protein_concentrations, measured_proteins])
-    # protein_conc_vs_cog_df = (total_proteome_df_cog_sum
-    #                           .merge(protein2cog_df[['COG Name']],
-    #                                  left_on='b_number',
-    #                                  right_index=True)
-    #                           .drop_duplicates()[
-    #                               ['enzyme_id', 'rxn_id', 'model', 'COG Name', 'method', 'normalized_fraction',
-    #                                'fraction']]
-    #                           .groupby(['model', 'COG Name', 'method'])
-    #                           .sum()
-    #                           .reset_index()
-    #                           )
-    # protein_conc_vs_cog_df = protein_conc_vs_cog_df.drop_duplicates()
-    # cog_changed_protein_conc = protein_conc_vs_cog_df
-    # # cog_changed_protein_conc = protein_conc_vs_cog_df[protein_conc_vs_cog_df.method == 'Batch']
-    # cog_changed_protein_conc['COG description'] = cog_changed_protein_conc['COG Name']
-    # cog_changed_protein_conc['Change'] = cog_changed_protein_conc['normalized_fraction']
-    # cog_changed_protein_conc['alternative'] = cog_changed_protein_conc['model']
-    # print(cog_changed_protein_conc.alternative.unique())
 
     create_cog_barplot(cog_changed_protein_conc, ax, plotting_threshold=0.2, legend=True,
                        xlabel=r'$\sum\frac{g_{prot,COG}}{g_{protein}}$',
@@ -512,13 +497,15 @@ def create_proteomics_bargraph(got_enzymes_file: str,
 
                        # other_colors={'GotEnzymes': 'grey',  'After preprocessing': 'black'})
 
-def create_proteomics_linegraphs(got_enzymes_file: str,
+def create_proteomics_boxplots(got_enzymes_file: str,
                                multi_file: str,
                                diagnostic_files: List[str],
                                model_file_path: str,
                                ref_proteome_data_file: str,
                                uniprot_ref_file:str,
-                               ax:plt.Axes,
+                               gs:gridspec.GridSpec,
+                               fig: plt.Figure,
+                               top_n = None
                                ):
 
     protein2cog_df = pd.read_excel(ref_proteome_data_file,
@@ -543,27 +530,15 @@ def create_proteomics_linegraphs(got_enzymes_file: str,
                                                         right_index=True).drop_duplicates()
     cog_changed_protein_conc = get_changes_in_protein_abundance_per_cog(protein_conc_vs_cog_df,
                                                                         per_method = True)
-    cog_changed_protein_conc['model'] = cog_changed_protein_conc['alternative']
 
-    # protein_conc_vs_cog_df = (all_protein_concentrations
-    #                           .merge(protein2cog_df[['COG Name']],
-    #                                                     left_on='b_number',
-    #                                                     right_index=True)
-    #                           .drop_duplicates()[['enzyme_id', 'rxn_id', 'model', 'COG Name','method', 'normalized_fraction', 'fraction']]
-    #                           .groupby(['model', 'COG Name','method'])
-    #                           .sum()
-    #                           .reset_index()
-    #                           )
-    print(cog_changed_protein_conc.columns)
     cog_order = (cog_changed_protein_conc.groupby('COG description')
                .sum()
                .sort_values(by=['Change'], ascending=False)
                .reset_index()
                )['COG description']
-    print(cog_order)
-    print(cog_changed_protein_conc.groupby('COG description')
-               .sum()
-               .sort_values(by=['Change'], ascending=False))
+    top_n = len(cog_order) if top_n is None else top_n
+    cog_order = cog_order[:top_n]
+    cog_changed_protein_conc = cog_changed_protein_conc[cog_changed_protein_conc['COG description'].isin(cog_order)]
     model_colors = sns.color_palette("viridis", n_colors=10)
     cmap = {
         **{l: c for l, c in
@@ -574,27 +549,47 @@ def create_proteomics_linegraphs(got_enzymes_file: str,
     cog_changed_protein_conc['growth_rate'] = cog_changed_protein_conc['method'].apply(
         lambda x: method2mu[x])
     cog_changed_protein_conc = cog_changed_protein_conc.sort_values(by=['growth_rate'])
-    fig, ax = plt.subplots(nrows=len(method2mu),figsize = (10,15), sharex=True)
+
+    # gs_outer =gridspec.GridSpecFromSubplotSpec(ncols=2, nrows= 1, width_ratios = [1e-3,100], subplot_spec = gs)
+    # gs_inner = gridspec.GridSpecFromSubplotSpec(nrows = len(method2mu)+1, ncols = 1, subplot_spec = gs_outer[1], height_ratios=[2,2,2,1])
+    gs_inner = gridspec.GridSpecFromSubplotSpec(nrows = len(method2mu)+1, ncols = 1, subplot_spec = gs, height_ratios=[2,2,2,1], hspace = 0.3)
+
+    # ghost axis for setting general y-label
+    ax_left = fig.add_subplot(gs_inner[:])
+    ax_left.xaxis.set_visible(False)
+    ax_left.set_yticks([])
+    for spine in ['top', 'right', 'bottom', 'left']:
+        ax_left.spines[spine].set_visible(False)
+    ax_left.set_ylabel(r'Protein fraction $\sum\frac{g_{prot,COG}}{g_{protein}}$', labelpad = 30)
+
+    ax = fig.add_subplot(gs_inner[-2])
+    axs = [fig.add_subplot(gs_inner[i], sharex=ax) for i in range(len(method2mu)-1)]
+    axs += [ax]
+
     mu2index = {mu:i for i, mu in enumerate(cog_changed_protein_conc['growth_rate'].unique())}
     for growth_rate, df in cog_changed_protein_conc.groupby(['growth_rate']):
         i = mu2index[growth_rate]
 
         df = df[df['Change Type'] == 'positive_change'] #by definition change cannot be negative, this is in the columns for reusability of the function
         for other_datapoint, marker in zip(['Measurements', 'After preprocessing'], [',', '^']):
-            df_other = df[df.model == other_datapoint].sort_values(
+            df_other = df[df.alternative == other_datapoint].sort_values(
                 'COG description',key=lambda s: pd.Categorical(s, categories=cog_order, ordered=True)
             )
-            ax[i].scatter(range(1, len(df_other['COG description'].unique())+1), df_other['Change'],
+            axs[i].scatter(range(1, len(df_other['COG description'].unique())+1), df_other['Change'],
                           label = other_datapoint, color = cmap[other_datapoint], marker=marker)
-        df = df[df.model != 'After preprocessing']
-        df= df[df.model != 'Measurements']
+        df = df[df.alternative != 'After preprocessing']
+        df = df[df.alternative != 'Measurements']
         fraction_per_cog = [df[df['COG description'] == cog]['Change'].values for cog in cog_order]
-        ax[i].set_title(f'Growth rate {growth_rate} 1/h')
-        ax[i].boxplot(fraction_per_cog)
-
-        ax[i].set_xticks(range(1, len(df['COG description'].unique())+1), cog_order, rotation=90)
-        ax[i].set_ylabel('Normalized Fraction [gProtein/gCDW]')
-        # ax[i].set_yscale('log')
+        axs[i].set_title(f'Growth rate {growth_rate} 1/h')
+        axs[i].boxplot(fraction_per_cog)
+        axs[i].grid(visible=True, alpha=0.2, linewidth=0.7)
+    for j in [0,1]:
+        axs[j].tick_params(axis='x', labelbottom=False, bottom=False, top=False)
+        axs[j].grid(axis = 'x', visible=True, alpha=0.2, linewidth=0.7)
+    axs[2].legend(loc = 'upper right')
+    axs[2].set_xticks(range(1, len(cog_order)+1),
+                          [COG_MAPPER[cog].replace('metabolism', '').replace('biogenesis', '\nbiogenesis').replace('\n generation', '') for cog in cog_order], rotation=90)
+    # axs[-1].set_ylabel(r'$\sum\frac{g_{prot,COG}}{g_{protein}}$')
     # h, l = ax[0].get_legend_handles_labels()
     # handles, labels = [], []
     # for handle, label in zip(h,l):
@@ -603,27 +598,13 @@ def create_proteomics_linegraphs(got_enzymes_file: str,
     #     labels.append(label)
     #
     # fig.legend(handles,labels, loc='upper right')
-    fig.tight_layout()
-    fig.subplots_adjust(right=0.8)
-    fig.savefig('Figures/tests.png')
-
-    fig, ax = plt.subplots(nrows=len(method2mu), figsize=(10, 15), sharex=True)
-    for growth_rate, df in protein_conc_vs_cog_df.groupby(['growth_rate']):
-        i = mu2index[growth_rate]
-        heatmap_data = df.pivot(index='COG Name', columns='model', values='normalized_fraction').loc[cog_order]
-        sns.heatmap(heatmap_data, cmap="viridis", cbar_kws={'label':'Normalized Fraction'},
-                    ax = ax[i])#, norm=LogNorm(vmin=1e-6, vmax=heatmap_data.max().max()))
-        ax[i].set_title(f"Growth Rate {growth_rate}")
-        ax[i].set_ylabel("Functional Category")
-        ax[i].set_xlabel("Model")
-    plt.tight_layout()
-    fig.savefig('Figures/tests_heatmap.png')
-
-
+    # fig.tight_layout()
+    # fig.subplots_adjust(right=0.8)
+    # fig.savefig('Figures/tests.png')
 
 def main():
     NUM_ALT_MODELS = 10
-    FONTSIZE = 14
+    FONTSIZE = 12
     REF_PROTEOMICS_FILE = os.path.join('Data', 'Ecoli_phenotypes', 'proteome_data_extract_schmidt2016.xlsx')
     UNIPROT_INFO_FILE = os.path.join('Data', 'Databases', 'uniprotkb_ecolik12_240726.xlsx')
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
@@ -648,29 +629,38 @@ def main():
         **other_colors}
 
     #create a pretty figure
-    fig = plt.figure(figsize=(21/2.58, 15/2.58))
+    fig = plt.figure(figsize=(30/2.58, 18/2.58))
     plt.rcParams.update({'font.size': FONTSIZE})
 
-    # Outer GridSpec: 2 rows (80% heatmaps, 20% colorbar)
-    gs_main = gridspec.GridSpec(1, 2,wspace=0.6,
-                                width_ratios=[10,6])
-    gs_inner_l = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[1],
-                                                hspace=0.2,height_ratios=[5,3]
+    # Outer GridSpec: 3 columns: kcat_histogram+legend, kcat_barchart, protein_boxplots
+    gs_main = gridspec.GridSpec(1, 3, width_ratios=[1, 2, 2], wspace = 0.4)
+    gs_inner_l = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[0],
+                                                hspace=0.3,height_ratios=[2,3]
                                                 )
 
-    gs_inner_r = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_main[0],
-                                                    hspace=0.5,height_ratios=[10,1])
+    gs_inner_mid = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_main[1], width_ratios=[1,5],
+                                                    height_ratios=[10,1]
+                                                )
 
-    protein_bar_ax = fig.add_subplot(gs_inner_l[0])
-    create_proteomics_bargraph(got_enzymes_file=PARAM_FILE_ORI,
+    gs_inner_r = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[2])
+
+    # protein_bar_ax = fig.add_subplot(gs_inner_l[0])
+    # create_proteomics_bargraph(got_enzymes_file=PARAM_FILE_ORI,
+    #                            multi_file=PARAM_FILE_PREPROC,
+    #                            diagnostic_files=diagnostic_files,
+    #                            model_file_path=MODEL_FILE,
+    #                            ref_proteome_data_file=REF_PROTEOMICS_FILE,
+    #                            uniprot_ref_file=UNIPROT_INFO_FILE,
+    #                            ax=protein_bar_ax)
+    create_proteomics_boxplots(got_enzymes_file=PARAM_FILE_ORI,
                                multi_file=PARAM_FILE_PREPROC,
                                diagnostic_files=diagnostic_files,
                                model_file_path=MODEL_FILE,
                                ref_proteome_data_file=REF_PROTEOMICS_FILE,
                                uniprot_ref_file=UNIPROT_INFO_FILE,
-                               ax=protein_bar_ax)
+                               fig = fig, gs= gs_inner_r[0], top_n=7)
 
-    ax2 = fig.add_subplot(gs_inner_l[1])
+    ax2 = fig.add_subplot(gs_inner_l[0])
     hist_ax = create_kcat_histogram_old_vs_new([PARAM_FILE_ORI,
                                                       PARAM_FILE_PREPROC] + parameter_files,
                                                      ax2,
@@ -682,14 +672,12 @@ def main():
     hist_ax.set_axisbelow(True)
 
     # create a legend
-    legend_ax = fig.add_subplot(gs_inner_r[1])
+    legend_ax = fig.add_subplot(gs_inner_l[1])
     handles, labels = [], []
     # for ax in [line_axs[0], ax2]:
     legend_ax.axis("off")  # Hide axes
-    hist_ax.plot([],[],label='GotEnzymes', color='grey', linewidth=5)#dummy line for complete legend
-    hist_ax.plot([],[],label='After preprocessing', color='black', linewidth=5)#dummy line for complete legend
-
-    hist_ax.plot([],[],label='iML1515', color='black', linestyle ='--',linewidth=5)#dummy line for complete legend
+    # hist_ax.plot([],[],label='GotEnzymes', color='grey', linewidth=5)#dummy line for complete legend
+    # hist_ax.plot([],[],label='After preprocessing', color='black', linewidth=5)#dummy line for complete legend
 
     for ax in [hist_ax, ax2]:
         h, l = ax.get_legend_handles_labels()
@@ -697,22 +685,23 @@ def main():
             if label not in labels:
                 handles.extend([handle])
                 labels.extend([label])
-    legend_ax.legend(handles, labels, loc="center",
-                     fontsize=FONTSIZE,
-                     bbox_to_anchor = (0.2,0),
-                     ncol=round(len(labels)/5), frameon=False)
+    legend_ax.legend(handles, labels, loc="lower left",
+                     fontsize=FONTSIZE-2,ncols =1,
+                     bbox_to_anchor = (-0.3,0),
+                     frameon=False)
     # ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
 
-    ax3 = fig.add_subplot(gs_inner_r[0])
+    ax3 = fig.add_subplot(gs_inner_mid[0,1])
     bar_ax = create_kcat_change_per_cog_barplot(PARAM_FILE_PREPROC,
                                                 MODEL_FILE,
                                                 diagnostic_files,
                                                 ax3, legend=False,
-                                                cmap = cmap)
+                                                cmap = cmap,
+                                                fontsize=FONTSIZE)
 
     #Add alphabet annotations
     #first 4 axes are added in reverse, and must ignore additional axis for x/y label config
-    annotations = ["D", "C", "B", "A","","E","", "F"]
+    annotations = [ "","E", "C", "D", "A", "", "B"]
     fontsize = FONTSIZE  # Adjust as needed
 
     for ax, label in zip(fig.axes, annotations):
@@ -737,15 +726,15 @@ if __name__ == '__main__':
     diagnostic_files = [os.path.join('Results', '2_parametrization', 'diagnostics',
                                      f'pam_parametrizer_diagnostics_{file_nmbr}.xlsx') for file_nmbr in
                         range(1, NUM_ALT_MODELS + 1)]
-    create_proteomics_linegraphs(got_enzymes_file=PARAM_FILE_ORI,
-                               multi_file=PARAM_FILE_PREPROC,
-                               diagnostic_files=diagnostic_files,
-                               model_file_path=MODEL_FILE,
-                               ref_proteome_data_file=REF_PROTEOMICS_FILE,
-                               uniprot_ref_file=UNIPROT_INFO_FILE,
-                                 ax = ''
-                               )
-    # main()
+    # create_proteomics_boxplots(got_enzymes_file=PARAM_FILE_ORI,
+    #                            multi_file=PARAM_FILE_PREPROC,
+    #                            diagnostic_files=diagnostic_files,
+    #                            model_file_path=MODEL_FILE,
+    #                            ref_proteome_data_file=REF_PROTEOMICS_FILE,
+    #                            uniprot_ref_file=UNIPROT_INFO_FILE,
+    #                              ax = ''
+    #                            )
+    main()
     # fig,ax = plt.subplots()
     # create_proteomics_bargraph(got_enzymes_file=PARAM_FILE_ORI,
     #                            multi_file=PARAM_FILE_PREPROC,

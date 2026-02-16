@@ -134,13 +134,13 @@ def main():
         **other_colors}
 
     #create a pretty figure
-    fig = plt.figure(figsize=(21/2.58, 17/2.58))
+    fig = plt.figure(figsize=(21/2.58, 15/2.58))
 
     gs_main = gridspec.GridSpec(1, 2,wspace=0.6,
                                 width_ratios=[10,1.2])
     gs_inner = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_main[0],
-                                                    wspace = 0.4,
-                                                    hspace=0.4
+                                                    wspace = 0.5,
+                                                    hspace=0.3
                                                 )
 
     axs1 =[None,None,None,None]
@@ -171,11 +171,12 @@ def main():
     # for ax in [line_axs[0], ax2]:
     legend_ax.axis("off")  # Hide axes
     # line_axs[0].plot([],[],label='After preprocessing', color='black', linewidth=5)#dummy line for complete legend
-    line_axs[0].plot([],[],label='iML1515', color='black', linestyle ='--',linewidth=5)#dummy line for complete legend
+    line_axs[0].plot([],[],label='iML1515', color='black', linestyle =':',linewidth=2)#dummy line for complete legend
 
     handles, labels = line_axs[0].get_legend_handles_labels()
     h, l = [],[]
     for handle, label in zip(handles, labels):
+        label = label.replace('After ', 'After\n')
         if not label in l:
             l.append(label)
             h.append(handle)
