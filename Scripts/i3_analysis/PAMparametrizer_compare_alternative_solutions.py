@@ -8,9 +8,9 @@ from PAModelpy.utils.pam_generation import set_up_pam
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
 # from Scripts.i2_parametrization.mcpam import set_up_pamparametrizer as set_up_pamparametrizer_mcpam
 
-from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
-from Modules.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
-from Modules.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation
+from PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
+from PAMparametrizer.utils.pamparametrizer_analysis import set_up_pam_parametrizer_and_get_substrate_uptake_rates
+from PAMparametrizer.utils.pamparametrizer_visualization import plot_valid_data, plot_simulation
 
 
 

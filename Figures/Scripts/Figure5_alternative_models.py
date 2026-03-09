@@ -29,7 +29,9 @@ PAM_KCAT_FILES_IJN = [os.path.join('Results', '2_parametrization', 'diagnostics'
 FONTSIZE=11
 
 labels = [f'Alternative {i}' for i in range(1, NUM_MODELS+1)]
-rxns2label = {'EX_o2_e': 'O2 uptake\n[mmol/gCDW/h]', 'EX_co2_e': 'CO2 excretion\n[mmol/gCDW/h]', 'EX_glc__D_e': 'glc uptake\n[mmol/gCDW/h]', 'Growth': 'Growth',
+rxns2label = {'EX_o2_e': r'O$_{2}$ uptake'+'\n'+r'[mmol/g$_{\text{CDW}}$/h]',
+              'EX_co2_e': r'CO$_{2}$ evolution'+'\n'+r'[mmol/g$_{\text{CDW}}$/h]',
+              'EX_glc__D_e': 'glc uptake'+'\n'+r'[mmol/g$_{\text{CDW}}$/h]',
               'BIOMASS_KT2440_WT3':'Growth [1/h]', 'Growth':'Growth [1/h]'}
 
 def plot_simulations_vs_experiments(pamodel: 'PAModel',
@@ -105,7 +107,7 @@ def main():
     gs_main_bottom = gridspec.GridSpecFromSubplotSpec(2, 1, height_ratios=[4,3], hspace=0.6, subplot_spec=gs_main[1])
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main_top[0],
-                                                    wspace=0.4)
+                                                    wspace=0.45)
 
     gs_cgb_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main_top[1],width_ratios=[1,20])[1]
     # gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[1])

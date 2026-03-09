@@ -187,7 +187,7 @@ def main_datareduc():
 
     fig.tight_layout()
     fig.subplots_adjust(left = 0.2)
-    fig.savefig(os.path.join('Figures', 'Figure4_data_reduction.png'))
+    fig.savefig(os.path.join('Figures', 'Figure6_data_reduction.png'))
 
 if __name__ == "__main__":
     main_datareduc()

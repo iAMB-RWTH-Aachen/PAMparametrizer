@@ -8,8 +8,8 @@ import seaborn as sns
 
 from Scripts.i3_analysis.PAMparametrizer_compare_alternative_solutions import set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates
 
-from Modules.utils.error_calculation import nanaverage, calculate_smape_for_reaction
-from Modules.utils.pam_generation import create_pamodel_from_diagnostics_file
+from PAMparametrizer.utils.error_calculation import nanaverage, calculate_smape_for_reaction
+from PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
 from matplotlib.pyplot import savefig
 
 NUM_DATAPOINTS = 53
@@ -132,9 +132,9 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     metrics_mapper = {'rsquared': r'$R^{2}$',
                       'smape': 'Symmetric Mean Absolute Percentage Error'}
     rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
-                  'EX_co2_e': 'CO2 excretion',
-                  'EX_o2_e': 'O2 uptake',
-                  'EX_ac_e': 'Acetate excretion',
+                  'EX_co2_e': r'CO$_{2}$ evolution',
+                  'EX_o2_e': 'O$_{2}$ uptake',
+                  'EX_ac_e': 'Acetate secretion',
                   'mean': 'mean'}
 
     reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
@@ -192,9 +192,9 @@ def plot_deviation_of_error(final_errors: pd.DataFrame,
     metrics_mapper = {'rsquared': r'$R^{2}$',
                       'smape': 'Symmetric Mean Absolute Percentage Error'}
     rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
-                  'EX_co2_e': 'CO2 excretion',
-                  'EX_o2_e': 'O2 uptake',
-                  'EX_ac_e': 'Acetate excretion',
+                  'EX_co2_e': r'CO$_{2}$ evolution',
+                  'EX_o2_e': 'O$_{2}$ uptake',
+                  'EX_ac_e': 'Acetate secretion',
                   'mean': 'mean'}
 
     reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
