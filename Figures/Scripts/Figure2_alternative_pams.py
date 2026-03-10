@@ -41,9 +41,9 @@ def recreate_progress_plot(best_indiv_files:list[str],
                            enzyme_sector_update:bool = True
                            ):
     rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate [1/h]',
-                  'EX_co2_e': r'CO$_2$ excretion',
-                  'EX_o2_e': 'rO$_2$ uptake',
-                  'EX_ac_e': 'Acetate excretion'}
+                  'EX_co2_e': r'CO$_2$ evolution',
+                  'EX_o2_e': r'O$_2$ uptake',
+                  'EX_ac_e': 'Acetate secretion'}
     j=0
 
     if pamparam_setup is None:

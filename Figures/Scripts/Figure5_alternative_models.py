@@ -107,7 +107,7 @@ def main():
     gs_main_bottom = gridspec.GridSpecFromSubplotSpec(2, 1, height_ratios=[4,3], hspace=0.6, subplot_spec=gs_main[1])
 
     gs_cgb_fluxes = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs_main_top[0],
-                                                    wspace=0.45)
+                                                    wspace=0.5)
 
     gs_cgb_heatmap = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main_top[1],width_ratios=[1,20])[1]
     # gs_cgb = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs_main[1])
