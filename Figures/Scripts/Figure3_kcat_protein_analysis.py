@@ -38,7 +38,7 @@ COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Coenzyme transport and metabolism': 'Coenzyme metabolism',
               'Defense mechanisms':'Defense mechanisms',
        'Energy production and conversion': 'Energy\n generation', 'Function unknown': 'Function unknown',
-       'General function prediction only': 'General function',
+       'General function prediction only': 'General\n function',
        'Inorganic ion transport and metabolism': 'Inorganic ion metabolism',
        'Intracellular trafficking, secretion, and vesicular transport': 'Intracellular transport',
        'Lipid transport and metabolism': 'Lipid metabolism',
@@ -291,7 +291,7 @@ def create_cog_barplot(cog_summary_long:pd.DataFrame,
                        fontsize=fontsize)  # Set labels in sorted order
 
     # Label axes
-    ax.set_xlabel(xlabel, fontsize=fontsize * 1.5)
+    ax.set_xlabel(xlabel, fontsize=fontsize * 1.5, labelpad=20)
     # ax.set_ylabel('COG Description', fontsize=fontsize * 1.5)
     ax.grid(visible=True, alpha=0.2, linewidth=0.7)
     ax.set_axisbelow(True)
@@ -604,7 +604,7 @@ def create_proteomics_boxplots(got_enzymes_file: str,
 
 def main():
     NUM_ALT_MODELS = 10
-    FONTSIZE = 12
+    FONTSIZE = 13
     REF_PROTEOMICS_FILE = os.path.join('Data', 'Ecoli_phenotypes', 'proteome_data_extract_schmidt2016.xlsx')
     UNIPROT_INFO_FILE = os.path.join('Data', 'Databases', 'uniprotkb_ecolik12_240726.xlsx')
     PARAM_FILE_ORI = os.path.join('Results', '1_preprocessing',
@@ -629,7 +629,7 @@ def main():
         **other_colors}
 
     #create a pretty figure
-    fig = plt.figure(figsize=(30/2.58, 18/2.58))
+    fig = plt.figure(figsize=(30/2.58, 21/2.58))
     plt.rcParams.update({'font.size': FONTSIZE})
 
     # Outer GridSpec: 3 columns: kcat_histogram+legend, kcat_barchart, protein_boxplots
@@ -686,7 +686,7 @@ def main():
                 handles.extend([handle])
                 labels.extend([label])
     legend_ax.legend(handles, labels, loc="lower left",
-                     fontsize=FONTSIZE-2,ncols =1,
+                     fontsize=FONTSIZE-1,ncols =1,
                      bbox_to_anchor = (-0.3,0),
                      frameon=False)
     # ax2.legend(handles, labels, loc="lower center", ncol=round(len(labels)/2), frameon=False)
