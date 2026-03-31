@@ -96,7 +96,7 @@ the unused enzyme sector. We can then compare the results and determine which 'm
 fit for the parametrization.
 
 - **Required input**:
-  - function to set up the PAM parametrizer (this includes experimental data for validation) (see [the documentation](../../docs/PAM_param.md) and `Scripts/Testing/pam_parametrizer_iML1515.py`)
+  - function to set up the PAM parametrizer (this includes experimental data for validation) (see [the documentation](../../docs/readthedocs/PAM_param.md) and `Scripts/Testing/pam_parametrizer_iML1515.py`)
   - list of potential maximum growth rates to scan
   - kcat_increase factor as obtained from `1_scale_kcats_AES.py` (replace with 1 if this step was skipped)
   - UE_0: level of protein overexpression (eGFP) (as fraction of total protein) at which growth rate is 0 h-1

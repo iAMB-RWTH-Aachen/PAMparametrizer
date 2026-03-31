@@ -100,7 +100,7 @@ to steer the behaviour of the genetic algorithm. To set up the PAMparametrizer, 
 holding this information. When running the PAMparametrizer, the results are saved in some additional data objects.
 You do not need to provide the latter object when initiating the PAMparametrizer, but we discuss them and their use here 
 for sake of completeness. For a more detailed description of the data objects and their function, please refer to the 
-[introduction of the PAMparametrizer](./PAM_param.md)
+[introduction of the PAMparametrizer](PAM_param.md)
 
 #### i. Parse the sector configuration
 The sector configuration helps the PAMparametrizer translate parameters which are related to the substrate uptake rate
@@ -241,7 +241,7 @@ intuitive way.
 
 This is an example of a progress plot with only glucose as a carbon source:
 
-![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_1.png)
+![example_progress_plot](../../Results/2_parametrization/progress/pam_parametrizer_progress_1.png)
 
 ### Step 6: Analyze the Results
 When the parametrization is finished, you can find 2 files in the `Results` directory:
@@ -444,7 +444,7 @@ Ideally, you would expect the points to ly on the diagonal.
 
 This is an example of a progress plot with multiple carbon sources:
 
-![example_progress_plot](../Results/2_parametrization/progress/pam_parametrizer_progress_iJN1463_5.png)
+![example_progress_plot](../../Results/2_parametrization/progress/pam_parametrizer_progress_iJN1463_5.png)
 
 ### Step 6: Analyze the Results
 When the the parametrization is finished, you can find 2 files in the `Results` directory:
