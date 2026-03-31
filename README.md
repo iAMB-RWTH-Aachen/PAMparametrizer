@@ -52,7 +52,7 @@ source code and other useful scripts for anyone who wants to create a PAM.
     - *Data_requirements*: scripts to analyse the data-dependency of the PAMparametrizer for parametrizing the iML1515 PAM
 - **tests**: testsuite for most of the code in this repository. This can also be used to see how the algorithm should be used and should behave.
 
-IMPORTANT: all code should be run from the main repository via the terminal. E.g. `python -m Scripts.Testing.pam_parametrizer_iML1515.py`
+IMPORTANT: all code should be run from the main repository via the terminal. E.g. `python -m Scripts.i2_parametrization.pam_parametrizer_iML1515.py`
 
 ## Code structure
 For a more detailed look on the interdependencies of the framework and the structure of the packages, please have a look at
