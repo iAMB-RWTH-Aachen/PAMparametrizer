@@ -22,7 +22,7 @@ pip install -e ./Modules
 ```
 
 ## Documentation
-TODO:need to make read the docs
+Documentation including examples and suggestions on how to perform the parametrization can be found in the [documentation](https://pamparametrizer.readthedocs.io/en/latest/)
 
 ## What can you find where in this repository?
 This repository contains not only the source code, but also examples and scripts which were used in **INSERT PUBLICATION HERE**.
