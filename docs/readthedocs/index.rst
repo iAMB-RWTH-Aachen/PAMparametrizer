@@ -11,18 +11,17 @@ In this documentation, you can find all the information you need to parametrizer
    Introduction.md
    Genetic_algorithm.md
    Example.md
-    PAM_param.md
-    PAMparametrizer_workflow.md
+   PAM_param.md
+   PAMparametrizer_workflow.md
 
 .. toctree::
    :maxdepth: 1
    :caption: API reference
-
-  - PAM_parametrizer: api/PAMparametrizer/PAM_parametrizer.md
-  - PAM_parametrizer.KcatConstraintConfig: api/PAMparametrizer/PAM_parametrizer/KcatConstraintConfig.md
-  - PAM_parametrizer.PAM_data_classes: api/PAMparametrizer/PAM_parametrizer/PAM_data_classes.md
-  - PAM_parametrizer.pam_parametrizer: api/PAMparametrizer/PAM_parametrizer/pam_parametrizer.md
-  - genetic_algorithm_parametrization: api/PAMparametrizer/genetic_algorithm_parametrization.md
+   api/PAMparametrizer/PAM_parametrizer.md
+   api/PAMparametrizer/PAM_parametrizer/KcatConstraintConfig.md
+   api/PAMparametrizer/PAM_parametrizer/PAM_data_classes.md
+   api/PAMparametrizer/PAM_parametrizer/pam_parametrizer.md
+   genetic_algorithm_parametrization: api/PAMparametrizer/genetic_algorithm_parametrization.md
   - genetic_algorithm_parametrization.Evaluation: api/PAMparametrizer/genetic_algorithm_parametrization/Evaluation.md
   - genetic_algorithm_parametrization.Evaluation.Fitfun_params_gaussian: api/PAMparametrizer/genetic_algorithm_parametrization/Evaluation/Fitfun_params_gaussian.md
   - genetic_algorithm_parametrization.Evaluation.Fitfun_params_uniform: api/PAMparametrizer/genetic_algorithm_parametrization/Evaluation/Fitfun_params_uniform.md
