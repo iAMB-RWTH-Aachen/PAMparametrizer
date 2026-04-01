@@ -2,6 +2,7 @@
 # Set the source directory for your Sphinx documentation files
 # source_suffix = ['.rst', '.md']  # If using Markdown files with MyST
 
+
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
@@ -22,11 +23,28 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
+    "autodoc2",
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'myst_parser',  # Add this for Markdown support
     "sphinx.ext.napoleon",    # Google/NumPy style docstrings
 ]
+
+# autodoc2_packages = [
+#     "../../Modules/PAMparametrizer/PAM_parametrizer",
+#     "../../Modules/PAMparametrizer/genetic_algorithm_parametrization",
+#     "../../Modules/PAMparametrizer/utils"
+# ]
+#
+# # Sphinx source directory** (i.e. <repo>/docs/readthedocs/api/)
+# autodoc2_output_dir = "api"      # ← must be a *string*, not a list
+#
+# # Optional – create a tiny table‑of‑contents inside each generated file
+# autodoc2_create_toc = True
+#
+# # Optional – you can also ask autodoc2 to show source links, etc.
+# autodoc2_show_source = True
+# autodoc2_heading_level = 2
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
