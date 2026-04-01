@@ -259,6 +259,15 @@ def write_all_md_stubs(
 
     written_files: List[pathlib.Path] = []
 
+    from python_docstring_markdown import crawl
+
+    # Generate documentation for a package
+    docs_content = crawl(src_root)
+
+    # Save to a file
+    with open("docs/api.md", "w") as f:
+        f.write(docs_content)
+
     # ``pkgutil.iter_modules`` gives us a clean list of *files* that are importable.
     # We use ``walk_packages`` because it also traverses sub‑packages.
     try:
