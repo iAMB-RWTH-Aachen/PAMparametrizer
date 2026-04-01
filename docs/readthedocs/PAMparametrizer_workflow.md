@@ -1,5 +1,4 @@
 # Parametrizing a PAM: from GEM to PAM
-*******
 
 Building a Protein Allocation Model (PAM) from a genome-scale metabolic model (GEM) requires several inputs and design choices
 from the user. In this workflow, all the steps, requirements, and inputs are listed. All steps are, where possible,

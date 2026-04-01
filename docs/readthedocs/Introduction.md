@@ -1,5 +1,4 @@
 # PAMparametrizer - parametrizing Protein Allocation Models with Flux Data
-*******
 
 ## Why do we need a PAMparametrizer?
 The Protein Allocation Model is a constraint-based model that includes constraints connecting enzyme concentrations

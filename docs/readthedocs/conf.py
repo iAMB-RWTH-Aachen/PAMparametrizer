@@ -1,6 +1,11 @@
 
 # Set the source directory for your Sphinx documentation files
-source_suffix = ['.rst', '.md']  # If using Markdown files with MyST
+# source_suffix = ['.rst', '.md']  # If using Markdown files with MyST
+
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # -- Project information
 
@@ -20,6 +25,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'myst_parser',  # Add this for Markdown support
+    "sphinx.ext.napoleon",    # Google/NumPy style docstrings
 ]
 
 intersphinx_mapping = {
@@ -34,6 +40,16 @@ templates_path = ['_templates']
 
 html_theme = 'sphinx_rtd_theme'
 
+# Theme options – enable displaying multiple toctrees
+html_theme_options = {
+    # The RTD theme collapses each toctree into its own section by default.
+    # Setting "collapse_navigation" to False shows every toctree as a separate
+    # top‑level item in the side bar.
+    "collapse_navigation": False,
+    # Optional: how deep the side‑bar tree may go
+    "navigation_depth": 4,
+}
+
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
 
@@ -43,4 +59,5 @@ myst_enable_extensions = [
     "deflist",      # Support for definition lists
     "html_admonition",  # HTML-style admonitions
     "html_image",   # Use HTML-style <img> tags
+    "smartquotes",
 ]

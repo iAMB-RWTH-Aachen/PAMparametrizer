@@ -14,3 +14,4 @@ Modules/build
 Modules/PAMparametrizer.egg-info
 mkdocs.yml
 mkdocs.yml.bak
+docs/*/build
