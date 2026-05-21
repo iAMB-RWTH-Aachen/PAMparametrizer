@@ -230,7 +230,7 @@ class GAPO():
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
             # load preinstalled module
-            self.fitness_class = importlib.import_module("Modules.genetic_algorithm_parametrization.Evaluation."+fitness_class)
+            self.fitness_class = importlib.import_module("PAMparametrizer.genetic_algorithm_parametrization.Evaluation."+fitness_class)
         else:
             self.fitness_class = fitness_class
 

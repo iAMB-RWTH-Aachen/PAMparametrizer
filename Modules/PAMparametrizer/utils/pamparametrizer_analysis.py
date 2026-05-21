@@ -3,8 +3,8 @@ import numpy as np
 import cobra
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Iterable, Union, Literal, Dict, List, Tuple, Callable
-from scipy.stats import entropy
+from typing import Iterable, Union, Literal, Dict, List, Tuple, Callable, Optional
+from scipy.stats import entropy, pearsonr, f_oneway
 from scipy.cluster.hierarchy import fcluster
 from sklearn.decomposition import PCA
 
@@ -259,6 +259,77 @@ def calculate_difference_simulation_experiment(validation_df:pd.DataFrame,
         differences += [row[rxn] - row['simulation'] if not np.isnan(row.simulation) else row[rxn] for i,row in ref_data_rxn.iterrows()]
     return differences
 
+def _align_frames(
+    validation_df: pd.DataFrame,
+    flux_df: pd.DataFrame,
+    rxns_to_validate,
+    substr_rxn: str,
+    substrate_sim: str = "substrate",
+) -> pd.DataFrame:
+    """
+    Merge experimental and simulated data on the substrate identifier.
+    The function also makes sure that all reactions we are interested in exist
+    in both tables (otherwise they are dropped automatically).
+
+    Returns a DataFrame with columns:
+        - substrate (the joining key)
+        - <exp_rxn_1>, <exp_rxn_2>, …            (experimental values)
+        - <sim_rxn_1>, <sim_rxn_2>, …            (simulation values)
+    """
+    exp_sub = validation_df[[substr_rxn] + rxns_to_validate].copy()
+    sim_sub = flux_df[[substrate_sim] + rxns_to_validate].copy()
+    sim_sub = sim_sub.rename(columns={substrate_sim: substr_rxn})
+    merged = pd.merge(exp_sub, sim_sub,
+                      on=substr_rxn,
+                      suffixes=('_exp', '_sim'),
+                      how='inner')
+    return merged
+
+def calulate_pearson_correlation_simulation_vs_experiment(
+    validation_df: pd.DataFrame,
+    flux_df: pd.DataFrame,
+    rxns_to_validate: List[str],
+    substr_rxn: str,
+    substrate_sim: str = "substrate",
+    absolute_rxns: Optional[List[str]] = ['PGI', 'EX_ac_e', 'EX_glc__D_e', 'substrate']
+) -> Tuple[float, float]:
+    """
+    1️⃣  Align experimental and simulated data on the substrate column.
+    2️⃣  (Optional) take absolute values for the reactions listed in `absolute_rxns`.
+    3️⃣  Stack all reactions into two long 1‑D arrays.
+    4️⃣  Compute a *single* Pearson r and its two‑sided p‑value.
+    """
+    if absolute_rxns:
+        for rxn in absolute_rxns:
+            if rxn in flux_df.columns:
+                flux_df[rxn] = flux_df[rxn].abs()
+    merged = _align_frames(validation_df, flux_df, rxns_to_validate, substr_rxn, substrate_sim)
+
+    exp_cols = [f"{rxn}_exp" for rxn in rxns_to_validate]
+    sim_cols = [f"{rxn}_sim" for rxn in rxns_to_validate]
+
+    merged_clean = merged.dropna(subset=exp_cols + sim_cols)
+
+    exp_long = merged_clean[exp_cols].values.ravel()
+    sim_long = merged_clean[sim_cols].values.ravel()
+
+    if np.std(exp_long) == 0 or np.std(sim_long) == 0:
+        raise ValueError("One of the aggregated vectors is constant → Pearson undefined.")
+    r, p = pearsonr(exp_long, sim_long)
+    return r, p
+
+def brown_forsythe_singificance_test(x, y):
+    # absolute deviations from group medians
+    z1 = np.abs(x - np.median(x))
+    z2 = np.abs(y - np.median(y))
+    # ANOVA on the deviations
+    f, p_two = f_oneway(z1, z2)
+    # one‑sided p‑value (test if var(x) < var(y))
+    if np.mean(z1) < np.mean(z2):
+        p_one = p_two / 2.0
+    else:
+        p_one = 1 - p_two / 2.0
+    return f, p_one
 
 ########
 #ANALYSIS OF KCATS AND ENZYMES
