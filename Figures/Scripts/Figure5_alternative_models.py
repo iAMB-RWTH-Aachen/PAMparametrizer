@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from cobra.io import read_sbml_model
 
 from Modules.PAMparametrizer.utils.pam_generation import setup_cglutamicum_pam, setup_pputida_pam
+from Modules.PAMparametrizer.utils.pamparametrizer_analysis import calulate_pearson_correlation_simulation_vs_experiment
 from PAModelpy import PAModel
 from Figures.Scripts.Figure1_iml1515_kcat_analysis import recreate_progress_plot
 from Scripts.i2_parametrization.pam_parametrizer_iCGB21FR import set_up_validation_data as refdata_setup_icgb21fr
@@ -59,9 +60,11 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
         axs[j].grid(visible=True, alpha=0.2, linewidth=0.7)
         axs[j].set_axisbelow(True)
 
+    print(f"model& pearson correlation & correlation p-value")
     for model_id, model in models.items():
         sub_rates = []
         flux = []
+        flux_df_entries =[]
         for rate in exp_data[sub_uptake]:
             if isinstance(model, PAModel):
                 model.change_reaction_bounds(sub_uptake, rate, 0)
@@ -71,6 +74,18 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
             if model.solver.status == 'optimal':
                 sub_rates+= [abs(rate)]
                 flux += [sol.fluxes]
+                fluxes = {rxn:abs(sol.fluxes[rxn]) for rxn in to_plot}
+                flux_df_entries.append({
+                        'substrate' : rate,
+                        **fluxes
+                })
+        flux_df = pd.DataFrame(flux_df_entries, columns=flux_df_entries[0].keys())
+        corr, p_corr = calulate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data,
+                                                                             flux_df = flux_df,
+                                                                             rxns_to_validate =to_plot,
+                                                                             substr_rxn=sub_uptake,
+                                                                             absolute_rxns=['EX_o2_e'])
+        print(f"{model_id}&{corr}&{p_corr}")
         for j,rxn in enumerate(to_plot):
             kwargs = {'color':cmap[model_id]}
             if model_id == 'GEM': kwargs = {'linestyle':'--', 'color': 'black'}
