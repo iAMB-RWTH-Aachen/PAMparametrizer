@@ -11,7 +11,8 @@ dependencies = [
     "gurobipy",
     "PAModelpy",
     "deap==1.4.*",
-    "scipy"
+    "scipy",
+    "seaborn"
 ]
 
 [build-system]
