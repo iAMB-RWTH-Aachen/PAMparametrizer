@@ -235,9 +235,6 @@ class GAPO():
 
         self.fitness_class = fitness_class.FitnessEvaluation if inspect.ismodule(fitness_class) else fitness_class
 
-
-
-
         # Set up fitness evaluation class
         self.FitEval = self.fitness_class(
             model=self.model,

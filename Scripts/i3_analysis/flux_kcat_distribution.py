@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from IPython.core.pylabtools import figsize
 from cobra.io.sbml import read_sbml_model
 from matplotlib.colors import to_hex
 import seaborn as sns
@@ -8,7 +7,6 @@ import pandas as pd
 import os
 
 from PAModelpy.utils import set_up_pam
-from sympy.printing.pretty.pretty_symbology import line_width
 
 PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
 SECTOR_PARAM_FILE = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')

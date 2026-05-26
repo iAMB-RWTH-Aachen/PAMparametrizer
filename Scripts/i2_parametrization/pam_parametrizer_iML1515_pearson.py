@@ -1,7 +1,9 @@
 import argparse
 import os
 import pandas as pd
-from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
+
+from collections.abc import Iterable
+from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer, set_up_validation_data
 
 from PAMparametrizer.genetic_algorithm_parametrization.Evaluation.Fitfun_params_uniform import FitnessEvaluation
 from PAMparametrizer.utils.pamparametrizer_analysis import calulate_pearson_correlation_simulation_vs_experiment
@@ -13,7 +15,7 @@ class FitnessEvaluationPearson(FitnessEvaluation):
             validation_df=self.valid_data[substrate_reaction],
             flux_df=flux_df,
             rxns_to_validate=self.reactions_with_data[substrate_reaction],
-            substr_rxn=substrate_reaction,
+            substr_rxn=substrate_reaction+'_ub',
             substrate_sim=substrate_reaction+'_ub',
 
         )
@@ -22,9 +24,6 @@ class FitnessEvaluationPearson(FitnessEvaluation):
 
 def parse_arguments():
     parser = argparse.ArgumentParser("pam_parametrizer_performance")
-    parser.add_argument("--model",
-                        help="which model to use can be 'ecolicore', 'ecoli' or 'toy'",
-                        type=str)
     parser.add_argument("--pam_info_file",
                         help="path to the file containing information about the parameters to build the pam",
                         type=str)
@@ -42,7 +41,7 @@ def parse_arguments():
     return args
 
 
-def run_parametrization_workflow(iteration, iterations,, set_up_pamparametrizer,
+def run_parametrization_workflow(iteration, iterations,set_up_pamparametrizer,
                                  processes,
                                  gene_flow_events, num_kcats_to_mutate,
                                  pam_info_file: str,
@@ -60,7 +59,7 @@ def run_parametrization_workflow(iteration, iterations,, set_up_pamparametrizer,
                                               kcat_increase_factor=7#, 'Glycerol', 'Acetate']
                                               #['Glycerol', 'Glucose', 'Acetate', 'Pyruvate', 'Gluconate', 'Succinate', 'Galactose', 'Fructose']
                                               )
-    parametrizer.hyperparameters['fitness_class'] = FitnessEvaluationPearson
+    parametrizer.hyperparameters.genetic_algorithm_hyperparams['fitness_class'] = FitnessEvaluationPearson
     parametrizer.run()
 
 
@@ -94,8 +93,9 @@ def analyse_parametrizer_performance():
             max_substrate_uptake=max_substrate)
 
 if __name__ == '__main__':
-    analyse_parametrizer_performance()
-
+    # analyse_parametrizer_performance()
+    vd = set_up_validation_data(['Glucose'], 'Results/1_preprocessing/proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
+    print(vd)
 
 
 
