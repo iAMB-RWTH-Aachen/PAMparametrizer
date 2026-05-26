@@ -6,6 +6,7 @@ Genetic algorithm (GA) for the prediction genome reduction paths based on metabo
 """
 import os
 from typing import Union, List, Dict
+import inspect
 
 # Disable gurobi logging output
 try:
@@ -230,14 +231,15 @@ class GAPO():
         # load preinstalled or use parsed custom fitness function evaluation class
         if isinstance(fitness_class, str):
             # load preinstalled module
-            self.fitness_class = importlib.import_module("PAMparametrizer.genetic_algorithm_parametrization.Evaluation."+fitness_class)
-        else:
-            self.fitness_class = fitness_class
+            fitness_class = importlib.import_module("PAMparametrizer.genetic_algorithm_parametrization.Evaluation."+fitness_class)
+
+        self.fitness_class = fitness_class.FitnessEvaluation if inspect.ismodule(fitness_class) else fitness_class
+
 
 
 
         # Set up fitness evaluation class
-        self.FitEval = self.fitness_class.FitnessEvaluation(
+        self.FitEval = self.fitness_class(
             model=self.model,
             sector_configs_per_substrate = sector_configs_per_substrate,
             fixed_attr_list=fixed_attributes,
