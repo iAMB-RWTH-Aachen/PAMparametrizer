@@ -276,13 +276,17 @@ def _align_frames(
         - <exp_rxn_1>, <exp_rxn_2>, …            (experimental values)
         - <sim_rxn_1>, <sim_rxn_2>, …            (simulation values)
     """
-    exp_sub = validation_df[[substr_rxn] + rxns_to_validate].copy()
-    sim_sub = flux_df[[substrate_sim] + rxns_to_validate].copy()
+
+    for df,rxn in zip([flux_df, validation_df],[substrate_sim, substr_rxn]):
+        df[rxn] = df[rxn].abs()
+    exp_sub = validation_df[[substr_rxn] + rxns_to_validate].copy().sort_values(substr_rxn)
+    sim_sub = flux_df[[substrate_sim] + rxns_to_validate].copy().sort_values(substrate_sim)
     sim_sub = sim_sub.rename(columns={substrate_sim: substr_rxn})
-    merged = pd.merge(exp_sub, sim_sub,
+    merged = pd.merge_asof(exp_sub, sim_sub,
                       on=substr_rxn,
                       suffixes=('_exp', '_sim'),
-                      how='inner')
+                           direction = 'nearest',
+                           tolerance = 1e-5)
     return merged
 
 def calulate_pearson_correlation_simulation_vs_experiment(
@@ -305,10 +309,14 @@ def calulate_pearson_correlation_simulation_vs_experiment(
                 flux_df[rxn] = flux_df[rxn].abs()
     merged = _align_frames(validation_df, flux_df, rxns_to_validate, substr_rxn, substrate_sim)
 
+    merged_clean = merged.dropna(axis =1)
+    rxns_to_validate = [rxn for rxn in rxns_to_validate if (f"{rxn}_exp" in merged_clean.columns)and(f"{rxn}_sim" in merged_clean.columns)]
+
+
     exp_cols = [f"{rxn}_exp" for rxn in rxns_to_validate]
     sim_cols = [f"{rxn}_sim" for rxn in rxns_to_validate]
 
-    merged_clean = merged.dropna(subset=exp_cols + sim_cols)
+    merged_clean = merged.dropna(subset = exp_cols+sim_cols ,axis =0)
 
     exp_long = merged_clean[exp_cols].values.ravel()
     sim_long = merged_clean[sim_cols].values.ravel()
