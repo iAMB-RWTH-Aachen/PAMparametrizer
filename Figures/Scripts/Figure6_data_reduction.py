@@ -130,8 +130,8 @@ def main_datareduc():
     ax_a.set_axisbelow(True)
 
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
-    plot_progression_of_errors(final_errors, ax = ax_a, legend=False, fontsize = FONTSIZE)
-    plot_deviation_of_error(final_errors, ax = ax_b, legend=False, fontsize = FONTSIZE)
+    plot_progression_of_errors(final_errors, ax = ax_a, legend=False, fontsize = FONTSIZE, metrics='rsquared')
+    plot_deviation_of_error(final_errors, ax = ax_b, legend=False, fontsize = FONTSIZE, metrics='rsquared')
 
     ax_a.xaxis.grid(visible=True, alpha=0.2, linewidth=0.7)
     ax_a.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)

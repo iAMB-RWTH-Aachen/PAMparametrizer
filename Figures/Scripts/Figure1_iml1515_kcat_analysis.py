@@ -6,7 +6,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import os
-from typing import List, Dict, Tuple, Callable
+from typing import List, Dict, Tuple, Callable, Literal
 from PAModelpy.utils import set_up_pam
 
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer
@@ -156,28 +156,42 @@ def calculate_change_in_kcat(best_individual_df: pd.DataFrame,
 
 def add_pathway_annotation_to_kcat_changes(best_individual_df: pd.DataFrame,
                               pathway_annotation_file:str = os.path.join('Data', 'GeneList_ecoli.xlsx'),
-                              gene_to_protein_sheet:str = 'GeneList', rxn_to_gene_sheet: str = 'gene2rxn'
+                              gene_to_protein_sheet:str = 'GeneList',
+                                           rxn_to_gene_sheet: str = 'gene2rxn'
                                            )->pd.DataFrame:
-    # get pathway information from genelist file
-    gene_list_info = pd.read_excel(pathway_annotation_file, sheet_name=gene_to_protein_sheet)
-    rxn2gene_info = pd.read_excel(pathway_annotation_file, sheet_name=rxn_to_gene_sheet)
-
-    # map cog information to reactions using the gene id
-    gene2rxn2cog = pd.merge(gene_list_info[['bnumber', 'COG description']], rxn2gene_info,
-                            left_on='bnumber', right_on='Gene', how='inner')
-    gene2rxn2cog.Reactions = gene2rxn2cog.Reactions.str.split(', ')
-    gene2rxn2cog['COG description'] = gene2rxn2cog['COG description'].str.split(';')
-    gene2rxn2cog = gene2rxn2cog.explode('Reactions')
-    gene2rxn2cog = gene2rxn2cog.explode('COG description').reset_index(drop=True)
-
-    best_kcats_with_cog = pd.merge(best_individual_df, gene2rxn2cog[['Reactions', 'COG description']],
-                                   left_on='rxn_id', right_on='Reactions', how='left')
+    best_kcats_with_cog = add_pathway_annotation_to_proteins(df_with_proteins=best_individual_df,
+                                                             pathway_annotation_file=pathway_annotation_file,
+                                                             gene_to_protein_sheet=gene_to_protein_sheet,
+                                                             rxn_to_gene_sheet=rxn_to_gene_sheet)
     best_kcats_with_cog = best_kcats_with_cog.drop_duplicates(
         ['rxn_id', 'enzyme_id', 'r_squared', 'COG description']).reset_index(drop=True)
     best_kcats_with_cog['enz_kcat_change']  = best_kcats_with_cog['kcat_change']
     total_change_per_iteration = best_kcats_with_cog.groupby(['alternative'])['kcat_change'].sum().abs().reset_index()
     return pd.merge(best_kcats_with_cog.drop('kcat_change', axis=1), total_change_per_iteration,
                              on=['alternative'])
+
+def add_pathway_annotation_to_proteins(df_with_proteins: pd.DataFrame,
+                                       pathway_annotation_file: str = os.path.join('Data', 'GeneList_ecoli.xlsx'),
+                                       gene_to_protein_sheet: str = 'GeneList',
+                                       rxn_to_gene_sheet: str = 'gene2rxn',
+                                        merge_on: Literal['rxn_id', 'protein_id']='rxn_id'
+                                       ) -> pd.DataFrame:
+    # get pathway information from genelist file
+    gene_list_info = pd.read_excel(pathway_annotation_file, sheet_name=gene_to_protein_sheet
+                                   ).rename({'Swiss-Prot primary accession number':'protein_id'}, axis =1)
+    rxn2gene_info = pd.read_excel(pathway_annotation_file, sheet_name=rxn_to_gene_sheet)
+
+    # map cog information to reactions using the gene id
+    gene2rxn2cog = pd.merge(gene_list_info[['bnumber','protein_id', 'COG description']], rxn2gene_info,
+                            left_on='bnumber', right_on='Gene', how='inner')
+    gene2rxn2cog.Reactions = gene2rxn2cog.Reactions.str.split(', ')
+    gene2rxn2cog['COG description'] = gene2rxn2cog['COG description'].str.split(';')
+    gene2rxn2cog = gene2rxn2cog.explode('Reactions')
+    gene2rxn2cog = gene2rxn2cog.explode('COG description').reset_index(drop=True
+                                                                       ).rename({'Reactions':'rxn_id'}, axis=1)
+
+    return pd.merge(df_with_proteins, gene2rxn2cog[[merge_on, 'COG description']],
+                                   on=merge_on, how='left')
 
 def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
     # Step 1: Compute the sums of positive and negative changes
