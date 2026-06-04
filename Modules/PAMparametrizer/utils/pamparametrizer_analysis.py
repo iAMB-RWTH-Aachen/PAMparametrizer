@@ -4,7 +4,7 @@ import cobra
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Iterable, Union, Literal, Dict, List, Tuple, Callable, Optional
-from scipy.stats import entropy, pearsonr, f_oneway
+from scipy.stats import entropy, f_oneway
 from scipy.cluster.hierarchy import fcluster
 from sklearn.decomposition import PCA
 

@@ -8,11 +8,24 @@ import seaborn as sns
 
 from Scripts.i3_analysis.PAMparametrizer_compare_alternative_solutions import set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates
 
-from PAMparametrizer.utils.error_calculation import nanaverage, calculate_smape_for_reaction
+from PAMparametrizer.utils.error_calculation import nanaverage, calculate_smape_for_reaction, calulate_pearson_correlation_simulation_vs_experiment
 from PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
 from matplotlib.pyplot import savefig
 
 NUM_DATAPOINTS = 53
+
+METRICS_MAPPER = {'rsquared': r'$R^{2}$',
+                  'smape': 'Symmetric Mean Absolute Percentage Error',
+                  'pearsonr': 'Pearson Correlation Coefficient', }
+
+RXN_MAPPER = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
+              'EX_co2_e': r'CO$_{2}$ evolution',
+              'EX_o2_e': 'O$_{2}$ uptake',
+              'EX_ac_e': 'Acetate secretion',
+              'mean': 'mean'}
+RXN_MAPPER = {**{rxn + '_EX_glc__D_e': annot for rxn, annot in RXN_MAPPER.items()},
+              **RXN_MAPPER}
+
 
 def run_simulations_and_calculate_error(parametrizer, substrate_rates) -> Tuple[dict[str, float], dict[str, float]]:
     fluxes, _ = parametrizer.run_simulations_to_plot(substrate_uptake_id='EX_glc__D_e',
@@ -30,7 +43,8 @@ def run_simulations_and_calculate_error(parametrizer, substrate_rates) -> Tuple[
                                                                       fluxes_abs=False)
     smape = get_smape_for_parametrization_experiment(parametrizer)
     error = get_rsquared_for_parametrization_experiment(parametrizer)
-    return error, smape
+    pearsonr = get_pearsonr_for_parametrization_experiment(parametrizer)
+    return error, smape, pearsonr
 
 def get_smape_for_parametrization_experiment(parametrizer) -> dict[str, float]:
     error = {}
@@ -70,6 +84,22 @@ def get_rsquared_for_parametrization_experiment(parametrizer) -> dict[str, float
 
     return error
 
+def get_pearsonr_for_parametrization_experiment(parametrizer) -> dict[str, float]:
+    error = {}
+    for valid_data in parametrizer.validation_data:
+        substrate_uptake_id = valid_data.id
+        reactions_to_validate = valid_data._reactions_to_validate
+        validation_df = parametrizer._get_validation_data_to_validate(valid_data)
+        flux_df = parametrizer.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
+        error = {**{f'{rxn}_{substrate_uptake_id}': calulate_pearson_correlation_simulation_vs_experiment(
+            validation_df = validation_df.dropna(),
+            flux_df=flux_df.dropna(),
+            rxns_to_validate=[rxn],
+            substr_rxn=substrate_uptake_id+'_ub',
+            substrate_sim= "substrate")[0] for rxn in reactions_to_validate}, **error}
+
+    return error
+
 
 def get_error_for_parametrization_experiment(parametrizer,
                                              best_indiv_file_path:str,
@@ -96,14 +126,15 @@ def compute_final_error_on_full_dataset_for_all_experiments(base_file_path: str,
             print(f'\tReplicate {sample}')
             file_path = f'{base_file_path}{datasize}_{sample}.xlsx'
             if os.path.exists(file_path):
-                error, smape = get_error_for_parametrization_experiment(parametrizer, file_path, substrate_rates)
+                error, smape, pearsonr = get_error_for_parametrization_experiment(parametrizer, file_path, substrate_rates)
 
                 final_errors = final_errors.append({'perc_data':datasize,
                                      'sample':sample,
                                      'rsquared_mean': nanaverage(list(error.values())),
                                      'smape_mean': nanaverage(list(smape.values())),
                                      **{f'rsquared_{rxn}':r for rxn, r in error.items()},
-                                     **{f'smape_{rxn}': sm for rxn, sm in smape.items()}},
+                                     **{f'smape_{rxn}': sm for rxn, sm in smape.items()},
+                                                    **{f'pearsonr_{rxn}': sm for rxn, sm in pearsonr.items()}},
                                     ignore_index=True)
                 print(final_errors)
     return final_errors
@@ -123,23 +154,16 @@ def parse_data_reduction_results_for_plotting(final_errors: pd.DataFrame,
     return long_data.groupby(["perc_data", "reaction"])[metrics].agg(['mean', 'min', 'max']).reset_index()
 
 def plot_progression_of_errors(final_errors: pd.DataFrame,
-                               metrics: Literal['smape', 'r_squared'] ='rsquared',
+                               metrics: Literal['smape', 'r_squared', 'pearsonr'] ='rsquared',
                                fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'error_per_reaction_num_datapoints.png'),
                                fontsize:int = 16,
                                ax = None,
                                legend=True
                                ) -> None:
-    metrics_mapper = {'rsquared': r'$R^{2}$',
-                      'smape': 'Symmetric Mean Absolute Percentage Error'}
-    rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
-                  'EX_co2_e': r'CO$_{2}$ evolution',
-                  'EX_o2_e': 'O$_{2}$ uptake',
-                  'EX_ac_e': 'Acetate secretion',
-                  'mean': 'mean'}
-
     reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
-    model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - 1)
-    cmap = dict(zip(reaction_columns[1:], model_colors))
+    start_int = 1 if metrics != 'pearsonr' else 0
+    model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - start_int)
+    cmap = dict(zip(reaction_columns[start_int:], model_colors))
     cmap[f'{metrics}_mean'] = 'black'
 
     summary_stats = parse_data_reduction_results_for_plotting(final_errors = final_errors, metrics = metrics)
@@ -158,7 +182,7 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
             [perc / 100 * NUM_DATAPOINTS for perc in reaction_data["perc_data"]],
             reaction_data["mean"],
             yerr=[reaction_data["mean"] - reaction_data["min"], reaction_data["max"] - reaction_data["mean"]],
-            label=rxn_mapper[reaction.replace(f'{metrics}_', '')],
+            label=RXN_MAPPER[reaction.replace(f'{metrics}_', '')],
             capsize=3,
             color=cmap[reaction],
             linewidth=2
@@ -167,7 +191,7 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     # Customize the plot
     # plt.title("R_squared Values by Reaction", fontsize=16)
     ax.set_xlabel("Number of datapoints", fontsize=fontsize)
-    ax.set_ylabel(metrics_mapper[metrics], fontsize=fontsize)
+    ax.set_ylabel(METRICS_MAPPER[metrics], fontsize=fontsize)
     if legend:
         ax.legend(
             loc='upper center',
@@ -183,23 +207,18 @@ def plot_progression_of_errors(final_errors: pd.DataFrame,
     if save_fig: plt.savefig(fig_file_path)
 
 def plot_deviation_of_error(final_errors: pd.DataFrame,
-                        metrics: Literal['smape', 'r_squared'] ='rsquared',
+                        metrics: Literal['smape', 'r_squared', 'pearsonr'] ='rsquared',
                         fig_file_path: str = os.path.join('Results', 'data_reduction_results', 'deviation_per_reaction_num_datapoints.png'),
                         fontsize:int = 16,
                         ax = None,
                         legend=True
                         ) -> None:
-    metrics_mapper = {'rsquared': r'$R^{2}$',
-                      'smape': 'Symmetric Mean Absolute Percentage Error'}
-    rxn_mapper = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
-                  'EX_co2_e': r'CO$_{2}$ evolution',
-                  'EX_o2_e': 'O$_{2}$ uptake',
-                  'EX_ac_e': 'Acetate secretion',
-                  'mean': 'mean'}
 
     reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
-    model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - 1)
-    cmap = dict(zip(reaction_columns[1:], model_colors))
+    start_int = 1 if metrics != 'pearsonr' else 0
+
+    model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - start_int)
+    cmap = dict(zip(reaction_columns[start_int:], model_colors))
     cmap[f'{metrics}_mean'] = 'black'
 
     markers = [".", 'v', 's', 'H', 'P', 'X', 'D', '_']
@@ -218,7 +237,7 @@ def plot_deviation_of_error(final_errors: pd.DataFrame,
         ax.scatter(
             [perc / 100 * NUM_DATAPOINTS for perc in reaction_data["perc_data"]],
             reaction_data["max"] - reaction_data["min"],
-            label=rxn_mapper[reaction.replace(f'{metrics}_', '')],
+            label=RXN_MAPPER[reaction.replace(f'{metrics}_', '')],
             color=cmap[reaction],
             marker=markers[i]
         )
@@ -226,7 +245,7 @@ def plot_deviation_of_error(final_errors: pd.DataFrame,
     # Customize the plot
     # plt.title("R_squared Values by Reaction", fontsize=16)
     ax.set_xlabel("Number of datapoints", fontsize=fontsize)
-    ax.set_ylabel(f'Deviation in {metrics_mapper[metrics]}', fontsize=fontsize)
+    ax.set_ylabel(f'Deviation in {METRICS_MAPPER[metrics]}', fontsize=fontsize)
     if legend:
         ax.legend(
             loc='upper center',
@@ -245,8 +264,6 @@ def plot_deviation_of_error_bar(final_errors: pd.DataFrame,
                         fontsize:int = 16,
                         ax = None
                         ) -> None:
-    metrics_mapper = {'rsquared': r'$R^{2}$',
-                      'smape': 'Symmetric Mean Absolute Percentage Error'}
 
     reaction_columns = [col for col in final_errors.columns if col.startswith(f"{metrics}_")]
     model_colors = sns.color_palette("colorblind6", n_colors=len(reaction_columns) - 1)
@@ -269,7 +286,7 @@ def plot_deviation_of_error_bar(final_errors: pd.DataFrame,
     # Customize the plot
     # plt.title("R_squared Values by Reaction", fontsize=16)
     plt.xlabel("Number of datapoints", fontsize=fontsize)
-    plt.ylabel(f'Deviation in {metrics_mapper[metrics]}', fontsize=fontsize)
+    plt.ylabel(f'Deviation in {METRICS_MAPPER[metrics]}', fontsize=fontsize)
 
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
@@ -284,6 +301,6 @@ if __name__ == '__main__':
     #                                                                        num_replicates=4)
     # final_errors.to_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'), index=False)
     final_errors = pd.read_excel(os.path.join('Results', 'data_reduction_results', 'r_squared_for_analysis.xlsx'))
-    plot_progression_of_errors(final_errors, metrics = 'rsquared', legend=True)
-    plot_deviation_of_error(final_errors, metrics = 'rsquared', legend=True)
+    plot_progression_of_errors(final_errors, metrics = 'pearsonr', legend=True)
+    plot_deviation_of_error(final_errors, metrics = 'pearsonr', legend=True)
 

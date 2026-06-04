@@ -1,8 +1,8 @@
 import argparse
 import os
 import pandas as pd
-
 from collections.abc import Iterable
+
 from Scripts.i2_parametrization.pam_parametrizer_iML1515 import set_up_pamparametrizer, set_up_validation_data
 
 from PAMparametrizer.genetic_algorithm_parametrization.Evaluation.Fitfun_params_uniform import FitnessEvaluation
@@ -16,7 +16,7 @@ class FitnessEvaluationPearson(FitnessEvaluation):
             flux_df=flux_df,
             rxns_to_validate=self.reactions_with_data[substrate_reaction],
             substr_rxn=substrate_reaction+'_ub',
-            substrate_sim=substrate_reaction+'_ub',
+            substrate_sim='substrate',
 
         )
 
@@ -93,9 +93,9 @@ def analyse_parametrizer_performance():
             max_substrate_uptake=max_substrate)
 
 if __name__ == '__main__':
-    # analyse_parametrizer_performance()
-    vd = set_up_validation_data(['Glucose'], 'Results/1_preprocessing/proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
-    print(vd)
+    analyse_parametrizer_performance()
+    # vd = set_up_validation_data(['Glucose'], 'Results/1_preprocessing/proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
+    # print(vd)
 
 
 

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.stats import pearsonr
 from typing import Union, Iterable, Optional, List, Tuple
 from PAModelpy import PAModel
 
@@ -146,7 +147,6 @@ def calulate_pearson_correlation_simulation_vs_experiment(
             if rxn in flux_df.columns:
                 flux_df[rxn] = flux_df[rxn].abs()
     merged = _align_frames(validation_df, flux_df, rxns_to_validate, substr_rxn, substrate_sim)
-
     merged_clean = merged.dropna(axis =1)
     rxns_to_validate = [rxn for rxn in rxns_to_validate if (f"{rxn}_exp" in merged_clean.columns)and(f"{rxn}_sim" in merged_clean.columns)]
 
