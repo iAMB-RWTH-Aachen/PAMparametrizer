@@ -509,6 +509,7 @@ def plot_variability(df_flux,
         mean = values.mean()
         std = values.std(ddof=1)  # sample std, same convention as pandas .std()
         return mean, std
+
     def get_pearson(df_x, df_y, cog=None):
         data = _merge_on_rxn(df_y, df_x, "_x")
         data = data[data["COG description"] == cog] if cog is not None else data
@@ -521,7 +522,7 @@ def plot_variability(df_flux,
     def get_stat_row(cog=None):
         mean_flux, std_flux = get_stats(df_flux, cog=cog)
         mean_kcat, std_kcat = get_stats(df_kcat, col_start='kcat',cog=cog)
-        mean_protein, std_protein = get_stats(df_prot, col_start='protein',cog=cog)
+        mean_protein, std_protein = get_stats(df_prot, col_start='concentration',cog=cog)
         r_f_k, p_f_k = get_pearson(df_flux, kcat_cv,cog=cog)
         r_p_k, p_p_k = get_pearson(protein_cv, kcat_cv, cog=cog)
 
@@ -532,6 +533,7 @@ def plot_variability(df_flux,
                       'pearson_prot_kcat': r_p_k, 'pval_pearson_prot_kcat': p_p_k,
                       'cog': cog
                       }
+
     if cog_list is None:
         cog_list = (
             df_flux["COG description"]
@@ -545,7 +547,10 @@ def plot_variability(df_flux,
     stat_rows = [get_stat_row()]
     for i, cog in enumerate(cog_list):
         print(cog)
-        stat_rows.append(get_stat_row(cog))
+        try:
+            stat_rows.append(get_stat_row(cog))
+        except:
+            continue
 
     stat_df = pd.DataFrame(stat_rows)
 
@@ -617,6 +622,10 @@ if __name__ == '__main__':
         for model_id, df in flux_cv_per_model_dict.items()
     }
     flux_cv = merge_flux_dfs_and_calc_cv(flux_cv_per_model_dict)
+
+    kcat_values =annotate_df_with_cog(kcat_values, rxn2protein_mapping)
+    protein_concs =annotate_df_with_cog(protein_concs, rxn2protein_mapping)
+
 
     # ------------------------------------------------------------------
     # 1) Flux‑CV per model
