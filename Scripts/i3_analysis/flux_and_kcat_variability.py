@@ -23,6 +23,34 @@ GEROSA_GLC_UPTAKE = -9.654
 
 RESULT_FLUX_PATH = os.path.join('Results', '3_analysis', 'iML1515_alternative_models_predictions.xlsx')
 
+COG_DESCRIPTION2LETTER = {
+    'Translation, ribosomal structure and biogenesis':'J',
+    'RNA processing and modification': 'A',
+    'Transcription': 'K',
+    'Replication, recombination and repair': 'L',
+    'Chromatin structure and dynamics':'B',
+    'Cell cycle control, cell division, chromosome partitioning': 'D',
+    'Nuclear structure':'Y',
+    'Defense mechanisms': 'V',
+    'Signal transduction mechanisms': 'T',
+    'Cell wall/membrane/envelope biogenesis':'M',
+    'Cell motility':'N',
+    'Cytoskeleton':'Z',
+    'Extracellular structures':'W',
+    'Intracellular trafficking, secretion, and vesicular transport':'U',
+   'Posttranslational modification, protein turnover, chaperones':'O',
+    'Energy production and conversion':'C',
+    'Carbohydrate transport and metabolism':'G',
+    'Amino acid transport and metabolism': 'E',
+    'Nucleotide transport and metabolism':'F',
+    'Coenzyme transport and metabolism':'H',
+    'Lipid transport and metabolism':'I',
+    'Inorganic ion transport and metabolism':'P',
+    'Secondary metabolites biosynthesis, transport and catabolism':'Q',
+    'General function prediction only':'R',
+    'Function unknown':'S'
+}
+
 
 def get_all_kcat_values(data_file_paths: list[pd.DataFrame],
                                      label_names:list[str]):
@@ -501,7 +529,10 @@ def plot_variability(df_flux,
     """
     def get_stats(df, col_start='flux', cog = None):
         df = df[df["COG description"] == cog] if cog is not None else df
-        columns = [c for c in df.columns if c.startswith(col_start)]
+        columns = [c for c in df.columns
+                   if c.startswith(col_start) and
+                   not any([n in c for n in ['GotEnzymes', 'After preprocessing']])
+                   ]
         # Convert to a NumPy array – this flattens the 2‑D block into 1‑D
         values = df[columns].to_numpy().ravel()
         # Drop NaNs (if any) before the statistics
@@ -518,7 +549,6 @@ def plot_variability(df_flux,
         r, p = pearsonr(x=data[cv_col_x],
                         y=data[cv_col_y])
         return r, p
-
     def get_stat_row(cog=None):
         mean_flux, std_flux = get_stats(df_flux, cog=cog)
         mean_kcat, std_kcat = get_stats(df_kcat, col_start='kcat',cog=cog)
@@ -531,7 +561,7 @@ def plot_variability(df_flux,
                       'protein_mean': mean_protein, 'protein_std': std_protein,
                       'pearson_flux_kcat': r_f_k, 'pval_pearson_flux_kcat': p_f_k,
                       'pearson_prot_kcat': r_p_k, 'pval_pearson_prot_kcat': p_p_k,
-                      'cog': cog
+                      'cog': cog,
                       }
 
     if cog_list is None:
@@ -540,34 +570,48 @@ def plot_variability(df_flux,
             .dropna()
             .unique()
         )
-    n = len(cog_list)
-    fig = plt.figure(figsize=(12, 4 * n),
-        constrained_layout=True,)
 
     stat_rows = [get_stat_row()]
     for i, cog in enumerate(cog_list):
-        print(cog)
         try:
             stat_rows.append(get_stat_row(cog))
         except:
             continue
 
     stat_df = pd.DataFrame(stat_rows)
+    size_range = (30, 350)
+    fig, axs = plt.subplots(2,2,figsize=(8, 5))
+    axs = axs.flatten()
 
-    plt.figure(figsize=(8, 5))
-    sns.scatterplot(
-        data=stat_df,
-        x="flux_mean",
-        y="kcat_std",
-        size="flux_std",
-        hue="cog",
-        sizes=(30, 300),
-        palette="Set2",
-        legend=False,
-    )
-    plt.xlabel("Mean flux")
-    plt.ylabel("kcat std")
-    plt.title("Bubble chart – bubble size ≈ flux stdev")
+    colors = sns.color_palette("Set2", n_colors=len(cog_list))
+    cmap = {l: c for l, c in
+           zip(cog_list, colors)}
+
+    for (x,y, size), ax in zip([("flux_mean", "kcat_std", "flux_std"),
+                                ("flux_mean", "pearson_flux_kcat", "flux_std"),
+                                ("pearson_flux_kcat", "pearson_prot_kcat", "flux_mean"),
+                                ("flux_mean", "kcat_std", "pearson_flux_kcat"),], axs):
+        for cog, sub_df in stat_df.groupby('cog'):
+            ax.scatter(
+                x=sub_df[x],
+                y=sub_df[y],
+                s=np.interp(np.abs(sub_df[size]), [0.5, 1], size_range),
+                color=cmap[cog],
+                marker="o",
+                clip_on=False,
+                label = cog
+            )
+            ax.annotate(txt, (x[i], y[i]))
+        ax.set_xlabel(x)
+        if not 'pearson' in x:
+            ax.set_xscale("log")
+        if not 'pearson' in y:
+            ax.set_yscale("log")
+        ax.set_ylabel(y)
+        ax.set_title(f"Bubble chart – bubble size ≈ {size}")
+
+    # plt.legend()
+    plt.tight_layout()
     plt.show()
     return fig
 
@@ -584,7 +628,7 @@ def annotate_df_with_cog(df:pd.DataFrame,
         df = df.rename({'Unnamed: 0': 'rxn_id'}, axis=1)
     return add_pathway_annotation_to_proteins(
         df_with_proteins=df,
-        merge_on='rxn_id', )
+        merge_on='rxn_id')
 
 if __name__ == '__main__':
     NUM_ALT_MODELS = 10

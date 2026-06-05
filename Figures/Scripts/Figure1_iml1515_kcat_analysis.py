@@ -174,7 +174,8 @@ def add_pathway_annotation_to_proteins(df_with_proteins: pd.DataFrame,
                                        pathway_annotation_file: str = os.path.join('Data', 'GeneList_ecoli.xlsx'),
                                        gene_to_protein_sheet: str = 'GeneList',
                                        rxn_to_gene_sheet: str = 'gene2rxn',
-                                        merge_on: Literal['rxn_id', 'protein_id']='rxn_id'
+                                        merge_on: Literal['rxn_id', 'protein_id']='rxn_id',
+                                       cog_column:str = 'COG description'
                                        ) -> pd.DataFrame:
     # get pathway information from genelist file
     gene_list_info = pd.read_excel(pathway_annotation_file, sheet_name=gene_to_protein_sheet
@@ -187,10 +188,10 @@ def add_pathway_annotation_to_proteins(df_with_proteins: pd.DataFrame,
     gene2rxn2cog.Reactions = gene2rxn2cog.Reactions.str.split(', ')
     gene2rxn2cog['COG description'] = gene2rxn2cog['COG description'].str.split(';')
     gene2rxn2cog = gene2rxn2cog.explode('Reactions')
-    gene2rxn2cog = gene2rxn2cog.explode('COG description').reset_index(drop=True
+    gene2rxn2cog = gene2rxn2cog.explode(cog_column).reset_index(drop=True
                                                                        ).rename({'Reactions':'rxn_id'}, axis=1)
 
-    return pd.merge(df_with_proteins, gene2rxn2cog[[merge_on, 'COG description']],
+    return pd.merge(df_with_proteins, gene2rxn2cog[[merge_on, cog_column]],
                                    on=merge_on, how='left')
 
 def summarize_and_pivot_cog_info_df_to_long(cog_info_relative: pd.DataFrame):
