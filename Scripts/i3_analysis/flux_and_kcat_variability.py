@@ -3,6 +3,8 @@ import pandas as pd
 import os
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib import gridspec
 import seaborn as sns
 from typing import Union, List, Dict
 from PAModelpy import PAModel
@@ -48,8 +50,28 @@ COG_DESCRIPTION2LETTER = {
     'Inorganic ion transport and metabolism':'P',
     'Secondary metabolites biosynthesis, transport and catabolism':'Q',
     'General function prediction only':'R',
-    'Function unknown':'S'
+    'Function unknown':'S',
+    'Overall': 'Overall'
 }
+
+COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
+       'Carbohydrate transport and metabolism': 'Carbon metabolism',
+       'Cell cycle control, cell division, chromosome partitioning': 'Cell cycle',
+       'Cell wall/membrane/envelope biogenesis':"Cell membrane biogenesis",
+       'Coenzyme transport and metabolism': 'Coenzyme metabolism',
+              'Defense mechanisms':'Defense mechanisms',
+       'Energy production and conversion': 'Energy generation', 'Function unknown': 'Function unknown',
+       'General function prediction only': 'General function',
+       'Inorganic ion transport and metabolism': 'Inorganic ion metabolism',
+       'Intracellular trafficking, secretion, and vesicular transport': 'Intracellular transport',
+       'Lipid transport and metabolism': 'Lipid metabolism',
+       'Nucleotide transport and metabolism': 'Nucleotide metabolism',
+       'Posttranslational modification, protein turnover, chaperones':'Protein modification',
+       'Replication, recombination and repair': 'Replication',
+       'Secondary metabolites biosynthesis, transport and catabolism': 'Secondary metabolites metabolism',
+       'Signal transduction mechanisms': 'Signal transduction', 'Transcription': 'Transcription',
+       'Translation, ribosomal structure and biogenesis': 'Translation',
+    'Overall': 'Overall'}
 
 
 def get_all_kcat_values(data_file_paths: list[pd.DataFrame],
@@ -518,6 +540,77 @@ def plot_all_cogs_density(df_flux, df_kcat, df_prot, cog_list=None):
             continue
     return fig
 
+def get_variability_statistics(df_flux,
+                         df_kcat, kcat_cv,
+                         df_prot, protein_cv,
+                         cog_list=None):
+        """
+        Convenience wrapper – creates a figure with two rows per COG:
+            row 1 – flux‑vs‑kcat density
+            row 2 – protein‑vs‑kcat density
+        """
+
+        def get_stats(df, col_start='flux', cog=None):
+            df = df[df["COG description"] == cog] if cog is not None else df
+            columns = [c for c in df.columns
+                       if c.startswith(col_start) and
+                       not any([n in c for n in ['GotEnzymes', 'After preprocessing', 'cv']])
+                       ]
+            # Convert to a NumPy array – this flattens the 2‑D block into 1‑D
+            values = df[columns].to_numpy().ravel()
+            # Drop NaNs (if any) before the statistics
+            values = abs(values[~np.isnan(values)])
+            mean = values.mean()
+            col_start = col_start if col_start != 'concentration' else 'protein'
+            mean_cv = df[col_start + '_cv'].to_numpy().ravel().mean()
+            std_cv = df[col_start + '_cv'].to_numpy().ravel().std()
+            std = df[columns].std().mean()
+            return mean, std, mean_cv, std_cv
+
+        def get_pearson(df_x, df_y, cog=None):
+            data = _merge_on_rxn(df_y, df_x, "_x")
+            data = data[data["COG description"] == cog] if cog is not None else data
+            cv_col_y = [col for col in df_y.columns if col.endswith("_cv")][0]
+            cv_col_x = [col for col in df_x.columns if col.endswith("_cv")][0]
+            r, p = pearsonr(x=data[cv_col_x],
+                            y=data[cv_col_y])
+            return r, p
+
+        def get_stat_row(cog=None):
+            mean_flux, std_flux, mean_flux_cv, std_flux_cv = get_stats(df_flux, cog=cog)
+            mean_kcat, std_kcat, mean_kcat_cv, std_kcat_cv = get_stats(df_kcat, col_start='kcat', cog=cog)
+            mean_protein, std_protein, mean_protein_cv, std_protein_cv = get_stats(df_prot, col_start='concentration', cog=cog)
+            r_f_k, p_f_k = get_pearson(df_flux, kcat_cv, cog=cog)
+            r_p_k, p_p_k = get_pearson(protein_cv, kcat_cv, cog=cog)
+            cog = 'Overall' if cog is None else cog
+            return {'flux_mean': mean_flux, 'flux_std': std_flux, 'flux_std_norm': std_flux / mean_flux,
+                    'mean_flux_cv': mean_flux_cv, 'std_flux_cv': std_flux_cv,
+                    'kcat_mean': mean_kcat, 'kcat_std': std_kcat, 'kcat_std_norm': std_kcat / mean_kcat,
+                    'mean_kcat_cv': mean_kcat_cv, 'std_kcat_cv': std_kcat_cv,
+                    'protein_mean': mean_protein, 'protein_std': std_protein,
+                    'protein_std_norm': std_protein / mean_protein, 'mean_protein_cv': mean_protein_cv,
+                    'std_protein_cv': std_protein_cv,
+                    'pearson_flux_kcat': r_f_k, 'pval_pearson_flux_kcat': p_f_k,
+                    'pearson_prot_kcat': r_p_k, 'pval_pearson_prot_kcat': p_p_k,
+                    'cog': cog,
+                    }
+
+        if cog_list is None:
+            cog_list = (
+                df_flux["COG description"]
+                # .dropna()
+                .unique()
+            )
+        stat_rows = [get_stat_row()]
+        for i, cog in enumerate(cog_list):
+            try:
+                stat_rows.append(get_stat_row(cog))
+            except:
+                continue
+
+        return pd.DataFrame(stat_rows).dropna()
+
+
 def plot_variability(df_flux,
                      df_kcat, kcat_cv,
                      df_prot, protein_cv,
@@ -527,91 +620,70 @@ def plot_variability(df_flux,
         row 1 – flux‑vs‑kcat density
         row 2 – protein‑vs‑kcat density
     """
-    def get_stats(df, col_start='flux', cog = None):
-        df = df[df["COG description"] == cog] if cog is not None else df
-        columns = [c for c in df.columns
-                   if c.startswith(col_start) and
-                   not any([n in c for n in ['GotEnzymes', 'After preprocessing']])
-                   ]
-        # Convert to a NumPy array – this flattens the 2‑D block into 1‑D
-        values = df[columns].to_numpy().ravel()
-        # Drop NaNs (if any) before the statistics
-        values = abs(values[~np.isnan(values)])
-        mean = values.mean()
-        std = values.std(ddof=1)  # sample std, same convention as pandas .std()
-        return mean, std
-
-    def get_pearson(df_x, df_y, cog=None):
-        data = _merge_on_rxn(df_y, df_x, "_x")
-        data = data[data["COG description"] == cog] if cog is not None else data
-        cv_col_y = [col for col in df_y.columns if col.endswith("_cv")][0]
-        cv_col_x = [col for col in df_x.columns if col.endswith("_cv")][0]
-        r, p = pearsonr(x=data[cv_col_x],
-                        y=data[cv_col_y])
-        return r, p
-    def get_stat_row(cog=None):
-        mean_flux, std_flux = get_stats(df_flux, cog=cog)
-        mean_kcat, std_kcat = get_stats(df_kcat, col_start='kcat',cog=cog)
-        mean_protein, std_protein = get_stats(df_prot, col_start='concentration',cog=cog)
-        r_f_k, p_f_k = get_pearson(df_flux, kcat_cv,cog=cog)
-        r_p_k, p_p_k = get_pearson(protein_cv, kcat_cv, cog=cog)
-
-        return {'flux_mean': mean_flux, 'flux_std': std_flux,
-                      'kcat_mean': mean_kcat, 'kcat_std': std_kcat,
-                      'protein_mean': mean_protein, 'protein_std': std_protein,
-                      'pearson_flux_kcat': r_f_k, 'pval_pearson_flux_kcat': p_f_k,
-                      'pearson_prot_kcat': r_p_k, 'pval_pearson_prot_kcat': p_p_k,
-                      'cog': cog,
-                      }
 
     if cog_list is None:
-        cog_list = (
+        cog_list = list(
             df_flux["COG description"]
-            .dropna()
+            # .dropna()
             .unique()
         )
-
-    stat_rows = [get_stat_row()]
-    for i, cog in enumerate(cog_list):
-        try:
-            stat_rows.append(get_stat_row(cog))
-        except:
-            continue
-
-    stat_df = pd.DataFrame(stat_rows)
+        cog_list.append("Overall")
+    stat_df = get_variability_statistics(df_flux = df_flux,
+                                         df_kcat = df_kcat, kcat_cv = kcat_cv,
+                                         df_prot = df_prot, protein_cv = protein_cv,
+                                         cog_list = cog_list)
+    print(stat_df.to_markdown())
     size_range = (30, 350)
-    fig, axs = plt.subplots(2,2,figsize=(8, 5))
-    axs = axs.flatten()
+    plt.rcParams['font.size'] = 12
+    fig = plt.Figure(figsize=(21/2.54, 17/2.54), layout='tight')
+    gs = plt.GridSpec(ncols=2, nrows=2, height_ratios=[2,1])
+    axs = [fig.add_subplot(gs_inner) for gs_inner in [gs[0,0], gs[0,1]]]
+    # axs = [fig.add_subplot(gs_inner) for gs_inner in [gs[0,0], gs[0,1], gs[1,0],  gs[1,1],]]
+
 
     colors = sns.color_palette("Set2", n_colors=len(cog_list))
     cmap = {l: c for l, c in
            zip(cog_list, colors)}
+    legend_elements = {}
+    labelmapper = {'_std_norm': ' CV', '_mean':' mean', 'pearson_': 'pearson correlation coefficient ', '_cv':' CV'}
 
-    for (x,y, size), ax in zip([("flux_mean", "kcat_std", "flux_std"),
-                                ("flux_mean", "pearson_flux_kcat", "flux_std"),
-                                ("pearson_flux_kcat", "pearson_prot_kcat", "flux_mean"),
-                                ("flux_mean", "kcat_std", "pearson_flux_kcat"),], axs):
+    for (x,y, size), ax in zip([("flux_std_norm", "kcat_std_norm", "flux_mean"),
+                                ("kcat_std_norm", "protein_std_norm", "protein_mean")],
+                               axs):
         for cog, sub_df in stat_df.groupby('cog'):
+            label = f"{COG_DESCRIPTION2LETTER[cog]}: {COG_MAPPER[cog]}" if cog is not None else 'all'
             ax.scatter(
                 x=sub_df[x],
                 y=sub_df[y],
-                s=np.interp(np.abs(sub_df[size]), [0.5, 1], size_range),
+                s=np.interp(np.abs(sub_df[size]),
+                            [stat_df[size].min(), stat_df[size].max()],
+                            size_range),
                 color=cmap[cog],
                 marker="o",
                 clip_on=False,
-                label = cog
-            )
-            ax.annotate(txt, (x[i], y[i]))
-        ax.set_xlabel(x)
-        if not 'pearson' in x:
-            ax.set_xscale("log")
-        if not 'pearson' in y:
-            ax.set_yscale("log")
-        ax.set_ylabel(y)
-        ax.set_title(f"Bubble chart – bubble size ≈ {size}")
+                label = label
+                )
+            ax.annotate(label.split(':')[0], (sub_df[x].iloc[0], sub_df[y].iloc[0]))
+            if cog not in legend_elements:
+                legend_elements[cog] = Line2D([0],[0], color='w', marker='o', clip_on=False, label = label, markerfacecolor=cmap[cog])
+        xlabel, ylabel, bubble_size = x, y, size
+        for old, new in labelmapper.items(): xlabel = xlabel.replace(old, new)
+        for old, new in labelmapper.items(): ylabel = ylabel.replace(old, new)
+        for old, new in labelmapper.items(): bubble_size = bubble_size.replace(old, new)
 
-    # plt.legend()
-    plt.tight_layout()
+
+        ax.set_xlabel(xlabel.replace('_', ' vs. '))
+        # if not 'pearson' in x:
+        #     ax.set_xscale("log")
+        # if not 'pearson' in y:
+        #     ax.set_yscale("log")
+        ax.set_ylabel(ylabel.replace('_', ' vs. '))
+        ax.set_title(f"bubble size:{bubble_size}", fontsize =11)
+        ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+    legend_ax = fig.add_subplot(gs[1,:])
+    legend_ax.legend(handles=legend_elements.values(), loc='upper left', bbox_to_anchor=(0,1.7), fontsize = 11, ncols = 2)
+    legend_ax.set_axis_off()
+    fig.savefig('Results/3_analysis/bubble_chart.png')
     plt.show()
     return fig
 
@@ -629,6 +701,200 @@ def annotate_df_with_cog(df:pd.DataFrame,
     return add_pathway_annotation_to_proteins(
         df_with_proteins=df,
         merge_on='rxn_id')
+
+def classify_enzyme_cv_for_all_models(flux_cv,
+                                      protein_cv,
+                                      kcat_cv_no_cog):
+    def enzyme_type(flux_cv, kcat_cv):
+        low_flux = flux_cv <= 0.5
+        low_kcat = kcat_cv <= 0.5
+        if low_flux and low_kcat: return '(i) constrained coupled'
+        if low_kcat: return '(iii) kcat constrained uncoupled'
+        if low_flux: return '(ii) flux constrained uncoupled'
+        return '(iv) unconstrained uncoupled'
+
+    all_cvs = pd.merge(
+        flux_cv[~flux_cv.filter(regex=r"^flux").eq(0).all(axis=1)][['rxn_id', 'flux_cv', 'COG description']],
+        protein_cv[['rxn_id', 'enzyme_id', 'protein_cv']],
+        on='rxn_id', how='right')
+    all_cvs = pd.merge(all_cvs, kcat_cv_no_cog.reset_index()[['rxn_id', 'enzyme_id', 'direction', 'kcat_cv']],
+                       on=['rxn_id', 'enzyme_id'])
+
+    all_cvs = all_cvs[all_cvs['flux_cv'] > 0]
+    all_cvs['enzyme_type'] = all_cvs.apply(lambda row: enzyme_type(row.flux_cv, row.kcat_cv), axis=1)
+
+
+    counts = (all_cvs.groupby(['COG description', 'enzyme_type'])
+              .size()
+              .unstack(fill_value=0))
+    perc = counts.div(counts.sum(axis=1), axis=0) * 100
+    perc = perc.round(1).reset_index()
+
+    overall_counts = (all_cvs
+                      .groupby('enzyme_type')
+                      .size())  # keep same order
+
+    overall_perc = (overall_counts
+                    / overall_counts.sum() * 100)
+    overall_row = overall_perc.to_frame().T
+    overall_row.insert(0, 'COG description', 'Overall')
+    overall_row = overall_row[perc.columns]
+    perc = pd.concat([perc, overall_row], ignore_index=True)
+    print(perc.to_latex())
+    return perc
+
+def get_cvs_for_boxplot(df_flux, df_kcat, df_prot):
+    all_zero_reactions = df_flux[df_flux.filter(regex=r"^flux").eq(0).all(axis=1)]['rxn_id']
+
+    df_flux_box = df_flux[['rxn_id','COG description', 'flux_cv']].rename(
+        columns={'flux_cv': 'cv'}).assign(metric='flux')
+
+
+    df_kcat_box = df_kcat[['rxn_id','COG description', 'kcat_cv']] \
+        .rename(columns={'kcat_cv': 'cv'}).assign(metric='kcat')
+
+    df_prot_box = df_prot[['rxn_id','COG description', 'protein_cv']].rename(
+        columns={'protein_cv': 'cv'}).assign(metric='protein')
+
+    df_overall = pd.concat([df_flux_box, df_kcat_box, df_prot_box],
+                       ignore_index=True)
+    df_overall['COG description'] = 'Overall'
+
+    all_cvs_per_cog = pd.concat([df_flux_box, df_kcat_box, df_prot_box, df_overall],
+                       ignore_index=True)
+    return all_cvs_per_cog[~all_cvs_per_cog['rxn_id'].isin(all_zero_reactions)]
+
+def create_barplot_classified_enzymes_and_flux_mean(df_flux,
+                     df_kcat, kcat_cv,
+                     df_prot, protein_cv,kcat_cv_no_cog):
+    stat_df = get_variability_statistics(df_flux = df_flux,
+                                         df_kcat = df_kcat, kcat_cv = kcat_cv,
+                                         df_prot = df_prot, protein_cv = protein_cv)
+    perc = classify_enzyme_cv_for_all_models(flux_cv, protein_cv, kcat_cv_no_cog)
+    df_boxplot = get_cvs_for_boxplot(df_flux, df_kcat, df_prot)
+
+    cog_to_plot = ['Overall'] + [cog for cog in stat_df.sort_values('flux_mean', ascending=False)['cog'].iloc[:10] if
+                                 cog != 'Overall']
+    stat_df = stat_df[stat_df.cog.isin(cog_to_plot)].set_index('cog')
+    stat_df = stat_df.loc[cog_to_plot].reset_index()
+
+    perc = perc[perc['COG description'].isin(cog_to_plot)].set_index('COG description')
+    perc = perc.loc[cog_to_plot].reset_index()
+
+    df_boxplot = df_boxplot[df_boxplot['COG description'].isin(cog_to_plot)].set_index('COG description')
+    df_boxplot = df_boxplot.loc[cog_to_plot].reset_index()
+
+    plt.rcParams.update({'font.size': 11})
+    fig = plt.figure(figsize=(21 / 2.54, 30 / 2.54))
+    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1.5], hspace=0.7)
+    bottom = np.zeros(len(perc))
+
+    colors = sns.color_palette("colorblind", n_colors=len(perc.columns))
+    color_map = {**{'flux': 'darkgrey', 'protein': 'slategrey'}, **{l: c for l, c in
+                                                          zip([col for col in perc.columns if 'COG' not in col],
+                                                              colors)}}
+    cog_labels = perc['COG description'].tolist()
+    n_cogs = len(cog_labels)
+    x_pos = np.arange(n_cogs)  # centre of each COG group
+    group_width = 0.8  # total width occupied by a COG
+    stack_width = 0.2  # width of the *stacked* bar
+
+    ax = fig.add_subplot(gs[0])
+    for col in perc.columns:
+        if col == 'COG description': continue
+        heights = perc[col].values
+        p = ax.bar(x_pos - group_width / 2 + stack_width / 2,
+                   heights,
+                   width=stack_width,
+                   label=col,
+                   color=color_map[col],
+                   bottom=bottom)
+        bottom += heights
+
+    for stat_col, xposition in zip(['flux', 'protein'], [x_pos, x_pos + group_width / 2 - stack_width / 2]):
+        ax2 = ax.twinx()
+        conv_factor = 1 if stat_col == 'flux' else 1e5
+        ax2.errorbar(
+            xposition,  # centre of the group
+            stat_df[f"{stat_col}_mean"] *conv_factor,
+            yerr=stat_df[f"{stat_col}_std"]*conv_factor,
+            fmt='o',  # marker only (no line)
+            color='black' if stat_col == 'flux' else 'midnightblue',
+            capsize=4,
+            zorder=5
+        )
+        ax2.bar(
+            xposition,
+            stat_df[f"{stat_col}_mean"]*conv_factor,
+            width=stack_width,
+            color=color_map[stat_col],
+            label=f'Mean {stat_col}',
+        )
+        unit = r"rate [mmol/g$_{CDW}$/h]" if stat_col == 'flux' else r"concentration \n [$\cdot 10^{-5}$ g_${protein}$/g$_{CDW}$]"
+        ax2.set_ylabel(f'Mean {stat_col} {unit}')
+        stat_df['ymax'] = stat_df[f"{stat_col}_mean"] + stat_df[f"{stat_col}_std"]
+        ax2.set_ylim([0, stat_df["ymax"].max() * 1.1 *conv_factor])
+        if stat_col == 'protein': ax2.spines['right'].set_position(('outward', 60))
+
+    ax.grid(visible=True, alpha=0.2, linewidth=0.7)
+    ax.set_ylabel('Percentage of flux-carrying enzymes')
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels([COG_MAPPER[c] for c in cog_labels], rotation=45, ha='right',)
+
+    handles, labels = [], []
+    for ax in fig.axes:
+        h, l = ax.get_legend_handles_labels()
+        for handle, label in zip(h, l):
+            if label in labels: continue
+            handles.append(handle)
+            labels.append(label)
+
+    ax.legend(handles, labels, bbox_to_anchor=(0.5, -0.77), loc='lower center', borderaxespad=0., ncols=3)
+    gs_violin = gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=gs[1], hspace=0)
+    color_map = {'kcat': 'purple', 'flux': 'blue', 'protein': 'red'}
+    data_per_cog = {}
+    for  cog, sub in df_boxplot.groupby('COG description'):
+        data_per_cog[cog] = {
+            'kcat': sub.loc[sub.metric == 'kcat', 'cv'].values,
+            'flux': sub.loc[sub.metric == 'flux', 'cv'].values,
+            'protein': sub.loc[sub.metric == 'protein', 'cv'].values
+        }
+
+    axs = [fig.add_subplot(gs_violin[i]) for i in range(3)]
+    for type, ax_violin in zip(df_boxplot.metric.unique(), axs):
+        data = [abs(sub_df[type]) for cog, sub_df in data_per_cog.items()]
+        violin = ax_violin.violinplot(data,
+                                      showmeans=True)
+        ax_violin.set_ylabel(type)
+        ax_violin.grid(visible=True, alpha=0.2, linewidth=0.7)
+
+
+        for partname in ('cbars', 'cmins', 'cmaxes', 'cmeans'):
+            vp = violin[partname]
+            vp.set_edgecolor(color_map[type])
+            vp.set_linewidth(1)
+
+        for pc in violin['bodies']:
+            pc.set_facecolor(color_map[type])
+            pc.set_edgecolor(color_map[type])
+
+    axs[1].set_ylabel(r'Coefficient of variation [$\frac{mean}{stdev}$]'+'\n' + r'k$_{\text{cat}}$')
+    for ax in axs[:-1]:
+        ax.set_xticks([])
+        ax.set_xticklabels([])
+    axs[-1].set_xticks([pos+1 for pos in x_pos])
+    axs[-1].set_xticklabels([COG_MAPPER[c] for c in cog_labels], rotation=45, ha='right', )
+
+    for ax, annotation in zip([fig.axes[0], fig.axes[3]], ['A', 'B']):
+        ax.annotate(annotation, xy=(-0.1, 0.95), xycoords="axes fraction",
+                    fontsize=16, fontweight='bold',
+                    xytext=(-6, 4.5), textcoords="offset points",
+                    ha="right", va="bottom")
+
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.95, bottom=0.15)
+    plt.savefig('Results/3_analysis/SuppFig_flux_and_kcat_variability.png')
+
 
 if __name__ == '__main__':
     NUM_ALT_MODELS = 10
@@ -655,11 +921,11 @@ if __name__ == '__main__':
 
     flux_cv_per_model_dict = determine_flux_coefficient_of_variation()
 
-    kcat_cv = determine_coefficient_of_variation_for_entity(kcat_values)
+    kcat_cv_no_cog = determine_coefficient_of_variation_for_entity(kcat_values)
     protein_cv = determine_coefficient_of_variation_for_entity(protein_concs, entity='protein')
-    rxn2protein_mapping = kcat_cv.reset_index()[['rxn_id', 'enzyme_id', 'direction']].copy()
+    rxn2protein_mapping = kcat_cv_no_cog.reset_index()[['rxn_id', 'enzyme_id', 'direction']].copy()
 
-    kcat_cv = annotate_df_with_cog(kcat_cv, rxn2protein_mapping)
+    kcat_cv = annotate_df_with_cog(kcat_cv_no_cog, rxn2protein_mapping)
     protein_cv = annotate_df_with_cog(protein_cv, rxn2protein_mapping)
     flux_cv_per_model_dict = {
         model_id: annotate_df_with_cog(df, rxn2protein_mapping)
@@ -695,14 +961,12 @@ if __name__ == '__main__':
                      kcat_cv=kcat_cv,
                      protein_cv=protein_cv,)
 
-    # j=0
-    # for i in range(1,len(flux_cv['COG description'].dropna().unique()),3):
-    #     fig = plot_all_cogs_density(flux_cv, kcat_cv, protein_cv,
-    #                                 cog_list=flux_cv['COG description'].dropna().unique()[j:i])
-    #     fig.tight_layout()
-    #     fig.savefig(f'Results/3_analysis/cog_kde_{i}.png')
-    #     j =i
-
+    create_barplot_classified_enzymes_and_flux_mean(df_flux=flux_cv,
+                     df_kcat=kcat_values,
+                     df_prot=protein_concs,
+                     kcat_cv=kcat_cv,
+                     protein_cv=protein_cv,
+                     kcat_cv_no_cog = kcat_cv_no_cog)
 
 
 
