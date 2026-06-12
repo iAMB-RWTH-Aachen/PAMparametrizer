@@ -5,10 +5,10 @@ from matplotlib.colors import to_hex
 import matplotlib.ticker as ticker
 
 FONTSIZE = 16
-RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [$mmol_{ac}/g_{CDW}/h$]',
-                   'EX_glc__D_e': 'Glucose uptake [$mmol_{glc}/g_{CDW}/h$]',
-                   'EX_co2_e': '$CO_2$ secretion [$mmol_{CO_2}/g_{CDW}/h$]',
-                   'EX_o2_e': 'Oxygen uptake [$mmol_[{O_2}/g_{CDW}/h$]',
+RXN_NAME_MAPPER = {'EX_ac_e': 'Acetate secretion [mmol$_{ac}/g_{CDW}/h$]',
+                   'EX_glc__D_e': 'Glucose uptake [mmol$_{glc}/g_{CDW}/h$]',
+                   'EX_co2_e': '$CO_2$ evolution [mmol$_{CO_2}/g_{CDW}/h$]',
+                   'EX_o2_e': 'Oxygen uptake [mmol$_{O_2}/g_{CDW}/h$]',
                    'BIOMASS_Ecoli_core_w_GAM': 'Growth rate [$h^{-1}$]',
                    'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate [$h^{-1}$]',
                    'BIOMASS_KT2440_WT3': 'Growth rate [$h^{-1}$]',

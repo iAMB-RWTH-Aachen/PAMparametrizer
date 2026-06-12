@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib import gridspec
 import seaborn as sns
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Literal
 from PAModelpy import PAModel
 from PAModelpy.utils import set_up_pam
 from scipy.stats import gaussian_kde, pearsonr
@@ -72,6 +72,17 @@ COG_MAPPER = {'Amino acid transport and metabolism': 'Amino acid metabolism',
        'Signal transduction mechanisms': 'Signal transduction', 'Transcription': 'Transcription',
        'Translation, ribosomal structure and biogenesis': 'Translation',
     'Overall': 'Overall'}
+
+def _merge_on_rxn(df_left, df_right, suffix):
+    """Helper – left‑outer merge on ``rxn_id`` and keep the COG column."""
+    merged = pd.merge(
+        df_left,
+        df_right,
+        on=["rxn_id", "COG description"],
+        how="inner",
+        suffixes=("", suffix),
+    )
+    return merged
 
 
 def get_all_kcat_values(data_file_paths: list[pd.DataFrame],
@@ -288,13 +299,21 @@ def annotate_df_with_cog(df:pd.DataFrame,
 def classify_enzyme_cv_for_all_models(flux_cv,
                                       protein_cv,
                                       kcat_cv_no_cog):
-    def enzyme_type(flux_cv, kcat_cv):
+    def enzyme_type_flux_kcat(flux_cv, kcat_cv):
         low_flux = flux_cv <= 0.5
         low_kcat = kcat_cv <= 0.5
         if low_flux and low_kcat: return '(i) constrained coupled'
         if low_kcat: return '(iii) kcat constrained uncoupled'
         if low_flux: return '(ii) flux constrained uncoupled'
         return '(iv) unconstrained uncoupled'
+
+    def enzyme_type_protein_kcat(protein_cv, kcat_cv):
+        low_protein = protein_cv <= 0.5
+        low_kcat = kcat_cv <= 0.5
+        if low_protein and low_kcat: return '(i) stable coupled'
+        if low_kcat: return '(iii) stable kcat uncoupled'
+        if low_protein: return '(ii) stable protein uncoupled'
+        return '(iv) variable uncoupled'
 
     all_cvs = pd.merge(
         flux_cv[~flux_cv.filter(regex=r"^flux").eq(0).all(axis=1)][['rxn_id', 'flux_cv', 'COG description']],
@@ -304,17 +323,27 @@ def classify_enzyme_cv_for_all_models(flux_cv,
                        on=['rxn_id', 'enzyme_id'])
 
     all_cvs = all_cvs[all_cvs['flux_cv'] > 0]
-    all_cvs['enzyme_type'] = all_cvs.apply(lambda row: enzyme_type(row.flux_cv, row.kcat_cv), axis=1)
+    all_cvs['enzyme_type_flux_kcat'] = all_cvs.apply(lambda row: enzyme_type_flux_kcat(row.flux_cv, row.kcat_cv), axis=1)
+    all_cvs['enzyme_type_protein_kcat'] = all_cvs.apply(lambda row: enzyme_type_protein_kcat(row.protein_cv, row.kcat_cv), axis=1)
+    return all_cvs
 
-
-    counts = (all_cvs.groupby(['COG description', 'enzyme_type'])
+def determine_perc_per_type(flux_cv,
+                            protein_cv,
+                            kcat_cv_no_cog,
+                            enzyme_type:Literal['flux_kcat', 'protein_kcat'] = 'flux_kcat'
+                            ):
+    enzyme_type = 'enzyme_type_' + enzyme_type
+    all_cvs = classify_enzyme_cv_for_all_models(flux_cv=flux_cv,
+                                                protein_cv=protein_cv,
+                                                kcat_cv_no_cog=kcat_cv_no_cog)
+    counts = (all_cvs.groupby(['COG description', enzyme_type])
               .size()
               .unstack(fill_value=0))
     perc = counts.div(counts.sum(axis=1), axis=0) * 100
     perc = perc.round(1).reset_index()
 
     overall_counts = (all_cvs
-                      .groupby('enzyme_type')
+                      .groupby(enzyme_type)
                       .size())  # keep same order
 
     overall_perc = (overall_counts
@@ -353,48 +382,66 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
     stat_df = get_variability_statistics(df_flux = df_flux,
                                          df_kcat = df_kcat, kcat_cv = kcat_cv,
                                          df_prot = df_prot, protein_cv = protein_cv)
-    perc = classify_enzyme_cv_for_all_models(flux_cv, protein_cv, kcat_cv_no_cog)
+    perc_flux_kcat = determine_perc_per_type(flux_cv, protein_cv, kcat_cv_no_cog)
+    perc_protein_kcat = determine_perc_per_type(flux_cv, protein_cv, kcat_cv_no_cog, enzyme_type='protein_kcat')
+
     df_boxplot = get_cvs_for_boxplot(df_flux, df_kcat, df_prot)
 
-    cog_to_plot = ['Overall'] + [cog for cog in stat_df.sort_values('flux_mean', ascending=False)['cog'].iloc[:10] if
+    cog_to_plot = ['Overall'] + [cog for cog in stat_df.sort_values('flux_mean', ascending=False)['cog'].iloc[:11] if
                                  cog != 'Overall']
     stat_df = stat_df[stat_df.cog.isin(cog_to_plot)].set_index('cog')
     stat_df = stat_df.loc[cog_to_plot].reset_index()
-
-    perc = perc[perc['COG description'].isin(cog_to_plot)].set_index('COG description')
-    perc = perc.loc[cog_to_plot].reset_index()
 
     df_boxplot = df_boxplot[df_boxplot['COG description'].isin(cog_to_plot)].set_index('COG description')
     df_boxplot = df_boxplot.loc[cog_to_plot].reset_index()
 
     plt.rcParams.update({'font.size': 11})
     fig = plt.figure(figsize=(21 / 2.54, 30 / 2.54))
-    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1.5], hspace=0.7)
-    bottom = np.zeros(len(perc))
+    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1.5], hspace=0.85)
 
-    colors = sns.color_palette("colorblind", n_colors=len(perc.columns))
-    color_map = {**{'flux': 'darkgrey', 'protein': 'slategrey'}, **{l: c for l, c in
-                                                          zip([col for col in perc.columns if 'COG' not in col],
-                                                              colors)}}
-    cog_labels = perc['COG description'].tolist()
-    n_cogs = len(cog_labels)
+    colors_flux_kcat = sns.color_palette("colorblind", n_colors=len(perc_flux_kcat.columns))
+    colors_protein_kcat = sns.color_palette("Set2", n_colors=len(perc_flux_kcat.columns))
+    print(colors_protein_kcat[1])
+
+    color_map = {**{'flux': 'darkgrey', 'protein': 'slategrey'},
+                 **{l: c for l, c in
+                                                          zip([col
+                                                               for col in list(perc_flux_kcat.columns)
+                                                               if 'COG' not in col],
+                                                              colors_flux_kcat)},
+
+                 **{l: c for l, c in
+                    zip([col
+                         for col in list(perc_protein_kcat.columns)
+                         if 'COG' not in col],
+                        [colors_protein_kcat[2],colors_protein_kcat[3],colors_protein_kcat[0],colors_protein_kcat[1]])}
+    }
+
+    n_cogs = len(cog_to_plot)
     x_pos = np.arange(n_cogs)  # centre of each COG group
     group_width = 0.8  # total width occupied by a COG
     stack_width = 0.2  # width of the *stacked* bar
-
     ax = fig.add_subplot(gs[0])
-    for col in perc.columns:
-        if col == 'COG description': continue
-        heights = perc[col].values
-        p = ax.bar(x_pos - group_width / 2 + stack_width / 2,
-                   heights,
-                   width=stack_width,
-                   label=col,
-                   color=color_map[col],
-                   bottom=bottom)
-        bottom += heights
 
-    for stat_col, xposition in zip(['flux', 'protein'], [x_pos, x_pos + group_width / 2 - stack_width / 2]):
+    for perc, xposition in zip([perc_flux_kcat, perc_protein_kcat],
+                               [x_pos - group_width / 2 + stack_width / 2, x_pos]):
+        perc = perc[perc['COG description'].isin(cog_to_plot)].set_index('COG description')
+        perc = perc.loc[cog_to_plot].reset_index()
+        bottom = np.zeros(len(perc))
+        for col in perc.columns:
+            if col == 'COG description': continue
+            heights = perc[col].values
+            p = ax.bar(xposition,
+                       heights,
+                       width=stack_width,
+                       label=col,
+                       color=color_map[col],
+                       bottom=bottom)
+            bottom += heights
+
+    # for stat_col, xposition in zip(['flux', 'protein'], [x_pos, x_pos + group_width / 2 - stack_width / 2]):
+    for stat_col, xposition in zip(['flux'], [x_pos + group_width / 2 - stack_width / 2]):
+
         ax2 = ax.twinx()
         conv_factor = 1 if stat_col == 'flux' else 1e5
         ax2.errorbar(
@@ -422,7 +469,7 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
     ax.grid(visible=True, alpha=0.2, linewidth=0.7)
     ax.set_ylabel('Percentage of flux-carrying enzymes')
     ax.set_xticks(x_pos)
-    ax.set_xticklabels([COG_MAPPER[c] for c in cog_labels], rotation=45, ha='right',)
+    ax.set_xticklabels([COG_MAPPER[c] for c in cog_to_plot], rotation=45, ha='right',)
 
     handles, labels = [], []
     for ax in fig.axes:
@@ -432,7 +479,11 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
             handles.append(handle)
             labels.append(label)
 
-    ax.legend(handles, labels, bbox_to_anchor=(0.5, -0.77), loc='lower center', borderaxespad=0., ncols=3)
+    #add dummy legend handles and labels to fill columns
+    handles += [Line2D([],[], color = 'white')]*2
+    labels += ['', '']
+
+    ax.legend(handles, labels, bbox_to_anchor=(0.5, -0.97), loc='lower center', borderaxespad=0., ncols=3)
     gs_violin = gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=gs[1], hspace=0)
     color_map = {'kcat': 'purple', 'flux': 'blue', 'protein': 'red'}
     data_per_cog = {}
@@ -444,13 +495,13 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
         }
 
     axs = [fig.add_subplot(gs_violin[i]) for i in range(3)]
-    for type, ax_violin in zip(df_boxplot.metric.unique(), axs):
+    for type, ax_violin in zip(['kcat', 'flux', 'protein'], axs):
         data = [abs(sub_df[type]) for cog, sub_df in data_per_cog.items()]
         violin = ax_violin.violinplot(data,
                                       showmeans=True)
         ax_violin.set_ylabel(type)
         ax_violin.grid(visible=True, alpha=0.2, linewidth=0.7)
-
+        ax_violin.set_ylim([-0.2, 3.9])
 
         for partname in ('cbars', 'cmins', 'cmaxes', 'cmeans'):
             vp = violin[partname]
@@ -461,12 +512,12 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
             pc.set_facecolor(color_map[type])
             pc.set_edgecolor(color_map[type])
 
-    axs[1].set_ylabel(r'Coefficient of variation [$\frac{mean}{stdev}$]'+'\n' + r'k$_{\text{cat}}$')
+    axs[1].set_ylabel(r'Coefficient of variation [$\frac{stdev}{mean}$]'+'\n' + r'k$_{\text{cat}}$')
     for ax in axs[:-1]:
         ax.set_xticks([])
         ax.set_xticklabels([])
     axs[-1].set_xticks([pos+1 for pos in x_pos])
-    axs[-1].set_xticklabels([COG_MAPPER[c] for c in cog_labels], rotation=45, ha='right', )
+    axs[-1].set_xticklabels([COG_MAPPER[c] for c in cog_to_plot], rotation=45, ha='right', )
 
     for ax, annotation in zip([fig.axes[0], fig.axes[3]], ['A', 'B']):
         ax.annotate(annotation, xy=(-0.1, 0.95), xycoords="axes fraction",
@@ -476,7 +527,7 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.95, bottom=0.15)
-    plt.savefig('Results/3_analysis/SuppFig_flux_and_kcat_variability.png')
+    plt.savefig('Figures/SuppFig_flux_and_kcat_variability.png')
 
 
 if __name__ == '__main__':

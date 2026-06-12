@@ -8,9 +8,10 @@ from PAModelpy import PAModel
 def calculate_r_squared_for_reaction(reaction_id: str, validation_data: pd.DataFrame,
                                      substrate_uptake_id: str,
                                       fluxes: pd.DataFrame) -> float:
-    substr_rxn = substrate_uptake_id + '_ub'
-    # Take the absolute value of substrate uptake to avoid issues with reaction directionality
     validation_df = validation_data.copy()
+    substr_rxn = substrate_uptake_id + '_ub' if substrate_uptake_id+ '_ub' in validation_df.columns else substrate_uptake_id
+
+    # Take the absolute value of substrate uptake to avoid issues with reaction directionality
     validation_df[substr_rxn] = [round(abs(flux),4) for flux in validation_df[substr_rxn]]
     simulated_data = pd.DataFrame({substr_rxn: [round(abs(flux),4) for flux in fluxes['substrate']],
                                    'simulation': fluxes[reaction_id]})

@@ -11,7 +11,6 @@ if __name__ == '__main__':
     np.random.seed(0)
     brenda_kegg_parameters = pd.read_excel(BRENDA_PARAMETER_FILE_NAME, sheet_name='KineticTable')
 
-
     param_files = pd.read_excel(PARAMETER_FILE_NAME, sheet_name=None)
     kcat_data = param_files['ActiveEnzymes']
     kcat_data['kcat_values'] = [val if val<DIFFUSION_LIMIT else DIFFUSION_LIMIT
