@@ -119,15 +119,45 @@ def _align_frames(
 
     for df,rxn in zip([flux_df, validation_df],[substrate_sim, substr_rxn]):
         df[rxn] = df[rxn].abs()
-    exp_sub = validation_df[[substr_rxn] + rxns_to_validate].copy().sort_values(substr_rxn)
-    sim_sub = flux_df[[substrate_sim] + rxns_to_validate].copy().sort_values(substrate_sim)
-    sim_sub = sim_sub.rename(columns={substrate_sim: substr_rxn})
+    exp_sub = validation_df[[substr_rxn] +[rxn for rxn in rxns_to_validate if rxn != substr_rxn]].copy().sort_values(substr_rxn)
+    sim_sub = flux_df[[substrate_sim] + [rxn for rxn in rxns_to_validate if rxn != substrate_sim]].copy().sort_values(substrate_sim)
     merged = pd.merge_asof(exp_sub, sim_sub,
-                      on=substr_rxn,
+                           left_on=substr_rxn,
+                      right_on=substrate_sim,
                       suffixes=('_exp', '_sim'),
                            direction = 'nearest',
                            tolerance = 1e-5)
     return merged
+
+def _longify(merged: pd.DataFrame, rxns: List[str]) -> pd.DataFrame:
+    """
+    Convert a wide table that looks like
+
+            EX_glc__D_e_exp  EX_glc__D_e_sim  PGI_exp  PGI_sim  …
+    substrate
+    0.5                0.12            0.13      NaN      NaN   …
+    1.0                NaN             NaN     0.45     0.44   …
+
+    into a long table with three columns:
+
+        substrate   reaction   exp   sim
+    0   0.5        EX_glc__D_e   0.12   0.13
+    1   1.0        PGI           0.45   0.44
+    …   …           …             …      …
+    """
+    pairs = [(f"{r}_exp", f"{r}_sim") for r in rxns]
+    df_long = []
+    for exp_col, sim_col in pairs:
+        # keep only rows where *both* values are present
+        tmp = merged[[exp_col, sim_col]].dropna()
+        tmp = tmp.assign(
+            reaction=exp_col.rsplit("_", 1)[0],               # strip the suffix
+            substrate=merged.iloc[tmp.index, 0].values        # first column is the join key
+        )
+        tmp = tmp.rename(columns={exp_col: "exp", sim_col: "sim"})
+        df_long.append(tmp)
+
+    return pd.concat(df_long, ignore_index=True)
 
 def calulate_pearson_correlation_simulation_vs_experiment(
     validation_df: pd.DataFrame,
@@ -147,20 +177,47 @@ def calulate_pearson_correlation_simulation_vs_experiment(
         for rxn in absolute_rxns:
             if rxn in flux_df.columns:
                 flux_df[rxn] = flux_df[rxn].abs()
-    merged = _align_frames(validation_df, flux_df, rxns_to_validate, substr_rxn, substrate_sim)
-    merged_clean = merged.dropna(axis =1)
-    rxns_to_validate = [rxn for rxn in rxns_to_validate if (f"{rxn}_exp" in merged_clean.columns)and(f"{rxn}_sim" in merged_clean.columns)]
+    merged = _align_frames(validation_df=validation_df,
+                           flux_df=flux_df,
+                           rxns_to_validate=rxns_to_validate,
+                           substr_rxn=substr_rxn,
+                           substrate_sim=substrate_sim)
+    rxns_to_validate = [rxn for rxn in rxns_to_validate if (f"{rxn}_exp" in merged.columns) and (f"{rxn}_sim" in merged.columns)]
+    long_df = _longify(merged, rxns_to_validate)
 
+    exp_vals = long_df["exp"].values
+    sim_vals = long_df["sim"].values
 
-    exp_cols = [f"{rxn}_exp" for rxn in rxns_to_validate]
-    sim_cols = [f"{rxn}_sim" for rxn in rxns_to_validate]
-
-    merged_clean = merged.dropna(subset = exp_cols+sim_cols ,axis =0)
-
-    exp_long = merged_clean[exp_cols].values.ravel()
-    sim_long = merged_clean[sim_cols].values.ravel()
-
-    if np.std(exp_long) == 0 or np.std(sim_long) == 0:
-        raise ValueError("One of the aggregated vectors is constant → Pearson undefined.")
-    r, p = pearsonr(exp_long, sim_long)
+    r, p = pearsonr(exp_vals, sim_vals)
     return r, p
+
+def calculate_per_rxn_pearson(
+    validation_df: pd.DataFrame,
+    flux_df: pd.DataFrame,
+    rxns_to_validate: List[str],
+    substr_rxn: str,
+    substrate_sim: str = "substrate",
+) -> pd.DataFrame:
+    """
+    Returns a DataFrame:
+
+        reaction   r   p   n_obs
+    0   EX_glc__D_e 0.87 0.001  27
+    1   PGI         0.65 0.045  23
+    …
+
+    Only reactions that have at least two paired observations are kept.
+    """
+    merged = _align_frames(validation_df, flux_df, rxns_to_validate,
+                           substr_rxn, substrate_sim)
+
+    long_df = _longify(merged, rxns_to_validate)
+
+    results = []
+    for reaction, sub in long_df.groupby("reaction"):
+        if len(sub) < 2:                 # Pearson undefined for <2 points
+            continue
+        r, p = pearsonr(sub["exp"], sub["sim"])
+        results.append({"reaction": reaction, "r": r, "p": p, "n_obs": len(sub)})
+
+    return pd.DataFrame(results)

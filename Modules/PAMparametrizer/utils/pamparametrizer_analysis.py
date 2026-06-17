@@ -142,6 +142,8 @@ def _set_up_pamodel_for_simulations(pamodel:PAModel,
                                     substrate_id: str,
                                     sectors_config:Union[bool, Dict[str,SectorParameterDict]]
                                     )-> None:
+    if substrate_id != 'EX_glc__D_e' and 'EX_glc__D_e' in pamodel.reactions:
+        pamodel.change_reaction_bounds('EX_glc__D_e', 0, 1e3)
     if not isinstance(sectors_config, dict) and sectors_config:
         sectors_config = {sectorid:{'slope': pamodel.sectors.get_by_id(sectorid).slope/1e3,
                                 'intercept': pamodel.sectors.get_by_id(sectorid).intercept/1e3}
@@ -202,12 +204,13 @@ def save_proteins(pamodel:PAModel,
 
 def calculate_error_for_reactions(validation_df: pd.DataFrame,
                                    flux_df: pd.DataFrame,
-                                  rxns_to_validate: list) -> float:
+                                  rxns_to_validate: list) -> List[float]:
     # calculate error for different exchange rates
     error = []
     for rxn, substrate_id in zip(rxns_to_validate, flux_df.substrate_id):
         # only select the rows which are filled with data
         validation_data = validation_df.dropna(axis=0, subset=rxn)
+
         try: validation_data = validation_data.loc[substrate_id]
         except: pass
         # if there are no reference data points, continue to the next reaction
