@@ -15,13 +15,13 @@ from PAModelpy import PAModel
 from Modules.PAMparametrizer.utils.sector_config_functions import get_protein_sector_config
 from Modules.PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
 from Modules.PAMparametrizer.utils.pamparametrizer_visualization import RXN_NAME_MAPPER
-from Modules.PAMparametrizer.utils.error_calculation import calculate_r_squared_for_reaction,calulate_pearson_correlation_simulation_vs_experiment
+from Modules.PAMparametrizer.utils.error_calculation import calulate_pearson_correlation_simulation_vs_experiment
 
 from Figures.Scripts.Figure4_sensitivity_error import *
 from Scripts.pam_generation import setup_ecoli_pam as set_up_ecoli_pam_curated
 
 PARAM_FILE_OLD = os.path.join('Results', '1_preprocessing','proteinAllocationModel_iML1515_EnzymaticData_250912.xlsx')
-PARAM_FILE_PREPROC = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
+PARAM_FILE_PREPROC_7 = os.path.join('Results', '2_parametrization', 'proteinAllocationModel_iML1515_EnzymaticData_multi.xlsx')
 PARAM_FILE_PREPROC_6 = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi_6.xlsx')
 PARAM_FILE_PREPROC_8 = os.path.join('Results','2_parametrization','proteinAllocationModel_iML1515_EnzymaticData_multi_8.xlsx')
 RANDOM_PARAMETERS = [os.path.join(
@@ -45,7 +45,7 @@ def save_flux_predictions(model_files: List[str],
                           substrate_uptake_id: str='EX_glc__D_e',
                          simulated_fluxes_result_file: str = RESULT_FLUX_PATH,
                          ):
-    pam = set_up_pam(pam_info_file = PARAM_FILE_PREPROC, model = MODEL_FILE, sensitivity = False)
+    pam = set_up_pam(pam_info_file = PARAM_FILE_PREPROC_7, model = MODEL_FILE, sensitivity = False)
     models = [set_up_pam(pam_info_file = file, model = MODEL_FILE, sensitivity = False)
               if 'xml' not in file else read_sbml_model(file)
               for file in model_files
@@ -134,7 +134,7 @@ def perform_and_save_simulations(num_alternative_models: int,
                                      f'proteinAllocationModel_EnzymaticData_iML1515_{file_nmbr}.xlsx')]
 
     save_flux_predictions(model_files=[MODEL_FILE, PARAM_FILE_OLD, PARAM_FILE_PREPROC_6,
-                                      PARAM_FILE_PREPROC, PARAM_FILE_PREPROC_8
+                                       PARAM_FILE_PREPROC_7, PARAM_FILE_PREPROC_8
                                        ]+RANDOM_PARAMETERS,
                           substrate_uptake_rates=substrate_uptake_rates,
                           substrate_uptake_id=substrate_id,
@@ -225,8 +225,8 @@ def plot_exchange_fluxes_vs_experiments(all_fluxes: pd.DataFrame,
 
         return fig, axs
 
-def determine_coeff_of_corr_sim_vs_measurements(all_exp_data: pd.DataFrame,
-                                                all_fluxes: pd.DataFrame,):
+def determine_pearson_corr_sim_vs_measurements(all_exp_data: pd.DataFrame,
+                                               all_fluxes: pd.DataFrame, ):
     errors_for_models_rows = []
     rxns_to_validate_intracell = [rxn for rxn in list(all_exp_data.columns)
                             if not any([substr in rxn for substr in ['Yield', '_ub', '+', 'EX_lac_e', 'EX_', 'substrate','EX_glc__D']])
@@ -246,15 +246,7 @@ def determine_coeff_of_corr_sim_vs_measurements(all_exp_data: pd.DataFrame,
                        .sort_values(['substrate'])
                        )
         exp_data_csource = all_exp_data[all_exp_data['substrate_id'] == substrate_id].sort_values(substrate_id)
-        r_squared_intracell, rxns_intracell  = calculate_error_for_reactions(validation_df=exp_data_csource,
-                                                   flux_df=flux_df_wide,
-                                                             substrate_id=substrate_id,
-                                                   rxns_to_validate=[rxn for rxn in rxns_to_validate_intracell if rxn in flux_df_wide.columns],)
-        r_squared_extracell, rxns_extracell  = calculate_error_for_reactions(validation_df=exp_data_csource,
-                                                   flux_df=flux_df_wide,
-                                                             substrate_id=substrate_id,
-                                                   rxns_to_validate=[rxn for rxn in rxns_to_validate_extracell if rxn in flux_df_wide.columns],)
-        r_squared = r_squared_intracell + r_squared_extracell
+
         pearson_intra,pval_intra = calulate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data_csource,
                                                                               flux_df=flux_df_wide,
                                                                               rxns_to_validate=[rxn for rxn in rxns_to_validate_intracell if rxn in flux_df_wide.columns],
@@ -263,13 +255,8 @@ def determine_coeff_of_corr_sim_vs_measurements(all_exp_data: pd.DataFrame,
                                                                               flux_df=flux_df_wide,
                                                                               rxns_to_validate=[rxn for rxn in rxns_to_validate_extracell if rxn in flux_df_wide.columns],
                                                                               substr_rxn=substrate_id)
-        for i, rxn in enumerate(rxns_intracell+rxns_extracell):
-            errors_for_models_rows.append({'model': model,
+        errors_for_models_rows.append({'model': model,
                                            'substrate_id': substrate_id,
-                                           'rxn_id':rxn,
-                                           'r_squared': r_squared[i],
-                                           'mean_rsquared_intra': np.mean(r_squared_intracell),
-                                           'mean_rsquared_extra': np.mean(r_squared_extracell),
                                            'pearson_intra': pearson_intra,
                                            'pearson_extra': pearson_extra,
                                            'pval_intra': pval_intra,
@@ -277,31 +264,8 @@ def determine_coeff_of_corr_sim_vs_measurements(all_exp_data: pd.DataFrame,
                                            })
     return pd.DataFrame(errors_for_models_rows)
 
-def calculate_error_for_reactions(validation_df: pd.DataFrame,
-                                   flux_df: pd.DataFrame,
-                                  substrate_id: str,
-                                  rxns_to_validate: list) -> Tuple[List[float], List[str]]:
-    # calculate error for different exchange rates
-    error = []
-    rxns = []
-    for rxn in rxns_to_validate:
-        # only select the rows which are filled with data
-        validation_data = validation_df.dropna(axis=0, subset=rxn)
-        # if there are no reference data points, continue to the next reaction
-        if len(validation_data) == 0:
-            continue
-        rsquareds = []
-        for i, validation in validation_data.iterrows():
-            rate = validation[substrate_id]
 
-            r_squared = calculate_r_squared_for_reaction(rxn, validation_df, substrate_id,
-                                                               flux_df[flux_df.substrate == rate])
-            rsquareds.append(r_squared)
-        rxns += [rxn]
-        error += [np.mean(rsquareds)]
-    return error, rxns
-
-def get_fluxomics_data_multiple_csources():
+def get_fluxomics_data_multiple_csources(fluxomics_data_file: str):
 
     flux_csources = pd.read_excel(fluxomics_data_file,
                                   sheet_name='Fluxes_Csources',
@@ -344,12 +308,49 @@ def get_fluxomics_data_multiple_csources():
     validation_df.index = list(flux_mapper.values())
     return validation_df, substrate_ids, substrate_uptake, fluxes_to_save
 
+def perform_simulations_and_save_fluxes_to_excel(substrate_ids:List[str],
+                                                 substrate_uptake_rates : List[List[Union[float, int]]],
+                                                 rxns_to_save: pd.DataFrame,
+                                                 ):
+    for substrate, rates in zip(substrate_ids, substrate_uptake_rates):
+            perform_and_save_simulations(num_alternative_models=10,
+                                         substrate_uptake_rates=rates,
+                                         substrate_id=substrate,
+                                         rxns_to_save=rxns_to_save, )
+
+def print_pearson_correlation_table(simulated_fluxes: pd.DataFrame,
+                                    experimental_fluxes: pd.DataFrame,):
+    corr_coeff_df = determine_pearson_corr_sim_vs_measurements(experimental_fluxes, all_fluxes=simulated_fluxes)
+    corr_coeff_df_glc = corr_coeff_df[corr_coeff_df.substrate_id == 'EX_glc__D_e']
+    corr_coeff_df_other_csource = corr_coeff_df[corr_coeff_df.substrate_id != 'EX_glc__D_e']
+
+
+    for col in ['pearson_intra', 'pearson_extra']:
+        column = {}
+        for model, df in corr_coeff_df_other_csource.groupby('model'):
+            column[model] = df[col].mean()
+        corr_coeff_df_glc = pd.merge(corr_coeff_df_glc, pd.Series(column, name=col+'_csource').to_frame().reset_index(names = 'model'), on='model')
+
+    for csource in ['', '_csource']:
+        for type in ['pearson_intra', 'pearson_extra']:
+            ref_val = corr_coeff_df_glc.loc[
+                corr_coeff_df_glc["model"] == "GotEnzymes", f"{type}{csource}"
+            ].iloc[0]
+            corr_coeff_df_glc[f'diff_{type}{csource}'] = corr_coeff_df_glc[type] - ref_val
+    pd.set_option('display.float_format', '{:.2g}'.format)
+    print(corr_coeff_df_glc.drop_duplicates(['model', 'substrate_id'])[
+              ['model'] + [col for col in corr_coeff_df_glc.columns if ('diff_pearson' in col) or ('pval' in col)]
+          ].to_latex(index=False, na_rep='-')
+          )
+    print(corr_coeff_df_glc.drop_duplicates(['model', 'substrate_id'])[
+              ['model'] + [col for col in corr_coeff_df_glc.columns if col[:3] == 'pea']
+              ].to_latex(index=False, na_rep='-')
+          )
+
+
 if __name__ == '__main__':
-    mfa_data = pd.read_excel(MFA_DATA_FILE_PATH)
-    mfa_data_glc = (mfa_data[mfa_data.condition == 'Glucose'][['reaction', 'measured', 'condition']]
-                    .pivot(columns=['reaction'], values='measured', index='condition')
-                    .reset_index(drop=True))
     fluxomics_data_file = os.path.join('Data', 'Ecoli_phenotypes', 'Ecoli_phenotypes_py.xls')
+    #all experimental data for growth on glucose
     flux_data_glc = get_fluxomics_data(fluxomics_data_file)
     rxns_to_save_glc, valid_df_glucose = get_reactions_to_save(flux_data_glc)
     valid_df_glucose['EX_glc__D_e'] = -valid_df_glucose['EX_glc__D_e']
@@ -358,54 +359,27 @@ if __name__ == '__main__':
     exchange_fluxes = exchange_fluxes[exchange_fluxes.Strain == 'MG1655'][[col for col in exchange_fluxes.columns
                                                                            if not any([substr in col for substr in ['Yield', 'Strain', 'Reference']])]]
     rxns_to_save_glc += [col for col in exchange_fluxes.columns if col not in rxns_to_save_glc]
-
     all_exp_data_glc = pd.concat([valid_df_glucose, exchange_fluxes], ignore_index=True).assign(substrate_id = 'EX_glc__D_e')
-
     substrate_uptake_rates_glc = list(all_exp_data_glc['EX_glc__D_e'].dropna().drop_duplicates())
 
-    valid_df_other_csources, substrate_ids, substrate_uptake_rates_csource, fluxes_to_save_csources = get_fluxomics_data_multiple_csources()
-    # for substrate, rate in zip(substrate_ids, substrate_uptake_rates_csource):
-    #     perform_and_save_simulations(num_alternative_models=10,
-    #                                       substrate_uptake_rates=[rate],
-    #                                       substrate_id=substrate,
-    #                                       rxns_to_save=fluxes_to_save_csources,)
-    #
-    #
-    perform_and_save_simulations(num_alternative_models=10,
-                                              substrate_uptake_rates=substrate_uptake_rates_glc,
-                                              rxns_to_save=rxns_to_save_glc,)
+    #all experimental data for growth on various carbon sources from Gerosa et al. 2015
+    valid_df_other_csources, substrate_ids, substrate_uptake_rates_csource, fluxes_to_save_csources = get_fluxomics_data_multiple_csources(fluxomics_data_file)
+
+    # perform_simulations_and_save_fluxes_to_excel(substrate_ids = substrate_ids,
+    #                                              substrate_uptake_rates = [[rate] for rate in substrate_uptake_rates_csource],
+    #                                              rxns_to_save = fluxes_to_save_csources,)
+    # perform_simulations_and_save_fluxes_to_excel(substrate_ids = ['EX_glc__D_e'],
+    #                                              substrate_uptake_rates=substrate_uptake_rates_glc,
+    #                                              rxns_to_save = rxns_to_save_glc)
     #
     simulated_fluxes = pd.read_excel(RESULT_FLUX_PATH, sheet_name=None)
     all_fluxes = pd.concat([fluxes.assign(substrate_id=substrate) for substrate, fluxes in simulated_fluxes.items()], ignore_index=True)
     all_fluxes = all_fluxes.melt(id_vars=['substrate_id', 'substrate', 'model'], var_name='rxn_id', value_name='flux')
     all_exp_data = pd.concat([all_exp_data_glc, valid_df_other_csources.reset_index(names = 'substrate_id')], ignore_index=True)
 
-    # corr_coeff_df = determine_coeff_of_corr_sim_vs_measurements(all_exp_data, all_fluxes=all_fluxes)
-    # corr_coeff_df_glc = corr_coeff_df[corr_coeff_df.substrate_id == 'EX_glc__D_e']
-    # corr_coeff_df_other_csource = corr_coeff_df[corr_coeff_df.substrate_id != 'EX_glc__D_e']
-    #
-    #
-    # for col in ['pearson_intra', 'pearson_extra']:
-    #     column = {}
-    #     for model, df in corr_coeff_df_other_csource.groupby('model'):
-    #         column[model] = df[col].mean()
-    #     corr_coeff_df_glc = pd.merge(corr_coeff_df_glc, pd.Series(column, name=col+'_csource').to_frame().reset_index(names = 'model'), on='model')
-    #
-    # for csource in ['', '_csource']:
-    #     for type in ['pearson_intra', 'pearson_extra']:
-    #         ref_val = corr_coeff_df_glc.loc[
-    #             corr_coeff_df_glc["model"] == "GotEnzymes", f"{type}{csource}"
-    #         ].iloc[0]
-    #         corr_coeff_df_glc[f'diff_{type}{csource}'] = corr_coeff_df_glc[type] - ref_val
-    # pd.set_option('display.float_format', '{:.2g}'.format)
-    # print(corr_coeff_df_glc.drop_duplicates(['model', 'substrate_id'])[
-    #           ['model'] + [col for col in corr_coeff_df_glc.columns if ('diff_pearson' in col) or ('pval' in col)]
-    #       ].to_latex(index=False, na_rep='-')
-    #       )
-    # print(corr_coeff_df_glc.drop_duplicates(['model', 'substrate_id'])[
-    #           ['model'] + [col for col in corr_coeff_df_glc.columns if col[:3] == 'pea']
-    #           ].to_latex(index=False, na_rep='-')
-    #       )
+    print_pearson_correlation_table(simulated_fluxes = all_fluxes,
+                                    experimental_fluxes=all_exp_data,
+                                    )
 
     fig, axs = plot_exchange_fluxes_vs_experiments(all_fluxes=all_fluxes[all_fluxes.substrate_id == 'EX_glc__D_e'],
                                                    exchange_fluxes=exchange_fluxes,
@@ -413,23 +387,5 @@ if __name__ == '__main__':
     # plt.show()
     plt.savefig('Figures/SuppFig_ablation_analysis.png')
 
-    # all_alternative_ids = [f'alternative {i}' for i in range(1,11)]
-    #
-    # cmap = {
-    #     **{'iML1515': 'black', 'GotEnzymes': 'grey', 'Randomized': 'midnightblue'},
-    #     **{f'Scaled {i}x': color for i, color in zip(list(range(6, 9)), sns.color_palette('plasma', n_colors=3))},
-    #     **{alt: 'lightblue' for alt in all_alternative_ids},
-    #     **{f'Randomized {i + 1}': 'lightcoral' for i in range(3)}, }
-    #
-    # fig, ax = plt.subplots()
-    # for model, corr_df in corr_coeff_df.groupby('model'):
-    #     if  not any ([substr in model for substr in ['alternative', 'Scaled']]): continue
-    #     ax.scatter(corr_df['mean_rsquared_intra'], corr_df['mean_rsquared_extra'],
-    #                color = cmap[model])
-    #
-    # ax.set_xlabel(r'R$^2$ intracellular fluxes')
-    # ax.set_ylabel('R$^2$ extracellular fluxes')
-    # plt.show()
-    #
 
 

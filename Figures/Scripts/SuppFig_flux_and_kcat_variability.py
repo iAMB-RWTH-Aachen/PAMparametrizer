@@ -396,12 +396,11 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
     df_boxplot = df_boxplot.loc[cog_to_plot].reset_index()
 
     plt.rcParams.update({'font.size': 11})
-    fig = plt.figure(figsize=(21 / 2.54, 30 / 2.54))
-    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1.5], hspace=0.85)
+    fig = plt.figure(figsize=(21 / 2.54, 25 / 2.54))
+    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1.5], hspace=1.1)
 
     colors_flux_kcat = sns.color_palette("colorblind", n_colors=len(perc_flux_kcat.columns))
     colors_protein_kcat = sns.color_palette("Set2", n_colors=len(perc_flux_kcat.columns))
-    print(colors_protein_kcat[1])
 
     color_map = {**{'flux': 'darkgrey', 'protein': 'slategrey'},
                  **{l: c for l, c in
@@ -467,7 +466,7 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
         if stat_col == 'protein': ax2.spines['right'].set_position(('outward', 60))
 
     ax.grid(visible=True, alpha=0.2, linewidth=0.7)
-    ax.set_ylabel('Percentage of flux-carrying enzymes')
+    ax.set_ylabel('Percentage of \nflux-carrying enzymes')
     ax.set_xticks(x_pos)
     ax.set_xticklabels([COG_MAPPER[c] for c in cog_to_plot], rotation=45, ha='right',)
 
@@ -483,7 +482,7 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
     handles += [Line2D([],[], color = 'white')]*2
     labels += ['', '']
 
-    ax.legend(handles, labels, bbox_to_anchor=(0.5, -0.97), loc='lower center', borderaxespad=0., ncols=3)
+    ax.legend(handles, labels, bbox_to_anchor=(0.5, -1.3), loc='lower center', borderaxespad=0., ncols=3)
     gs_violin = gridspec.GridSpecFromSubplotSpec(3,1,subplot_spec=gs[1], hspace=0)
     color_map = {'kcat': 'purple', 'flux': 'blue', 'protein': 'red'}
     data_per_cog = {}
@@ -520,13 +519,14 @@ def create_barplot_classified_enzymes_and_flux_mean(df_flux,
     axs[-1].set_xticklabels([COG_MAPPER[c] for c in cog_to_plot], rotation=45, ha='right', )
 
     for ax, annotation in zip([fig.axes[0], fig.axes[3]], ['A', 'B']):
-        ax.annotate(annotation, xy=(-0.1, 0.95), xycoords="axes fraction",
+        xy= (-0.1, 0.9) if annotation == 'A' else (-0.1,1.7)
+        ax.annotate(annotation, xy=xy, xycoords="axes fraction",
                     fontsize=16, fontweight='bold',
                     xytext=(-6, 4.5), textcoords="offset points",
                     ha="right", va="bottom")
 
     plt.tight_layout()
-    plt.subplots_adjust(top=0.95, bottom=0.15)
+    plt.subplots_adjust(top=0.97, bottom=0.17)
     plt.savefig('Figures/SuppFig_flux_and_kcat_variability.png')
 
 
