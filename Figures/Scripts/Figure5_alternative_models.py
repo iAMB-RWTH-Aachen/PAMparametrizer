@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from cobra.io import read_sbml_model
 
 from Modules.PAMparametrizer.utils.pam_generation import setup_cglutamicum_pam, setup_pputida_pam
-from Modules.PAMparametrizer.utils.pamparametrizer_analysis import calulate_pearson_correlation_simulation_vs_experiment
+from Modules.PAMparametrizer.utils.error_calculation import calculate_pearson_correlation_simulation_vs_experiment
 from PAModelpy import PAModel
 from Figures.Scripts.Figure1_iml1515_kcat_analysis import recreate_progress_plot
 from Scripts.i2_parametrization.pam_parametrizer_iCGB21FR import set_up_validation_data as refdata_setup_icgb21fr
@@ -66,6 +66,7 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
         flux = []
         flux_df_entries =[]
         for rate in exp_data[sub_uptake]:
+            rate = rate if rate<0 else -rate
             if isinstance(model, PAModel):
                 model.change_reaction_bounds(sub_uptake, rate, 0)
             else:
@@ -80,7 +81,7 @@ def plot_simulations_vs_experiments(pamodel: 'PAModel',
                         **fluxes
                 })
         flux_df = pd.DataFrame(flux_df_entries, columns=flux_df_entries[0].keys())
-        corr, p_corr = calulate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data,
+        corr, p_corr = calculate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data,
                                                                              flux_df = flux_df,
                                                                              rxns_to_validate =to_plot,
                                                                              substr_rxn=sub_uptake,
@@ -197,7 +198,8 @@ def main():
 
     # plt.tight_layout()
     fig.tight_layout()
-    fig.savefig(os.path.join('Figures', 'Figure5_cglutamicum_pputida.png'))
+    fig.savefig(os.path.join('Figures', 'Figure5_cglutamicum_pputida.svg'),
+                format = 'svg', dpi=500)
 
 if __name__ == '__main__':
     main()

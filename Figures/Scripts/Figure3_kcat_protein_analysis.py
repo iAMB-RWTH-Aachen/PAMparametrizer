@@ -710,7 +710,8 @@ def main():
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
     fig.tight_layout()
-    fig.savefig(os.path.join('Figures', 'Figure3_parametrization_results_analysis.png'))
+    fig.savefig(os.path.join('Figures', 'Figure3_parametrization_results_analysis.svg'),
+                format = 'svg', dpi=500)
 
 if __name__ == '__main__':
     REF_PROTEOMICS_FILE = os.path.join('Data', 'Ecoli_phenotypes', 'proteome_data_extract_schmidt2016.xlsx')

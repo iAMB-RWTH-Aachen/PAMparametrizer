@@ -8,7 +8,7 @@ import seaborn as sns
 
 from Scripts.i3_analysis.PAMparametrizer_compare_alternative_solutions import set_up_ecoli_pam_parametrizer_and_get_substrate_uptake_rates
 
-from PAMparametrizer.utils.error_calculation import nanaverage, calculate_smape_for_reaction, calulate_pearson_correlation_simulation_vs_experiment
+from PAMparametrizer.utils.error_calculation import nanaverage, calculate_smape_for_reaction, calculate_pearson_correlation_simulation_vs_experiment
 from PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
 from matplotlib.pyplot import savefig
 
@@ -19,7 +19,7 @@ METRICS_MAPPER = {'rsquared': r'$R^{2}$',
                   'pearsonr': 'Pearson Correlation Coefficient', }
 
 RXN_MAPPER = {'BIOMASS_Ec_iML1515_core_75p37M': 'Growth rate',
-              'EX_co2_e': r'CO$_{2}$ evolution',
+              'EX_co2_e': r'CO$_{2}$ release',
               'EX_o2_e': 'O$_{2}$ uptake',
               'EX_ac_e': 'Acetate secretion',
               'mean': 'mean'}
@@ -91,7 +91,7 @@ def get_pearsonr_for_parametrization_experiment(parametrizer) -> dict[str, float
         reactions_to_validate = valid_data._reactions_to_validate
         validation_df = parametrizer._get_validation_data_to_validate(valid_data)
         flux_df = parametrizer.parametrization_results.flux_results.get_by_id(substrate_uptake_id).fluxes_df
-        error = {**{f'{rxn}_{substrate_uptake_id}': calulate_pearson_correlation_simulation_vs_experiment(
+        error = {**{f'{rxn}_{substrate_uptake_id}': calculate_pearson_correlation_simulation_vs_experiment(
             validation_df = validation_df.dropna(),
             flux_df=flux_df.dropna(),
             rxns_to_validate=[rxn],

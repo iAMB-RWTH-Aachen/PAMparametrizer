@@ -15,7 +15,7 @@ from PAModelpy import PAModel
 from Modules.PAMparametrizer.utils.sector_config_functions import get_protein_sector_config
 from Modules.PAMparametrizer.utils.pam_generation import create_pamodel_from_diagnostics_file
 from Modules.PAMparametrizer.utils.pamparametrizer_visualization import RXN_NAME_MAPPER
-from Modules.PAMparametrizer.utils.error_calculation import calculate_r_squared_for_reaction,calulate_pearson_correlation_simulation_vs_experiment
+from Modules.PAMparametrizer.utils.error_calculation import calculate_r_squared_for_reaction,calculate_pearson_correlation_simulation_vs_experiment
 
 from Figures.Scripts.Figure4_sensitivity_error import *
 from Scripts.pam_generation import setup_ecoli_pam as set_up_ecoli_pam_curated
@@ -255,14 +255,14 @@ def determine_coeff_of_corr_sim_vs_measurements(all_exp_data: pd.DataFrame,
                                                              substrate_id=substrate_id,
                                                    rxns_to_validate=[rxn for rxn in rxns_to_validate_extracell if rxn in flux_df_wide.columns],)
         r_squared = r_squared_intracell + r_squared_extracell
-        pearson_intra,pval_intra = calulate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data_csource,
-                                                                              flux_df=flux_df_wide,
-                                                                              rxns_to_validate=[rxn for rxn in rxns_to_validate_intracell if rxn in flux_df_wide.columns],
-                                                                              substr_rxn=substrate_id)
-        pearson_extra,pval_extra = calulate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data_csource,
-                                                                              flux_df=flux_df_wide,
-                                                                              rxns_to_validate=[rxn for rxn in rxns_to_validate_extracell if rxn in flux_df_wide.columns],
-                                                                              substr_rxn=substrate_id)
+        pearson_intra,pval_intra = calculate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data_csource,
+                                                                                          flux_df=flux_df_wide,
+                                                                                          rxns_to_validate=[rxn for rxn in rxns_to_validate_intracell if rxn in flux_df_wide.columns],
+                                                                                          substr_rxn=substrate_id)
+        pearson_extra,pval_extra = calculate_pearson_correlation_simulation_vs_experiment(validation_df=exp_data_csource,
+                                                                                          flux_df=flux_df_wide,
+                                                                                          rxns_to_validate=[rxn for rxn in rxns_to_validate_extracell if rxn in flux_df_wide.columns],
+                                                                                          substr_rxn=substrate_id)
         for i, rxn in enumerate(rxns_intracell+rxns_extracell):
             errors_for_models_rows.append({'model': model,
                                            'substrate_id': substrate_id,

@@ -200,7 +200,8 @@ def main():
                     xytext=(-5, 5), textcoords="offset points",
                     ha="right", va="bottom")
     fig.tight_layout()
-    fig.savefig(os.path.join('Figures', 'Figure2_parametrization_results_flux_analysis.png'))
+    fig.savefig(os.path.join('Figures', 'Figure2_parametrization_results_flux_analysis.svg'),
+                format='svg', dpi=500)
 
 if __name__ == '__main__':
     main()

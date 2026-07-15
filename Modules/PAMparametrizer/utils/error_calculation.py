@@ -159,7 +159,7 @@ def _longify(merged: pd.DataFrame, rxns: List[str]) -> pd.DataFrame:
 
     return pd.concat(df_long, ignore_index=True)
 
-def calulate_pearson_correlation_simulation_vs_experiment(
+def calculate_pearson_correlation_simulation_vs_experiment(
     validation_df: pd.DataFrame,
     flux_df: pd.DataFrame,
     rxns_to_validate: List[str],
