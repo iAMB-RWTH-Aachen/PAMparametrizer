@@ -463,6 +463,7 @@ class PAMParametrizer():
                - Optimization is performed using `scipy.optimize.minimize_scalar`
                  with bounded constraints.
                - Results are cached per rounded intercept value to improve efficiency.
+               - If the y-intercept is zero, skips optimization.
            """
 
         cache = {}
@@ -501,6 +502,7 @@ class PAMParametrizer():
                 return float('inf')  # penalize failure
 
         if not sector_id in vd.sector_configs: return
+        if any([param == 0 for param in sector_params.values()]): return sector_params
 
         sector_params = vd.sector_configs[sector_id].copy()
         y0 = sector_params['intercept'] / sector_params['slope']
