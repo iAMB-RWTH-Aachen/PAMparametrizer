@@ -502,9 +502,9 @@ class PAMParametrizer():
                 return float('inf')  # penalize failure
 
         if not sector_id in vd.sector_configs: return
-        if any([param == 0 for param in sector_params.values()]): return sector_params
 
         sector_params = vd.sector_configs[sector_id].copy()
+        if any([param == 0 for param in sector_params.values()]): return sector_params
         y0 = sector_params['intercept'] / sector_params['slope']
         minimal_intercept = self.minimal_unused_enzymes * self._pamodel.total_protein_fraction
         res = minimize_scalar(
